@@ -3,10 +3,10 @@ from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-
 from src.policy.policy import Policy
 from src.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
 
@@ -129,6 +129,10 @@ class DeadLockAvoidancePolicy(Policy):
         pass
 
     def act(self, handle, state, eps=0.):
+        self.env = state
+        if handle == 0:
+            self.start_step(None)
+
         # Epsilon-greedy action selection
         if self.enable_eps:
             if np.random.random() < eps:
