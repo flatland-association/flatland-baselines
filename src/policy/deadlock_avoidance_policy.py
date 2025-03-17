@@ -110,7 +110,9 @@ class DeadLockAvoidancePolicy(Policy):
                  action_size: int = 5,
                  min_free_cell: int = 1,
                  enable_eps=False,
-                 show_debug_plot=False):
+                 show_debug_plot=False,
+                 env=None
+                 ):
         super(Policy, self).__init__()
         self.env: RailEnv = None
         self.loss = 0
@@ -121,6 +123,7 @@ class DeadLockAvoidancePolicy(Policy):
         self.shortest_distance_walker: Union[DeadlockAvoidanceShortestDistanceWalker, None] = None
         self.min_free_cell = min_free_cell
         self.agent_positions = None
+        self.env=env
 
     def get_name(self):
         return self.__class__.__name__
@@ -129,7 +132,7 @@ class DeadLockAvoidancePolicy(Policy):
         pass
 
     def act(self, handle, state, eps=0.):
-        self.env = state
+        # self.env = state
         if handle == 0:
             self.start_step(None)
 
