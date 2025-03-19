@@ -1,10 +1,10 @@
 from flatland.envs.rail_env import RailEnv
 from flatland.evaluators.client import FlatlandRemoteClient
 
-from src.observation.dummy_observation import FlatlandDummyObservation
-from src.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
-from src.policy.random_policy import RandomPolicy
-from src.utils.progress_bar import ProgressBar
+from flatland_benchmarks_f3_deadlock_avoidance_baseline.observation.dummy_observation import FlatlandDummyObservation
+from flatland_benchmarks_f3_deadlock_avoidance_baseline.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
+from flatland_benchmarks_f3_deadlock_avoidance_baseline.policy.random_policy import RandomPolicy
+from flatland_benchmarks_f3_deadlock_avoidance_baseline.utils.progress_bar import ProgressBar
 
 remote_client = FlatlandRemoteClient()
 

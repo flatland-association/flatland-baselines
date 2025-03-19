@@ -17,9 +17,9 @@ This starterkit features a shortest path deadlock avoidance agent [run_solution.
 Run solution with debug environments:
 
 ```shell
-docker compose  -f demo/docker-compose.yml up
+docker compose  -f demo/docker-compose.yml up --force-recreate --build 
 ```
-
+ 
 Output:
 
 ```text

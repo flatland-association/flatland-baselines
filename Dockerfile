@@ -22,7 +22,7 @@ RUN conda --version  && \
     python -c 'from flatland.evaluators.client import FlatlandRemoteClient'
 
 COPY run.sh ./
-COPY src/ ./src
+COPY flatland_benchmarks_f3_deadlock_avoidance_baseline/ ./flatland_benchmarks_f3_deadlock_avoidance_baseline
 COPY run_solution.py ./
 
 ENTRYPOINT bash run.sh
