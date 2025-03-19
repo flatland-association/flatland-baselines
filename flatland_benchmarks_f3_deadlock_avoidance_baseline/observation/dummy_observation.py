@@ -1,6 +1,7 @@
 from typing import Optional, List
 
 import numpy as np
+
 from flatland.core.env_observation_builder import DummyObservationBuilder
 
 

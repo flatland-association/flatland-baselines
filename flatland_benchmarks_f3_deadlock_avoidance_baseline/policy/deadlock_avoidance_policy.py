@@ -4,10 +4,10 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 
+from flatland.core.policy import Policy
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-from flatland.core.policy import Policy
 from flatland_benchmarks_f3_deadlock_avoidance_baseline.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
 
 # activate LRU caching
@@ -96,15 +96,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         return True
 
 
-# define Python user-defined exceptions
-class InvalidRawEnvironmentException(Exception):
-    def __init__(self, env, message="This policy works only with a RailEnv or its specialized version. "
-                                    "Please check the raw_env . "):
-        self.env = env
-        self.message = message
-        super().__init__(self.message)
-
-
 class DeadLockAvoidancePolicy(Policy):
     def __init__(self,
                  action_size: int = 5,
@@ -123,8 +114,7 @@ class DeadLockAvoidancePolicy(Policy):
         self.shortest_distance_walker: Union[DeadlockAvoidanceShortestDistanceWalker, None] = None
         self.min_free_cell = min_free_cell
         self.agent_positions = None
-        self.env=env
-
+        self.env = env
 
     def act(self, handle, state, eps=0.):
         # self.env = state

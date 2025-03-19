@@ -2,7 +2,7 @@
 
 🚂 This repo is a heuristic baseline for the Flatland 3 Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud).
 
-👏Thanks to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for 
+👏Thanks to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for
 
 📊 [Flatland Benchmarks](https://github.com/flatland-association/flatland-benchmarks) (FAB) is an open-source web-based platform for running Benchmarks to foster
 Open Research.
@@ -21,7 +21,7 @@ Run solution with debug environments:
 ```shell
 docker compose  -f demo/docker-compose.yml up --force-recreate --build 
 ```
- 
+
 Output:
 
 ```text
