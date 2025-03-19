@@ -7,7 +7,7 @@ import numpy as np
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-from flatland_benchmarks_f3_deadlock_avoidance_baseline.policy.policy import Policy
+from flatland.core.policy import Policy
 from flatland_benchmarks_f3_deadlock_avoidance_baseline.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
 
 # activate LRU caching
@@ -125,16 +125,11 @@ class DeadLockAvoidancePolicy(Policy):
         self.agent_positions = None
         self.env=env
 
-    def get_name(self):
-        return self.__class__.__name__
-
-    def step(self, handle, state, action, reward, next_state, done):
-        pass
 
     def act(self, handle, state, eps=0.):
         # self.env = state
         if handle == 0:
-            self.start_step(None)
+            self.start_step()
 
         # Epsilon-greedy action selection
         if self.enable_eps:
@@ -148,15 +143,7 @@ class DeadLockAvoidancePolicy(Policy):
             act = check[3]
         return act
 
-    def reset(self, env: RailEnv):
-        self.env = env
-        if self.shortest_distance_walker is not None:
-            self.shortest_distance_walker.reset(self.env)
-        self.shortest_distance_walker = None
-        self.agent_positions = None
-        self.shortest_distance_walker = None
-
-    def start_step(self, train):
+    def start_step(self):
         self._build_agent_position_map()
         self._shortest_distance_mapper()
         self._extract_agent_can_move()
