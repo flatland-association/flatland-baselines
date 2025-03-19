@@ -1,16 +1,18 @@
 # Flatland Benchmarks Flatland 3 Deadlock Avoidance Baseline
 
-This repo is a heuristic baseline for the Flatland 3 Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud).
+🚂 This repo is a heuristic baseline for the Flatland 3 Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud).
 
-[Flatland Benchmarks](https://github.com/flatland-association/flatland-benchmarks) (FAB) is an open-source web-based platform for running Benchmarks to foster
+👏Thanks to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for 
+
+📊 [Flatland Benchmarks](https://github.com/flatland-association/flatland-benchmarks) (FAB) is an open-source web-based platform for running Benchmarks to foster
 Open Research.
 
-Flatland 3 Benchmarks follow up on the [Flatland 3 Challenge](https://flatland-association.github.io/flatland-book/challenges/flatland3.html).
+🏆 Flatland 3 Benchmarks follow up on the [Flatland 3 Challenge](https://flatland-association.github.io/flatland-book/challenges/flatland3.html).
 More precisely, Flatland 3 Benchmarks follow Flatland 3 Challenge's
 [Round 2 Environment Configurations](https://flatland-association.github.io/flatland-book/challenges/flatland3/envconfig.html#round-2), having the same
 environment configuration but generated with different seeds.
 
-This starterkit features a shortest path deadlock avoidance agent [run_solution.py](run_solution.py)
+🧲This starterkit features a shortest path deadlock avoidance agent [run_solution.py](run_solution.py)
 
 ## TL;DR;
 
