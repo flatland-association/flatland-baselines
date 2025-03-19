@@ -1,6 +1,6 @@
 import numpy as np
 
-from flatland_benchmarks_f3_deadlock_avoidance_baseline.policy.policy import Policy
+from flatland.core.policy import Policy
 
 
 class RandomPolicy(Policy):
@@ -9,17 +9,5 @@ class RandomPolicy(Policy):
         super(RandomPolicy, self).__init__()
         self.action_size = action_size
 
-    def get_name(self):
-        return self.__class__.__name__
-
-    def save(self, filename):
-        pass
-
-    def load(self, filename):
-        pass
-
     def act(self, handle: int, state, eps=0.):
         return np.random.choice(self.action_size)
-
-    def step(self, handle: int, state, action, reward, next_state, done):
-        pass

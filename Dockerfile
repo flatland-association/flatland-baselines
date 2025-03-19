@@ -25,4 +25,9 @@ COPY run.sh ./
 COPY flatland_benchmarks_f3_deadlock_avoidance_baseline/ ./flatland_benchmarks_f3_deadlock_avoidance_baseline
 COPY run_solution.py ./
 
+# / temporary workaround, waiting for 4.0.6
+RUN git clone https://github.com/flatland-association/flatland-rl.git /home/conda/flatland-rl
+ENV PYTHONPATH=/home/conda/flatland-rl
+# \
+
 ENTRYPOINT bash run.sh
