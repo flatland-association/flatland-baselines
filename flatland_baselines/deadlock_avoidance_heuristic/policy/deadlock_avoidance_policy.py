@@ -8,7 +8,7 @@ from flatland.core.policy import Policy
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-from flatland_benchmarks_f3_deadlock_avoidance_baseline.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
+from flatland_baselines.deadlock_avoidance_heuristic.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []

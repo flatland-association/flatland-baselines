@@ -9,6 +9,7 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN useradd conda --home-dir /home/conda --create-home
 RUN chown -R conda /opt/conda
 USER conda
+WORKDIR /home/conda
 
 # setup flatland-rl conda env
 COPY environment.yml ./
@@ -21,13 +22,14 @@ RUN conda --version  && \
     conda activate flatland-rl && \
     python -c 'from flatland.evaluators.client import FlatlandRemoteClient'
 
+RUN mkdir -p flatland_baselines/deadlock_avoidance_heuristic
 COPY run.sh ./
-COPY flatland_benchmarks_f3_deadlock_avoidance_baseline/ ./flatland_benchmarks_f3_deadlock_avoidance_baseline
+COPY flatland_baselines/deadlock_avoidance_heuristic/ ./flatland_baselines/deadlock_avoidance_heuristic
 COPY run_solution.py ./
 
-# / temporary workaround, waiting for 4.0.6
-RUN git clone https://github.com/flatland-association/flatland-rl.git /home/conda/flatland-rl
-ENV PYTHONPATH=/home/conda/flatland-rl
+# / temporary workaround, waiting for 4.0.6 for Policy interface
+RUN git clone https://github.com/flatland-association/flatland-rl.git
+ENV PYTHONPATH /home/conda/flatland-rl
 # \
 
 ENTRYPOINT bash run.sh
