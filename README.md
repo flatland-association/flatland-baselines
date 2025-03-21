@@ -1,6 +1,6 @@
 # Flatland Baselines
 
-🚂 This repo provides baseline for the Flatland 3 Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud).
+🚂 This repo provides baselines for the Flatland Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud) and the scenarios in the Flatland scenario repository [flatland-scenarios](https://github.com/flatland-association/flatland-scenarios).
 
 📊 [Flatland Benchmarks](https://github.com/flatland-association/flatland-benchmarks) (FAB) is an open-source web-based platform for running Benchmarks to foster
 Open Research.
