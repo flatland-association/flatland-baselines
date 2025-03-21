@@ -32,4 +32,4 @@ RUN git clone https://github.com/flatland-association/flatland-rl.git
 ENV PYTHONPATH /home/conda/flatland-rl
 # \
 
-ENTRYPOINT bash run.sh
+ENTRYPOINT ["bash", "run.sh"]
