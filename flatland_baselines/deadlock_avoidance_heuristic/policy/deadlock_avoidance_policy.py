@@ -4,10 +4,10 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 
+from flatland.core.policy import Policy
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.policy.policy import Policy
 from flatland_baselines.deadlock_avoidance_heuristic.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
 
 # activate LRU caching
@@ -134,7 +134,7 @@ class DeadLockAvoidancePolicy(Policy):
             act = check[3]
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
         # submission-1      | TypeError: can not serialize 'RailEnvActions' object
-        #if isinstance(act, RailEnvActions):
+        # if isinstance(act, RailEnvActions):
         #    act = act.value
         return act
 
