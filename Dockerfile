@@ -27,9 +27,4 @@ COPY run.sh ./
 COPY flatland_baselines/deadlock_avoidance_heuristic/ ./flatland_baselines/deadlock_avoidance_heuristic
 COPY run_solution.py ./
 
-# / temporary workaround, waiting for 4.0.6 for Policy interface
-RUN git clone https://github.com/flatland-association/flatland-rl.git
-ENV PYTHONPATH /home/conda/flatland-rl
-# \
-
 ENTRYPOINT ["bash", "run.sh"]
