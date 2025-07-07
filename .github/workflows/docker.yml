@@ -20,7 +20,7 @@ jobs:
       packages: write
     steps:
       - name: Evaluate tag
-      - run: |
+        run: |
           echo "TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
       - uses: actions/checkout@v4
       - name: Set up QEMU
