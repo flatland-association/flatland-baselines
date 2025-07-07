@@ -27,4 +27,7 @@ COPY run.sh ./
 COPY flatland_baselines/deadlock_avoidance_heuristic/ ./flatland_baselines/deadlock_avoidance_heuristic
 COPY run_solution.py ./
 
+# fail fast test
+RUN flatland-trajectory-generate-from-policy --help
+
 ENTRYPOINT ["bash", "run.sh"]
