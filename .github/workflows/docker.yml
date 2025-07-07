@@ -1,11 +1,16 @@
-name: Build FAB Flatland 3 Starterkit Docker Image and upload to ghcr.io
+name: Build FAB Flatland Baselines Docker Image and upload to ghcr.io
 
 on:
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       tag:
         description: 'Image Tag'
         required: true
+  # Scheduled workflows will only run on the default branch.
+  schedule:
+    - cron: '30 5 * * *'
 
 jobs:
   build-flatland-submission-template:
@@ -14,6 +19,9 @@ jobs:
     permissions:
       packages: write
     steps:
+      - name: Evaluate tag
+        run: |
+          echo "TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
       - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -27,7 +35,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Convert to github_repo_name and tag string to lowercase
         id: convert2lowercase
-        run: INPUT=${{ github.repository }}:${{ github.event.inputs.tag }}; echo "REPO_TAG_LOWERCASE=${INPUT,,}">>${GITHUB_OUTPUT}
+        run: INPUT=${{ github.repository }}:${{ env.TAG }}; echo "REPO_TAG_LOWERCASE=${INPUT,,}">>${GITHUB_OUTPUT}
       - run: echo ${{steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE}}
       - name: Build and Push Container Image
         uses: docker/build-push-action@v6
