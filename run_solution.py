@@ -4,8 +4,7 @@ from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observ
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
 from flatland_baselines.deadlock_avoidance_heuristic.utils.progress_bar import ProgressBar
 
-# temporarily use pickle because of fastenum failing with msgpack: https://github.com/flatland-association/flatland-rl/pull/214/files
-remote_client = FlatlandRemoteClient(use_pickle=True)
+remote_client = FlatlandRemoteClient()
 
 
 def main():
