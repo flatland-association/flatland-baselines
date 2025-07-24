@@ -1,10 +1,11 @@
 from functools import lru_cache
-from typing import Union
+from typing import Union, List, Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from flatland.core.policy import Policy
+from flatland.envs.RailEnvPolicy import RailEnvPolicy
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
@@ -96,7 +97,7 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         return True
 
 
-class DeadLockAvoidancePolicy(Policy):
+class DeadLockAvoidancePolicy(RailEnvPolicy):
     def __init__(self,
                  action_size: int = 5,
                  min_free_cell: int = 1,
@@ -116,11 +117,14 @@ class DeadLockAvoidancePolicy(Policy):
         self.agent_positions = None
         self.env = env
 
-    def act(self, handle, state, eps=0.):
-        if isinstance(state, RailEnv):
-            self.env = state
-        if handle == 0:
-            self.start_step()
+    def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
+        if isinstance(observations[0], RailEnv):
+            self.env = observations[0]
+        self.start_step()
+        return {handle: self._act(handle, observations[handle]) for handle in handles}
+
+    def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
+
 
         # Epsilon-greedy action selection
         if self.enable_eps:
