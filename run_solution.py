@@ -7,7 +7,7 @@ from flatland_baselines.deadlock_avoidance_heuristic.utils.progress_bar import P
 remote_client = FlatlandRemoteClient()
 
 
-def main():
+def main(debug: bool = True):
     episode = 0
 
     while True:
@@ -40,24 +40,19 @@ def main():
         nbr_done = 0
         while True:
             try:
-                actions = {}
-                for handle in env.get_agent_handles():
-                    # choose action for agent (handle)
-                    action = flatlandSolver.act(handle, observations[handle])
-                    actions.update({handle: action})
+                actions = flatlandSolver.act_many(env.get_agent_handles(), observations)
                 observations, all_rewards, done, info = remote_client.env_step(actions)
                 total_reward += sum(list(all_rewards.values()))
                 if env._elapsed_steps < env._max_episode_steps:
                     nbr_done = sum(list(done.values())[:-1])
-
-            except:
+            except Exception as e:
                 print("[ERR] DONE BUT step() CALLED")
+                raise e
 
-            if (True):  # debug
+            if debug:
                 if done['__all__']:
                     pbar.console_print(nbr_done, env.get_num_agents(), 'Nbr of done agents: {}'.format(len(done) - 1), '')
 
-            # break
             if done['__all__']:
                 print("[INFO] TOTAL_REW: ", total_reward)
                 print("[INFO] EPISODE_DONE : ", episode)
