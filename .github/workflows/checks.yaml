@@ -16,5 +16,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run solution with debug environments
-        run: docker compose up
+        run: docker compose up --force-recreate --build
         working-directory: demo
