@@ -2,5 +2,4 @@ name: flatland-rl
 dependencies:
   - python==3.12.9
   - pip:
-      # TODO temporary workaround till https://github.com/flatland-association/flatland-rl/pull/250/files is released
-      - git+https://github.com/flatland-association/flatland-rl@main
+      - flatland-rl
