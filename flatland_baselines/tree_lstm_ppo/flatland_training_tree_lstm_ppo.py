@@ -1,12 +1,9 @@
 """
-Runs Flatland env in RLlib using single policy learning, based on
-- https://github.com/ray-project/ray/blob/master/rllib/examples/multi_agent/pettingzoo_parameter_sharing.py.
-
-Take this as starting point to build your own training (cli) script.
+Trains custom torch model on Flatland env in RLlib using single policy learning.
+Based on https://github.com/ray-project/ray/blob/master/rllib/examples/multi_agent/pettingzoo_parameter_sharing.py.
 """
 import argparse
 import logging
-import sys
 from typing import Union, Optional
 
 import numpy as np
@@ -218,9 +215,6 @@ def train(args: Optional[argparse.Namespace] = None, init_args=None) -> Union[Re
 if __name__ == '__main__':
     register_flatland_ray_cli_observation_builders()
     parser = add_flatland_training_with_parameter_sharing_args()
-    # args = parser.parse_args()
-
-    a = int(np.random.default_rng().integers(sys.maxsize))
 
     train(parser.parse_args([
         "--num-agents", "7",
@@ -231,4 +225,3 @@ if __name__ == '__main__':
         # TODO load and run Trajectory/metadata.csv ...
         "--checkpoint-freq", "1"
     ]))
-    # train(args)
