@@ -2,10 +2,11 @@ from flatland.core.env_observation_builder import ObservationBuilder, AgentHandl
 from flatland.envs.rail_env import RailEnv
 
 
-class FullEnvObservation(ObservationBuilder[RailEnv]):
+class FullEnvObservation(ObservationBuilder[RailEnv, RailEnv]):
     """
     Returns full env as observation.
     """
+
     def __init__(self):
         pass
 
@@ -15,5 +16,5 @@ class FullEnvObservation(ObservationBuilder[RailEnv]):
     def reset(self):
         pass
 
-    def set_env(self,env):
+    def set_env(self, env):
         self.env = env
