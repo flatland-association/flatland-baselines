@@ -2,4 +2,5 @@ name: flatland-rl
 dependencies:
   - python==3.12.9
   - pip:
-      - flatland-rl
+      # TODO use versioned dependency instead of latest
+      - git+https://github.com/flatland-association/flatland-rl.git@main
