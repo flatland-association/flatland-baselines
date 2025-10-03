@@ -3,9 +3,9 @@ Based on https://github.com/RoboEden/flatland-marl/blob/main/solution/nn/net_tre
 """
 import torch
 import torch.nn as nn
+
 from impl_config import FeatureParserConfig as fp
 from impl_config import NetworkConfig as ns
-
 from .TreeLSTM import TreeLSTM
 
 
@@ -40,7 +40,8 @@ class Network(nn.Module):
 
     def __init__(self):
         super(Network, self).__init__()
-        self.tree_lstm = TreeLSTM(fp.node_sz, ns.tree_embedding_sz)
+        tree_embedding_sz = ns.tree_embedding_sz
+        self.tree_lstm = TreeLSTM(fp.node_sz, tree_embedding_sz)
         self.attr_embedding = nn.Sequential(
             nn.Linear(fp.agent_attr, 2 * ns.hidden_sz),
             nn.GELU(),
@@ -52,19 +53,19 @@ class Network(nn.Module):
             nn.GELU(),
         )
         self.transformer = nn.Sequential(
-            Transformer(ns.hidden_sz + ns.tree_embedding_sz, 4),
-            Transformer(ns.hidden_sz + ns.tree_embedding_sz, 4),
-            Transformer(ns.hidden_sz + ns.tree_embedding_sz, 4),
+            Transformer(ns.hidden_sz + tree_embedding_sz, 4),
+            Transformer(ns.hidden_sz + tree_embedding_sz, 4),
+            Transformer(ns.hidden_sz + tree_embedding_sz, 4),
         )
         self.actor_net = nn.Sequential(
-            nn.Linear(ns.hidden_sz * 2 + ns.tree_embedding_sz * 2, 2 * ns.hidden_sz),
+            nn.Linear(ns.hidden_sz * 2 + tree_embedding_sz * 2, 2 * ns.hidden_sz),
             nn.GELU(),
             nn.Linear(ns.hidden_sz * 2, ns.hidden_sz),
             nn.GELU(),
             nn.Linear(ns.hidden_sz, fp.action_sz),
         )
         self.critic_net = nn.Sequential(
-            nn.Linear(ns.hidden_sz * 2 + ns.tree_embedding_sz * 2, ns.hidden_sz * 2),
+            nn.Linear(ns.hidden_sz * 2 + tree_embedding_sz * 2, ns.hidden_sz * 2),
             nn.GELU(),
             nn.Linear(ns.hidden_sz * 2, ns.hidden_sz),
             nn.GELU(),
@@ -72,24 +73,34 @@ class Network(nn.Module):
         )
 
     # @torchsnooper.snoop()
+    # agents_attr: X^{attr}
+    # forest, adjacency, node_order, edge_order : X^{tree}
     def forward(self, agents_attr, forest, adjacency, node_order, edge_order):
         batch_size, n_agents, num_nodes, _ = forest.shape
         device = next(self.parameters()).device
         adjacency = self.modify_adjacency(adjacency, device)
 
+        # H^{tree}
         tree_embedding = self.tree_lstm(forest, adjacency, node_order, edge_order)
         tree_embedding = tree_embedding.unflatten(0, (batch_size, n_agents, num_nodes))[
                          :, :, 0, :
                          ]
 
+        # H^{attr}
         agent_attr_embedding = self.attr_embedding(agents_attr)
+
+        # H^{(0)}
         embedding = torch.cat([agent_attr_embedding, tree_embedding], dim=2)
 
         ## attention
         att_embedding = self.transformer(embedding)
 
         worker_action = torch.zeros((batch_size, n_agents, 5), device=device)
+
+        # A
         worker_action[:, :n_agents, :] = self.actor(embedding, att_embedding)
+
+        # v
         critic_value = self.critic(embedding, att_embedding)
         return [worker_action], critic_value  # (batch size, 1)
 
