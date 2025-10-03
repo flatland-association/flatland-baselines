@@ -108,9 +108,6 @@ class ShortestDistanceWalker:
 
         return position, direction
 
-    def callback_one_step(self, handle, agent, position, direction, action, possible_transitions):
-        pass
-
     def walk_one_step(self, handle):
         agent = self.env.agents[handle]
         if agent.position is not None:
@@ -126,5 +123,4 @@ class ShortestDistanceWalker:
             new_position, new_direction, dist, action, possible_transitions = self.walk(handle, position, direction)
             if new_position is None:
                 return position, direction, RailEnvActions.STOP_MOVING, possible_transitions
-            self.callback_one_step(handle, agent, new_position, new_direction, action, possible_transitions)
         return new_position, new_direction, action, possible_transitions
