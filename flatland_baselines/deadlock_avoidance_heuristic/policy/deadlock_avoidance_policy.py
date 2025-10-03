@@ -46,13 +46,10 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
 
     def reset(self, env: RailEnv):
         super(DeadlockAvoidanceShortestDistanceWalker, self).reset(env)
-        self.shortest_distance_agent_map = None
-        self.full_shortest_distance_agent_map = None
-        self.agent_positions = None
-        self.opp_agent_map = {}
+        self.clear()
         _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cache()
 
-    def clear(self, agent_positions):
+    def clear(self, agent_positions=None):
         self.shortest_distance_agent_map.fill(-1)
 
         self.full_shortest_distance_agent_map.fill(-1)
@@ -61,10 +58,22 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
 
         self.opp_agent_map = {}
 
-    def getData(self):
+    def get_data(self):
         return self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
 
-    def callback(self, handle, agent, position, direction, action, possible_transitions) -> bool:
+    def collect_data(self, handle, agent, position, direction) -> bool:
+        """
+        Collects `opp_agent_map`, `shortest_distance_agent_map`, `shortest_distance_agent_map` along the shortest path.
+
+        Parameters
+        ----------
+        handle
+        agent
+        position
+        direction
+
+
+        """
         opp_a = self.agent_positions[position]
         if opp_a != -1 and opp_a != handle:
             if self.env.agents[opp_a].direction != direction:
@@ -77,7 +86,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
             if self._is_no_switch_cell(position):
                 self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
         self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
-        return True
 
     @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
     def _is_no_switch_cell(self, position) -> bool:
@@ -158,7 +166,7 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
 
     def _extract_agent_can_move(self):
         self.agent_can_move = {}
-        shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_walker.getData()
+        shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_walker.get_data()
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
             if agent.state < TrainState.DONE:
