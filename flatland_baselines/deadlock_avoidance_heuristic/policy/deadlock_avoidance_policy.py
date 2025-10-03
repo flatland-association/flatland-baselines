@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import lru_cache
-from typing import Union, List, Any, Dict
+from typing import List, Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,10 +33,12 @@ def _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cac
 class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
     def __init__(self, env: RailEnv):
         super().__init__(env)
+        # 1 if current shortest path, -1 else.
         self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                      self.env.height,
                                                      self.env.width),
                                                     dtype=int) - 1
+        # 1 if current shortest path before first oncoming train, -1 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                           self.env.height,
                                                           self.env.width),
@@ -79,10 +81,8 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         if opp_a != -1 and opp_a != handle:
             if self.env.agents[opp_a].direction != direction:
                 self.opp_agent_map[handle].add(opp_a)
-
         if len(self.opp_agent_map[handle]) == 0:
-            if self._is_no_switch_cell(position):
-                self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+            self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
         self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
 
     @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
@@ -110,10 +110,16 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
         self.agent_can_move = {}
         self.show_debug_plot = show_debug_plot
         self.enable_eps = enable_eps
-        self.shortest_distance_walker: Union[DeadlockAvoidanceShortestDistanceWalker, None] = None
         self.min_free_cell = min_free_cell
         self.agent_positions = None
         self.env = env
+
+        self.shortest_distance_walker = DeadlockAvoidanceShortestDistanceWalker(self.env)
+        self.switches = np.zeros((self.env.height, self.env.width), dtype=int)
+        for r in range(self.env.height):
+            for c in range(self.env.width):
+                if not self.shortest_distance_walker._is_no_switch_cell((r, c)):
+                    self.switches[(r, c)] = 2
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         if isinstance(observations[0], RailEnv):
@@ -154,8 +160,6 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
                     self.agent_positions[agent.position] = handle
 
     def _shortest_distance_mapper(self):
-        if self.shortest_distance_walker is None:
-            self.shortest_distance_walker = DeadlockAvoidanceShortestDistanceWalker(self.env)
         self.shortest_distance_walker.clear(self.agent_positions)
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
@@ -174,7 +178,9 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
                         shortest_distance_agent_map[handle],
                         self.shortest_distance_walker.opp_agent_map.get(handle, []),
                         full_shortest_distance_agent_map,
-                        agent_positions_map):
+                        agent_positions_map,
+                        self.switches
+                ):
                     next_position, next_direction, action, _ = self.shortest_distance_walker.walk_one_step(handle)
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
 
@@ -192,7 +198,8 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
             my_shortest_walking_path: np.ndarray,
             opp_agents: np.ndarray,
             full_shortest_distance_agent_map: np.ndarray,
-            agent_positions_map
+            agent_positions_map,
+            switches
     ):
         """
         The algorithm collects for each train along its route all trains that are currently on a resource in the route.
@@ -218,7 +225,7 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
         len_opp_agents = len(opp_agents)
         for opp_a in opp_agents:
             opp = full_shortest_distance_agent_map[opp_a]
-            sum_delta = np.count_nonzero((my_shortest_walking_path - opp - agent_positions_map) > 0)
+            sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp - agent_positions_map) > 0)
             if sum_delta < (self.min_free_cell + len_opp_agents):
                 return False
         return True
