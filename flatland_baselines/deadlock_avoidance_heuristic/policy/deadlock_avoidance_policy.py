@@ -32,9 +32,16 @@ def _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cac
 class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
     def __init__(self, env: RailEnv):
         super().__init__(env)
-        self.shortest_distance_agent_map = None
-        self.full_shortest_distance_agent_map = None
+        self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
+                                                     self.env.height,
+                                                     self.env.width),
+                                                    dtype=int) - 1
+        self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
+                                                          self.env.height,
+                                                          self.env.width),
+                                                         dtype=int) - 1
         self.agent_positions = None
+
         self.opp_agent_map = {}
         self.same_agent_map = {}
 
@@ -48,15 +55,9 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cache()
 
     def clear(self, agent_positions):
-        self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                     self.env.height,
-                                                     self.env.width),
-                                                    dtype=int) - 1
+        self.shortest_distance_agent_map.fill(-1)
 
-        self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                          self.env.height,
-                                                          self.env.width),
-                                                         dtype=int) - 1
+        self.full_shortest_distance_agent_map.fill(-1)
 
         self.agent_positions = agent_positions
 
@@ -125,7 +126,6 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
 
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
 
-
         # Epsilon-greedy action selection
         if self.enable_eps:
             if np.random.random() < eps:
@@ -186,10 +186,32 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
             plt.show(block=False)
             plt.pause(0.01)
 
-    def _check_agent_can_move(self,
-                              my_shortest_walking_path,
-                              opp_agents,
-                              full_shortest_distance_agent_map):
+    def _check_agent_can_move(
+            self,
+            my_shortest_walking_path: np.ndarray,
+            opp_agents: np.ndarray,
+            full_shortest_distance_agent_map: np.ndarray
+    ):
+        """
+        The algorithm collects for each train along its route all trains that are currently on a resource in the route.
+        For each collected train the method has to decide whether a deadlock between the train and the collected train occurs.
+        If no deadlock is found, the process must further decide at which position along the route the train must let pass the collected train.
+        This can be achieved by searching the train's path required resources backward along the path starting at the collected train position.
+        Stop the search when the resource along the collected train's path is not equal.
+        The forward and backward traveling along the train and the collected train path must be done step-by-step synchronous.
+        If the first non-equal resource position along the train's path is more than one resource from train's current location away,
+        then the train can move and no deadlock will occur for the next time step.
+
+        Parameters
+        ----------
+        my_shortest_walking_path : np.ndarray
+        opp_agents : np.ndarray
+        full_shortest_distance_agent_map : np.ndarray
+
+        Returns
+        -------
+
+        """
         agent_positions_map = (self.agent_positions > -1).astype(int)
         len_opp_agents = len(opp_agents)
         for opp_a in opp_agents:
