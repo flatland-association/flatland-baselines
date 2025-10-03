@@ -56,4 +56,4 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
           push: true
           tags: |
-            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}:${{ env.TAG }}
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-deadlock-avoidance-heuristic:${{ env.TAG }}
