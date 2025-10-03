@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import lru_cache
 from typing import Union, List, Any, Dict
 
@@ -42,7 +43,7 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
                                                          dtype=int) - 1
         self.agent_positions = None
 
-        self.opp_agent_map = {}
+        self.opp_agent_map = defaultdict(set)
 
     def reset(self, env: RailEnv):
         super(DeadlockAvoidanceShortestDistanceWalker, self).reset(env)
@@ -56,12 +57,12 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
 
         self.agent_positions = agent_positions
 
-        self.opp_agent_map = {}
+        self.opp_agent_map = defaultdict(set)
 
     def get_data(self):
         return self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
 
-    def collect_data(self, handle, agent, position, direction) -> bool:
+    def collect_data(self, handle, agent, position, direction):
         """
         Collects `opp_agent_map`, `shortest_distance_agent_map`, `shortest_distance_agent_map` along the shortest path.
 
@@ -77,12 +78,9 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         opp_a = self.agent_positions[position]
         if opp_a != -1 and opp_a != handle:
             if self.env.agents[opp_a].direction != direction:
-                d = self.opp_agent_map.get(handle, [])
-                if opp_a not in d:
-                    d.append(opp_a)
-                self.opp_agent_map.update({handle: d})
+                self.opp_agent_map[handle].add(opp_a)
 
-        if len(self.opp_agent_map.get(handle, [])) == 0:
+        if len(self.opp_agent_map[handle]) == 0:
             if self._is_no_switch_cell(position):
                 self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
         self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
