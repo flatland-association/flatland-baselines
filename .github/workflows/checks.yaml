@@ -67,7 +67,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install pip dependencies
         run: |
-          pip install -U pytest git+https://github.com/flatland-association/flatland-rl.git@${{ env.flatland-rl-ref }}
+          pip install -U pytest flatland-rl[ml]
       - name: Run pytest
         run: pytest -s
 
