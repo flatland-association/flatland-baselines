@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Set
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -74,8 +74,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         agent
         position
         direction
-
-
         """
         opp_a = self.agent_positions[position]
         if opp_a != -1 and opp_a != handle:
@@ -168,7 +166,6 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
 
     def _extract_agent_can_move(self):
         self.agent_can_move = {}
-        agent_positions_map = (self.agent_positions > -1).astype(int)
 
         shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_walker.get_data()
         for handle in range(self.env.get_num_agents()):
@@ -176,9 +173,8 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
             if agent.state < TrainState.DONE:
                 if self._check_agent_can_move(
                         shortest_distance_agent_map[handle],
-                        self.shortest_distance_walker.opp_agent_map.get(handle, []),
+                        self.shortest_distance_walker.opp_agent_map.get(handle, set()),
                         full_shortest_distance_agent_map,
-                        agent_positions_map,
                         self.switches
                 ):
                     next_position, next_direction, action, _ = self.shortest_distance_walker.walk_one_step(handle)
@@ -196,9 +192,8 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
     def _check_agent_can_move(
             self,
             my_shortest_walking_path: np.ndarray,
-            opp_agents: np.ndarray,
+            opp_agents: Set,
             full_shortest_distance_agent_map: np.ndarray,
-            agent_positions_map,
             switches
     ):
         """
@@ -225,7 +220,7 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
         len_opp_agents = len(opp_agents)
         for opp_a in opp_agents:
             opp = full_shortest_distance_agent_map[opp_a]
-            sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp - agent_positions_map) > 0)
+            sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
             if sum_delta < (self.min_free_cell + len_opp_agents):
                 return False
         return True
