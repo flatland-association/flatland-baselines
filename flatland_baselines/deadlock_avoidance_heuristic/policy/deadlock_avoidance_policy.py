@@ -171,9 +171,7 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
             if agent.state < TrainState.DONE:
-                if self._check_agent_can_move(handle,
-                                              shortest_distance_agent_map[handle],
-                                              self.shortest_distance_walker.same_agent_map.get(handle, []),
+                if self._check_agent_can_move(shortest_distance_agent_map[handle],
                                               self.shortest_distance_walker.opp_agent_map.get(handle, []),
                                               full_shortest_distance_agent_map):
                     next_position, next_direction, action, _ = self.shortest_distance_walker.walk_one_step(handle)
@@ -189,9 +187,7 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
             plt.pause(0.01)
 
     def _check_agent_can_move(self,
-                              handle,
                               my_shortest_walking_path,
-                              same_agents,
                               opp_agents,
                               full_shortest_distance_agent_map):
         agent_positions_map = (self.agent_positions > -1).astype(int)
