@@ -43,7 +43,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         self.agent_positions = None
 
         self.opp_agent_map = {}
-        self.same_agent_map = {}
 
     def reset(self, env: RailEnv):
         super(DeadlockAvoidanceShortestDistanceWalker, self).reset(env)
@@ -51,7 +50,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         self.full_shortest_distance_agent_map = None
         self.agent_positions = None
         self.opp_agent_map = {}
-        self.same_agent_map = {}
         _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cache()
 
     def clear(self, agent_positions):
@@ -62,7 +60,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
         self.agent_positions = agent_positions
 
         self.opp_agent_map = {}
-        self.same_agent_map = {}
 
     def getData(self):
         return self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
@@ -75,12 +72,6 @@ class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
                 if opp_a not in d:
                     d.append(opp_a)
                 self.opp_agent_map.update({handle: d})
-            else:
-                if len(self.opp_agent_map.get(handle, [])) == 0:
-                    d = self.same_agent_map.get(handle, [])
-                    if opp_a not in d:
-                        d.append(opp_a)
-                    self.same_agent_map.update({handle: d})
 
         if len(self.opp_agent_map.get(handle, [])) == 0:
             if self._is_no_switch_cell(position):
