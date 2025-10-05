@@ -77,5 +77,5 @@ jobs:
           pip install -U pytest -r requirements-ml.txt -r requirements-ml.txt
           pip install .
       - name: Run pytest
-        run: pytest -s
+        run: pytest -s --ignore=flatland-rl
 
