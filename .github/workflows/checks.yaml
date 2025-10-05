@@ -70,6 +70,7 @@ jobs:
         with:
           repository: flatland-association/flatland-rl
           ref: ${{ env.flatland-rl-ref }}
+          path: flatland-rl
       - name: Install pip dependencies
         working-directory: flatland-rl
         run: |
