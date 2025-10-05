@@ -88,7 +88,7 @@ jobs:
         run: |
           pip install -U pytest flatland-rl[ml]
       - name: Run pytest
-        run: pytest -s
+        run: pytest -s --ignore=flatland-rl
 
 
 
