@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: tree-observation-enhancements
 
 on:
   workflow_dispatch:
@@ -65,9 +65,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v4
+        with:
+          repository: flatland-association/flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
       - name: Install pip dependencies
+        working-directory: flatland-rl
         run: |
-          pip install -U pytest flatland-rl[ml]
+          pip install -U pytest -r requirements-ml.txt -r requirements-ml.txt
+          pip install .
       - name: Run pytest
         run: pytest -s
 
