@@ -64,7 +64,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         for r in range(self.env.height):
             for c in range(self.env.width):
                 if not self._is_no_switch_cell((r, c)):
-                    self.switches[(r, c)] = 2
+                    self.switches[(r, c)] = 1
 
         # 1 if current shortest path (without current cell!)
         self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
