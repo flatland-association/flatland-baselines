@@ -36,10 +36,21 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                  min_free_cell: int = 1,
                  enable_eps: bool = False,
                  show_debug_plot: bool = False,
-                 # TODO policy should not expect env at init time! refactor lifecycle
-                 env: RailEnv = None
                  ):
 
+        self.env: RailEnv = None
+        self.loss = 0
+        self.action_size = action_size
+        self.agent_can_move = {}
+        self.show_debug_plot = show_debug_plot
+        self.enable_eps = enable_eps
+        self.min_free_cell = min_free_cell
+        self.agent_positions = None
+
+
+        self.opp_agent_map = defaultdict(set)
+
+    def _init_env(self, env: RailEnv):
         distance_walker = ExtendedShortestDistanceWalker(env)
 
         def get_k_shortest_paths(handle, env,
@@ -50,15 +61,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             return [distance_walker.walk_to_target2(handle, source_position, source_direction, target_position)]
 
         super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
-        self.env: RailEnv = None
-        self.loss = 0
-        self.action_size = action_size
-        self.agent_can_move = {}
-        self.show_debug_plot = show_debug_plot
-        self.enable_eps = enable_eps
-        self.min_free_cell = min_free_cell
-        self.agent_positions = None
-        self.env = env
 
         self.switches = np.zeros((self.env.height, self.env.width), dtype=int)
         for r in range(self.env.height):
@@ -78,11 +80,12 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                                                           self.env.width),
                                                          dtype=int)
 
-        self.opp_agent_map = defaultdict(set)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
-        if isinstance(observations[0], RailEnv):
+        assert isinstance(observations[0], RailEnv)
+        if self.env is None:
             self.env = observations[0]
+            self._init_env(self.env)
         self.start_step()
         return {handle: self._act(handle, observations[handle]) for handle in handles}
 
