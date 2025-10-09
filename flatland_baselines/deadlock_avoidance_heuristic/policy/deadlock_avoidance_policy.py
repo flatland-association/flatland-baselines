@@ -70,6 +70,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                                                      self.env.height,
                                                      self.env.width),
                                                     dtype=int) - 1
+        self.shortest_distance_agent_len = None
         # 1 if current shortest path before first oncoming train, -1 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                           self.env.height,
@@ -135,6 +136,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         """
         # TODO performance update instead of re-building
         self.shortest_distance_agent_map.fill(-1)
+        self.shortest_distance_agent_len = defaultdict(lambda: 0)
         self.opp_agent_map = defaultdict(set)
 
         for agent in self.env.agents:
@@ -162,6 +164,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                     if self.env.agents[opp_a].direction != direction:
                         self.opp_agent_map[handle].add(opp_a)
                 if len(self.opp_agent_map[handle]) == 0:
+                    self.shortest_distance_agent_len[handle] += 1
                     self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
 
     # TODO store actions with shortest path?
@@ -183,6 +186,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                     continue
                 if self._check_agent_can_move(
                         shortest_distance_agent_map[handle],
+                        self.shortest_distance_agent_len[handle],
                         self.opp_agent_map.get(handle, set()),
                         full_shortest_distance_agent_map,
                         self.switches
@@ -214,6 +218,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
     def _check_agent_can_move(
             self,
             my_shortest_walking_path: np.ndarray,
+            my_shortest_walking_path_len: int,
             opp_agents: Set,
             full_shortest_distance_agent_map: np.ndarray,
             switches
@@ -242,17 +247,21 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         if len_opp_agents == 0:
             return True
 
-        if np.count_nonzero(my_shortest_walking_path) < self.min_free_cell - len_opp_agents:
+        if my_shortest_walking_path_len < self.min_free_cell - len_opp_agents:
             return False
 
         # TODO we can sum up over all agents to see if any of them has a path leading up to
+        #
+        # opp = np.sum([full_shortest_distance_agent_map[opp_a] for opp_a in opp_agents], axis=0)
+        #
+        # sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
+        # return sum_delta >= (self.min_free_cell + len_opp_agents)
 
         for opp_a in opp_agents:
             # TODO we can cash if both haven't moved!
             # TODO and we can update if moved?
             opp = full_shortest_distance_agent_map[opp_a]
             sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
-            # sum_delta = np.count_nonzero((my_shortest_walking_path[indices] - switches[indices] - opp[indices]) > 0)
             if sum_delta < (self.min_free_cell + len_opp_agents):
                 return False
         return True
