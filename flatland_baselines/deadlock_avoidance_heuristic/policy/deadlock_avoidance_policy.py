@@ -1,16 +1,16 @@
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Any, Dict, Set
+from typing import List, Any, Dict, Set, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from flatland.core.policy import Policy
-from flatland.envs.RailEnvPolicy import RailEnvPolicy
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
+from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.utils.flatland.shortest_distance_walker import ShortestDistanceWalker
+from flatland_baselines.deadlock_avoidance_heuristic.policy.shortest_path_policy_dup import DupShortestPathPolicy
+from flatland_baselines.deadlock_avoidance_heuristic.utils.flatland.shortest_distance_walker import ExtendedShortestDistanceWalker
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -30,78 +30,26 @@ def _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cac
         func.cache_clear()
 
 
-class DeadlockAvoidanceShortestDistanceWalker(ShortestDistanceWalker):
-    def __init__(self, env: RailEnv):
-        super().__init__(env)
-        # 1 if current shortest path, -1 else.
-        self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                     self.env.height,
-                                                     self.env.width),
-                                                    dtype=int) - 1
-        # 1 if current shortest path before first oncoming train, -1 else.
-        self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                          self.env.height,
-                                                          self.env.width),
-                                                         dtype=int) - 1
-        self.agent_positions = None
-
-        self.opp_agent_map = defaultdict(set)
-
-    def reset(self, env: RailEnv):
-        super(DeadlockAvoidanceShortestDistanceWalker, self).reset(env)
-        self.clear()
-        _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cache()
-
-    def clear(self, agent_positions=None):
-        self.shortest_distance_agent_map.fill(-1)
-
-        self.full_shortest_distance_agent_map.fill(-1)
-
-        self.agent_positions = agent_positions
-
-        self.opp_agent_map = defaultdict(set)
-
-    def get_data(self):
-        return self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
-
-    def collect_data(self, handle, agent, position, direction):
-        """
-        Collects `opp_agent_map`, `shortest_distance_agent_map`, `shortest_distance_agent_map` along the shortest path.
-
-        Parameters
-        ----------
-        handle
-        agent
-        position
-        direction
-        """
-        opp_a = self.agent_positions[position]
-        if opp_a != -1 and opp_a != handle:
-            if self.env.agents[opp_a].direction != direction:
-                self.opp_agent_map[handle].add(opp_a)
-        if len(self.opp_agent_map[handle]) == 0:
-            self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
-        self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
-
-    @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
-    def _is_no_switch_cell(self, position) -> bool:
-        for new_dir in range(4):
-            possible_transitions = self.env.rail.get_transitions((position, new_dir))
-            num_transitions = fast_count_nonzero(possible_transitions)
-            if num_transitions > 1:
-                return False
-        return True
-
-
-class DeadLockAvoidancePolicy(RailEnvPolicy):
+class DeadLockAvoidancePolicy(DupShortestPathPolicy):
     def __init__(self,
                  action_size: int = 5,
                  min_free_cell: int = 1,
                  enable_eps: bool = False,
                  show_debug_plot: bool = False,
+                 # TODO policy should not expect env at init time! refactor lifecycle
                  env: RailEnv = None
                  ):
-        super(Policy, self).__init__()
+
+        distance_walker = ExtendedShortestDistanceWalker(env)
+
+        def get_k_shortest_paths(handle, env,
+                                 source_position: Tuple[int, int],
+                                 source_direction: int,
+                                 target_position=Tuple[int, int],
+                                 k: int = 1, debug=False) -> List[Tuple[Waypoint]]:
+            return [distance_walker.walk_to_target2(handle, source_position, source_direction, target_position)]
+
+        super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
         self.env: RailEnv = None
         self.loss = 0
         self.action_size = action_size
@@ -112,12 +60,23 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
         self.agent_positions = None
         self.env = env
 
-        self.shortest_distance_walker = DeadlockAvoidanceShortestDistanceWalker(self.env)
         self.switches = np.zeros((self.env.height, self.env.width), dtype=int)
         for r in range(self.env.height):
             for c in range(self.env.width):
-                if not self.shortest_distance_walker._is_no_switch_cell((r, c)):
+                if not self._is_no_switch_cell((r, c)):
                     self.switches[(r, c)] = 2
+
+        self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
+                                                     self.env.height,
+                                                     self.env.width),
+                                                    dtype=int) - 1
+        # 1 if current shortest path before first oncoming train, -1 else.
+        self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
+                                                          self.env.height,
+                                                          self.env.width),
+                                                         dtype=int) - 1
+
+        self.opp_agent_map = defaultdict(set)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         if isinstance(observations[0], RailEnv):
@@ -145,10 +104,17 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
 
     def start_step(self):
         self._build_agent_position_map()
-        self._shortest_distance_mapper()
+
+        self._update_shortest_distance_maps_and_opp_agent_map()
+
         self._extract_agent_can_move()
 
     def _build_agent_position_map(self):
+        """
+        Update agent positions at start of step.
+        More precisely, updates:
+        - `self.agent_positions`
+        """
         # build map with agent positions (only active agents)
         self.agent_positions = np.zeros((self.env.height, self.env.width), dtype=int) - 1
         for handle in range(self.env.get_num_agents()):
@@ -157,27 +123,72 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
                 if agent.position is not None:
                     self.agent_positions[agent.position] = handle
 
-    def _shortest_distance_mapper(self):
-        self.shortest_distance_walker.clear(self.agent_positions)
-        for handle in range(self.env.get_num_agents()):
-            agent = self.env.agents[handle]
-            if agent.state <= TrainState.MALFUNCTION:
-                self.shortest_distance_walker.walk_to_target(handle)
+    def _update_shortest_distance_maps_and_opp_agent_map(self):
+        """
+        Update shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
+        More precisely, updates:
+        - `super()._shortest_paths`
+        - `super()._remaining_targets`.
+        - `self.opp_agent_map`
+        - `self.shortest_distance_agent_map`
+        - `self.full_shortest_distance_agent_map`
+        """
+        # TODO performance update instead of re-building
+        self.shortest_distance_agent_map.fill(-1)
+        self.full_shortest_distance_agent_map.fill(-1)
+        self.opp_agent_map = defaultdict(set)
+
+        for agent in self.env.agents:
+            super()._update_agent(agent, self.env)
+
+            if agent.state == TrainState.DONE:
+                continue
+            handle = agent.handle
+            # TODO is 1: a bug? check with aiadrian
+            for wp in self._shortest_paths[agent.handle][1:]:
+                position, direction = wp.position, wp.direction
+                opp_a = self.agent_positions[position]
+                if opp_a != -1 and opp_a != handle:
+                    if self.env.agents[opp_a].direction != direction:
+                        self.opp_agent_map[handle].add(opp_a)
+                if len(self.opp_agent_map[handle]) == 0:
+                    self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+                self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+
+    # TODO store actions with shortest path?
+    def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
+        for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
+            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.env.rail.check_action_on_agent(action, configuration)
+            if new_configuration == next_configuration:
+                return preprocessed_action
+        raise
 
     def _extract_agent_can_move(self):
         self.agent_can_move = {}
 
-        shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_walker.get_data()
+        shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
             if agent.state < TrainState.DONE:
                 if self._check_agent_can_move(
                         shortest_distance_agent_map[handle],
-                        self.shortest_distance_walker.opp_agent_map.get(handle, set()),
+                        self.opp_agent_map.get(handle, set()),
                         full_shortest_distance_agent_map,
                         self.switches
                 ):
-                    next_position, next_direction, action, _ = self.shortest_distance_walker.walk_one_step(handle)
+                    if agent.position is not None:
+                        position = agent.position
+                        direction = agent.direction
+                        assert position == self._shortest_paths[agent.handle][0].position
+                        assert direction == self._shortest_paths[agent.handle][0].direction
+                    else:
+                        position = agent.initial_position
+                        direction = agent.initial_direction
+
+                    next_position = self._shortest_paths[agent.handle][1].position
+                    next_direction = self._shortest_paths[agent.handle][1].direction
+                    action = self._get_action((position, direction), (next_position, next_direction))
+
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
 
         if self.show_debug_plot:
@@ -230,3 +241,12 @@ class DeadLockAvoidancePolicy(RailEnvPolicy):
 
     def load(self, filename):
         pass
+
+    @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
+    def _is_no_switch_cell(self, position) -> bool:
+        for new_dir in range(4):
+            possible_transitions = self.env.rail.get_transitions((position, new_dir))
+            num_transitions = fast_count_nonzero(possible_transitions)
+            if num_transitions > 1:
+                return False
+        return True

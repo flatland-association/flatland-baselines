@@ -5,6 +5,7 @@ import numpy as np
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 from flatland.envs.rail_env import RailEnv, RailEnvActions
+from flatland.envs.rail_trainrun_data_structures import Waypoint
 
 # activate LRU caching
 _flatland_shortest_distance_walker_lru_cache_functions = []
@@ -124,3 +125,18 @@ class ShortestDistanceWalker:
             if new_position is None:
                 return position, direction, RailEnvActions.STOP_MOVING, possible_transitions
         return new_position, new_direction, action, possible_transitions
+
+
+# TODO use get_k_shortest_paths eventually. For now use ShortestDistanceWalker as regression tests are based on the shortest paths produced by this method.
+class ExtendedShortestDistanceWalker(ShortestDistanceWalker):
+    def walk_to_target2(self, handle, position, direction, target, max_step=500):
+        p = []
+        step = 0
+        p.append(Waypoint(position, direction))
+        while (position != target) and (step < max_step):
+            position, direction, dist, _, _ = self.walk(handle, position, direction)
+            if position is None:
+                break
+            p.append(Waypoint(position, direction))
+            step += 1
+        return p
