@@ -66,16 +66,17 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 if not self._is_no_switch_cell((r, c)):
                     self.switches[(r, c)] = 2
 
+        # 1 if current shortest path (without current cell!)
         self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                      self.env.height,
                                                      self.env.width),
-                                                    dtype=int) - 1
+                                                    dtype=int)
         self.shortest_distance_agent_len = None
-        # 1 if current shortest path before first oncoming train, -1 else.
+        # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                           self.env.height,
                                                           self.env.width),
-                                                         dtype=int) - 1
+                                                         dtype=int)
 
         self.opp_agent_map = defaultdict(set)
 
@@ -135,7 +136,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         - `self.full_shortest_distance_agent_map`
         """
         # TODO performance update instead of re-building
-        self.shortest_distance_agent_map.fill(-1)
+        self.shortest_distance_agent_map.fill(0)
         self.shortest_distance_agent_len = defaultdict(lambda: 0)
         self.opp_agent_map = defaultdict(set)
 
@@ -152,7 +153,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             if agent.position is not None and agent.position != agent.old_position:
                 assert agent.position == self._shortest_paths[agent.handle][0].position
                 if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
-                    self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = -1
+                    self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = 0
             if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
                 continue
 
@@ -178,17 +179,16 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
     def _extract_agent_can_move(self):
         self.agent_can_move = {}
 
-        shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
             if agent.state < TrainState.DONE and agent.state > TrainState.WAITING:
                 if agent.state == TrainState.WAITING:
                     continue
                 if self._check_agent_can_move(
-                        shortest_distance_agent_map[handle],
+                        self.shortest_distance_agent_map[handle],
                         self.shortest_distance_agent_len[handle],
                         self.opp_agent_map.get(handle, set()),
-                        full_shortest_distance_agent_map,
+                        self.full_shortest_distance_agent_map,
                         self.switches
                 ):
                     if agent.position is not None:
@@ -211,7 +211,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             b = np.ceil(self.env.get_num_agents() / a)
             for handle in range(self.env.get_num_agents()):
                 plt.subplot(a, b, handle + 1)
-                plt.imshow(full_shortest_distance_agent_map[handle] + shortest_distance_agent_map[handle])
+                plt.imshow(self.full_shortest_distance_agent_map[handle] + self.shortest_distance_agent_map[handle])
             plt.show(block=False)
             plt.pause(0.01)
 
