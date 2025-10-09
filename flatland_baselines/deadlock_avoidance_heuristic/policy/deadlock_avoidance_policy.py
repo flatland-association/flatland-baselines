@@ -169,7 +169,9 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         shortest_distance_agent_map, full_shortest_distance_agent_map = self.shortest_distance_agent_map, self.full_shortest_distance_agent_map
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
-            if agent.state < TrainState.DONE:
+            if agent.state < TrainState.DONE and agent.state > TrainState.WAITING:
+                if agent.state == TrainState.WAITING:
+                    continue
                 if self._check_agent_can_move(
                         shortest_distance_agent_map[handle],
                         self.opp_agent_map.get(handle, set()),
