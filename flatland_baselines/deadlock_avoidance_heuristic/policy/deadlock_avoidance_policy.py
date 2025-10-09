@@ -238,11 +238,21 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         -------
 
         """
-
         len_opp_agents = len(opp_agents)
+        if len_opp_agents == 0:
+            return True
+
+        if np.count_nonzero(my_shortest_walking_path) < self.min_free_cell - len_opp_agents:
+            return False
+
+        # TODO we can sum up over all agents to see if any of them has a path leading up to
+
         for opp_a in opp_agents:
+            # TODO we can cash if both haven't moved!
+            # TODO and we can update if moved?
             opp = full_shortest_distance_agent_map[opp_a]
             sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
+            # sum_delta = np.count_nonzero((my_shortest_walking_path[indices] - switches[indices] - opp[indices]) > 0)
             if sum_delta < (self.min_free_cell + len_opp_agents):
                 return False
         return True
