@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-flatland-submission-template:
-    name: Build Flatland 3 Starterkit Docker Image
+    name: Build flatland-baselines Docker Images
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -33,11 +33,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Convert to github_repo_name and tag string to lowercase
+      - name: Convert to github_repo_name to lowercase
         id: convert2lowercase
-        run: INPUT=${{ github.repository }}:${{ env.TAG }}; echo "REPO_TAG_LOWERCASE=${INPUT,,}">>${GITHUB_OUTPUT}
+        run: INPUT=${{ github.repository }}; echo "REPO_TAG_LOWERCASE=${INPUT,,}">>${GITHUB_OUTPUT}
       - run: echo ${{steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE}}
-      - name: Build and Push Container Image
+
+      - name: Build and Push Generic Container Image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -45,4 +46,14 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
           push: true
           tags: |
-            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}:${{ env.TAG }}
+
+      - name: Build and Push DLA Container Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          tags: |
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-deadlock-avoidance-heuristic:${{ env.TAG }}
