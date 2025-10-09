@@ -141,7 +141,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         for agent in self.env.agents:
             super()._update_agent(agent, self.env)
 
-            if agent.state == TrainState.DONE:
+            if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
                 continue
             handle = agent.handle
             # TODO is 1: a bug? check with aiadrian
