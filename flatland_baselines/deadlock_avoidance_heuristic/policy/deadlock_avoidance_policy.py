@@ -135,15 +135,25 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         """
         # TODO performance update instead of re-building
         self.shortest_distance_agent_map.fill(-1)
-        self.full_shortest_distance_agent_map.fill(-1)
         self.opp_agent_map = defaultdict(set)
 
         for agent in self.env.agents:
+            handle = agent.handle
+
             super()._update_agent(agent, self.env)
 
+            if self.env._elapsed_steps == 1:
+                for wp in self._shortest_paths[agent.handle][1:]:
+                    position, direction = wp.position, wp.direction
+                    self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+
+            if agent.position is not None and agent.position != agent.old_position:
+                assert agent.position == self._shortest_paths[agent.handle][0].position
+                if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
+                    self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = -1
             if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
                 continue
-            handle = agent.handle
+
             # TODO is 1: a bug? check with aiadrian
             for wp in self._shortest_paths[agent.handle][1:]:
                 position, direction = wp.position, wp.direction
@@ -153,7 +163,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                         self.opp_agent_map[handle].add(opp_a)
                 if len(self.opp_agent_map[handle]) == 0:
                     self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
-                self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
 
     # TODO store actions with shortest path?
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
