@@ -1,6 +1,6 @@
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Any, Dict, Set, Tuple
+from typing import List, Any, Dict, Set, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -214,7 +214,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                         self.shortest_distance_agent_len[handle],
                         self.opp_agent_map.get(handle, set()),
                         self.full_shortest_distance_agent_map,
-                        self.switches
+                        self.switches,
+                        True
                 ):
                     if agent.position is not None:
                         position = agent.position
@@ -246,7 +247,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             my_shortest_walking_path_len: int,
             opp_agents: Set,
             full_shortest_distance_agent_map: np.ndarray,
-            switches
+            switches: Optional[np.ndarray] = None,
+            count_num_opp_agents_towards_min_free_cell: bool = False
     ):
         """
         The algorithm collects for each train along its route all trains that are currently on a resource in the route.
@@ -254,19 +256,31 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         If no deadlock is found, the process must further decide at which position along the route the train must let pass the collected train.
         This can be achieved by searching the train's path required resources backward along the path starting at the collected train position.
         Stop the search when the resource along the collected train's path is not equal.
+        This yields `free_cells` ahead of the agent without overlap with any opposing agent's travelling path.
+        If `free_cells >= min_free_cells >= 1` for all opposing agents, then the agent can move.
+
         The forward and backward traveling along the train and the collected train path must be done step-by-step synchronous.
         If the first non-equal resource position along the train's path is more than one resource from train's current location away,
         then the train can move and no deadlock will occur for the next time step.
 
+        2 heuristics to avoid "fill-in":
+        - switches: if switches is given, then switches do not count towards free cells
+        - count_num_opp_agents_towards_min_free_cell: the number of opposing agents is added to `min_free_cell`
+
         Parameters
         ----------
         my_shortest_walking_path : np.ndarray
+            shortest path up to first opposing agent
+        my_shortest_walking_path_len: int
+            length of shortest path up to first opposing agent
         opp_agents : np.ndarray
+            positions of opposing agents
         full_shortest_distance_agent_map : np.ndarray
-
-        Returns
-        -------
-
+            full shortest path
+        switches: Optional[np.ndarray] = None
+            positions of switches. If None, disable the switches heuristics.
+        count_num_opp_agents_towards_min_free_cell: bool = False
+            the number of opposing agents is added to `min_free_cell`.
         """
         len_opp_agents = len(opp_agents)
         if len_opp_agents == 0:
@@ -274,13 +288,18 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
 
         if my_shortest_walking_path_len < self.min_free_cell - len_opp_agents:
             return False
+        min_free_cell = self.min_free_cell
+        if count_num_opp_agents_towards_min_free_cell:
+            self.min_free_cell += len_opp_agents
 
         for opp_a in opp_agents:
-            # TODO we can cash if both haven't moved!
-            # TODO and we can update if moved?
             opp = full_shortest_distance_agent_map[opp_a]
-            sum_delta = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
-            if sum_delta < (self.min_free_cell + len_opp_agents):
+            if switches is None:
+                free_cells = np.count_nonzero((my_shortest_walking_path - opp) > 0)
+            else:
+                free_cells = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
+
+            if free_cells < min_free_cell:
                 return False
         return True
 
