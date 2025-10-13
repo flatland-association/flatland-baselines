@@ -5,6 +5,7 @@ from typing import List, Any, Dict, Set, Tuple, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from flatland.core.env_observation_builder import AgentHandle
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -67,13 +68,17 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 if not self._is_no_switch_cell((r, c)):
                     self.switches[(r, c)] = 1
 
-        # 1 if current shortest path (without current cell!)
+        # 1 if current shortest path (without current cell!), 0 otherwise
         self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                      self.env.height,
                                                      self.env.width),
                                                     dtype=int)
-        self.shortest_distance_positions_agent_map = defaultdict(set)
-        self.shortest_distance_agent_len = defaultdict(lambda: 0)
+        # all positions on current shortest path (without current cell!)
+        self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
+        # directions for all positions on current shortest path (without current cell!)
+        self.shortest_distance_positions_directions_agent_map: Dict[Tuple[AgentHandle, Tuple[int, int]], Set[int]] = defaultdict(set)
+        # number of cells till first oncoming agent (without current cell!)
+        self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
         # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                           self.env.height,
@@ -137,7 +142,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         - `self.shortest_distance_agent_map`
         - `self.full_shortest_distance_agent_map`
         """
-        all_agent_positions = self._collect_all_agent_positions()
+        all_agent_positions: Set[Tuple[int, int]] = self._collect_all_agent_positions()
 
         for agent in self.env.agents:
             handle = agent.handle
@@ -162,21 +167,36 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 position, direction = wp.position, wp.direction
                 self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
                 self.shortest_distance_positions_agent_map[handle].add(position)
+                self.shortest_distance_positions_directions_agent_map[(handle, position)].add(direction)
         if agent.position is not None and agent.position != agent.old_position:
             assert agent.position == self._shortest_paths[agent.handle][0].position
             if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
                 self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = 0
+                # TODO why?
                 if agent.old_position is not None:
                     self.shortest_distance_positions_agent_map[handle].remove(agent.position)
+            # TODO why?
+            if agent.old_position is not None:
+                self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         prev_opp_agents = self.opp_agent_map[handle]
-        if self.shortest_distance_positions_agent_map[handle].intersection(all_agent_positions) == prev_opp_agents:
+        overlap = self.shortest_distance_positions_agent_map[handle].intersection(all_agent_positions)
+        if overlap == prev_opp_agents:
             return
 
         self.opp_agent_map[handle] = set()
 
-        # TODO performance: can we update instead of re-build - how?
+        for position in overlap:
+            opp_a = self.agent_positions[position]
+            if opp_a != -1 and opp_a != handle:
+                directions = self.shortest_distance_positions_directions_agent_map[(handle, position)]
+                assert len(directions) > 0
+                for direction in directions:
+                    if self.env.agents[opp_a].direction != direction:
+                        self.opp_agent_map[handle].add(opp_a)
+
+        # TODO performance: can we update instead of re-build - how? Or at least lookup the offsets for the opposing agents instead of traversing path
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
 
@@ -186,8 +206,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
                 if self.env.agents[opp_a].direction != direction:
-                    self.opp_agent_map[handle].add(opp_a)
                     num_opp_agents += 1
+                    break
             if num_opp_agents == 0:
                 self.shortest_distance_agent_len[handle] += 1
                 self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
