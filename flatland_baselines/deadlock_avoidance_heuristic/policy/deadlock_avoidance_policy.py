@@ -72,7 +72,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                                                      self.env.height,
                                                      self.env.width),
                                                     dtype=int)
-        self.shortest_distance_agent_len = None
+        self.shortest_distance_agent_len = defaultdict(lambda: 0)
         # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
                                                           self.env.height,
@@ -136,10 +136,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         - `self.shortest_distance_agent_map`
         - `self.full_shortest_distance_agent_map`
         """
-        # TODO performance update instead of re-building
-        self.shortest_distance_agent_map.fill(0)
-        self.shortest_distance_agent_len = defaultdict(lambda: 0)
-
         for agent in self.env.agents:
             handle = agent.handle
 
@@ -175,6 +171,10 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             return
 
         self.opp_agent_map[handle] = set()
+
+        # TODO performance: can we update instead of re-build - how?
+        self.shortest_distance_agent_map[handle].fill(0)
+        self.shortest_distance_agent_len[handle] = 0
 
         # TODO is 1: a bug? check with aiadrian
         num_opp_agents = 0
