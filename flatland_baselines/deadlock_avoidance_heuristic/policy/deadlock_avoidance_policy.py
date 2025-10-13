@@ -180,7 +180,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
 
-        # TODO is 1: a bug? check with aiadrian
         num_opp_agents = 0
         for wp in self._shortest_paths[agent.handle][1:]:
             position, direction = wp.position, wp.direction
