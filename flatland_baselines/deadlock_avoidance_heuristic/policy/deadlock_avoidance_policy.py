@@ -252,12 +252,17 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
     ):
         """
         The algorithm collects for each train along its route all trains that are currently on a resource in the route.
-        For each collected train the method has to decide whether a deadlock between the train and the collected train occurs.
-        If no deadlock is found, the process must further decide at which position along the route the train must let pass the collected train.
-        This can be achieved by searching the train's path required resources backward along the path starting at the collected train position.
-        Stop the search when the resource along the collected train's path is not equal.
+        For each collected train (`opp_agents`), the method has to decide at which position along the route the train
+        must let pass the collected opposing train:  by searching the train's path required resources backward along the path
+        starting at the collected train position; stop the search when the resource along the collected train's path is not equal.
         This yields `free_cells` ahead of the agent without overlap with any opposing agent's travelling path.
         If `free_cells >= min_free_cells >= 1` for all opposing agents, then the agent can move.
+        A deadlock can only occur if a jam "fills in" the free space and is not detected by the algorithm.
+
+        To determine `free_cells`, the implementation compares takes the difference of
+        - the bitmap of the agent's shortest path (up to first opposing agent) and
+        - the bitmap opposing agent's path
+        and counts the positive elements.
 
         The forward and backward traveling along the train and the collected train path must be done step-by-step synchronous.
         If the first non-equal resource position along the train's path is more than one resource from train's current location away,
