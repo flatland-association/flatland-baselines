@@ -4,8 +4,8 @@ Based on https://github.com/RoboEden/flatland-marl/blob/main/solution/nn/net_tre
 import torch
 import torch.nn as nn
 
-from impl_config import FeatureParserConfig as fp
-from impl_config import NetworkConfig as ns
+from .impl_config import FeatureParserConfig as fp
+from .impl_config import NetworkConfig as ns
 from .TreeLSTM import TreeLSTM
 
 
