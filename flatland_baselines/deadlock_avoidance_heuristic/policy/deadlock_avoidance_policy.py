@@ -72,6 +72,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                                                      self.env.height,
                                                      self.env.width),
                                                     dtype=int)
+        self.shortest_distance_positions_agent_map = defaultdict(set)
         self.shortest_distance_agent_len = defaultdict(lambda: 0)
         # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
         self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
@@ -136,6 +137,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         - `self.shortest_distance_agent_map`
         - `self.full_shortest_distance_agent_map`
         """
+        all_agent_positions = self._collect_all_agent_positions()
+
         for agent in self.env.agents:
             handle = agent.handle
 
@@ -145,29 +148,30 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
                 continue
 
-            self._build_shortest_distance_agent_map(agent, handle)
+            self._build_shortest_distance_agent_map(agent, handle, all_agent_positions)
+
+    def _collect_all_agent_positions(self):
+        all_agent_positions = set()
+        for agent in self.env.agents:
+            all_agent_positions.add(agent.position)
+        return all_agent_positions
 
     def _build_full_shortest_distance_agent_map(self, agent, handle):
         if self.env._elapsed_steps == 1:
             for wp in self._shortest_paths[agent.handle][1:]:
                 position, direction = wp.position, wp.direction
                 self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+                self.shortest_distance_positions_agent_map[handle].add(position)
         if agent.position is not None and agent.position != agent.old_position:
             assert agent.position == self._shortest_paths[agent.handle][0].position
             if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
                 self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = 0
+                if agent.old_position is not None:
+                    self.shortest_distance_positions_agent_map[handle].remove(agent.position)
 
-    def _build_shortest_distance_agent_map(self, agent, handle):
+    def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         prev_opp_agents = self.opp_agent_map[handle]
-        update = False
-        if agent.position != agent.old_position:
-            update = True
-        else:
-            for prev_opp_agent in prev_opp_agents:
-                if self.env.agents[prev_opp_agent].old_position != self.env.agents[prev_opp_agent].position:
-                    update = True
-                    break
-        if not update:
+        if self.shortest_distance_positions_agent_map[handle].intersection(all_agent_positions) == prev_opp_agents:
             return
 
         self.opp_agent_map[handle] = set()
