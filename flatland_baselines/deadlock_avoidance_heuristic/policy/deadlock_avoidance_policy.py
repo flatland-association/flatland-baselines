@@ -185,21 +185,14 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         if overlap == prev_opp_agents:
             return
 
-        self.opp_agent_map[handle] = set()
+        self._rebuild_opp_agent_map(handle, overlap)
 
-        for position in overlap:
-            opp_a = self.agent_positions[position]
-            if opp_a != -1 and opp_a != handle:
-                directions = self.shortest_distance_positions_directions_agent_map[(handle, position)]
-                assert len(directions) > 0
-                for direction in directions:
-                    if self.env.agents[opp_a].direction != direction:
-                        self.opp_agent_map[handle].add(opp_a)
+        self._rebuild_shortest_distance_agent_map(agent, handle)
 
+    def _rebuild_shortest_distance_agent_map(self, agent, handle):
         # TODO performance: can we update instead of re-build - how? Or at least lookup the offsets for the opposing agents instead of traversing path
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
-
         num_opp_agents = 0
         for wp in self._shortest_paths[agent.handle][1:]:
             position, direction = wp.position, wp.direction
@@ -211,6 +204,17 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             if num_opp_agents == 0:
                 self.shortest_distance_agent_len[handle] += 1
                 self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+
+    def _rebuild_opp_agent_map(self, handle, overlap):
+        self.opp_agent_map[handle] = set()
+        for position in overlap:
+            opp_a = self.agent_positions[position]
+            if opp_a != -1 and opp_a != handle:
+                directions = self.shortest_distance_positions_directions_agent_map[(handle, position)]
+                assert len(directions) > 0
+                for direction in directions:
+                    if self.env.agents[opp_a].direction != direction:
+                        self.opp_agent_map[handle].add(opp_a)
 
     # TODO store actions with shortest path?
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
