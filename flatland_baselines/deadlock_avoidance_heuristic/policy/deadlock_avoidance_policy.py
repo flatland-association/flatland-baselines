@@ -290,7 +290,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             return False
         min_free_cell = self.min_free_cell
         if count_num_opp_agents_towards_min_free_cell:
-            self.min_free_cell += len_opp_agents
+            min_free_cell += len_opp_agents
 
         for opp_a in opp_agents:
             opp = full_shortest_distance_agent_map[opp_a]
