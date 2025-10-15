@@ -295,28 +295,18 @@ def train(args: Optional[argparse.Namespace] = None, init_args=None) -> Union[Re
     # test_id,env_id,n_agents,x_dim,y_dim,n_cities,max_rail_pairs_in_city,n_envs_run,grid_mode,max_rails_between_cities,malfunction_duration_min,malfunction_duration_max,malfunction_interval,speed_ratios,random_seed
     # Test_3,Level_0,50,30,35,3,2,10,False,2,20,50,4500,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",8524649404651236810
     # x_dim=30,
-    #                   y_dim=30,
-    #                   n_cities=2,
-    #                   max_rail_pairs_in_city=4,
-    #                   grid_mode=False,
-    #                   max_rails_between_cities=2,
-    #                   malfunction_duration_min=20,
-    #                   malfunction_duration_max=50,
-    #                   malfunction_interval=540,
-    #                   speed_ratios=None,
-    #                   seed=42,
     register_env(env_name, lambda _: ray_env_generator(
-        n_agents=args.num_agents, obs_builder_object=registry_get_input(args.obs_builder)(),
-        # TODO inject
-        x_dim=50,
-        y_dim=30,
-        n_cities=35,
-        max_rail_pairs_in_city=3,
+        n_agents=args.num_agents,
+        obs_builder_object=registry_get_input(args.obs_builder)(),
+        x_dim=30,
+        y_dim=35,
+        n_cities=3,
+        max_rail_pairs_in_city=2,
         grid_mode=False,
         max_rails_between_cities=2,
         malfunction_duration_min=20,
         malfunction_duration_max=50,
-        malfunction_interval=4000,
+        malfunction_interval=540,
         speed_ratios={1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25},
         seed=int(np.random.default_rng().integers(2 ** 32 - 1)),
     ))
@@ -373,13 +363,11 @@ if __name__ == '__main__':
     parser = add_flatland_training_with_parameter_sharing_args()
 
     train(parser.parse_args([
-        "--num-agents", "7",
+        "--num-agents", "50",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_3_50",
         "--algo", "PPO",
-        # TODO evaluation seems not to work
-        "--evaluation-num-env-runners", "1", "--evaluation-interval", "1",
-        # TODO load and run Trajectory/metadata.csv ...
+        "--evaluation-num-env-runners", "2", "--evaluation-interval", "1",
         "--checkpoint-freq", "1",
-        "--train-batch-size-per-learner", "200",
-        "--stop-iters", "1",
+        "--train-batch-size-per-learner", "1000",
+        # "--stop-iters", "2",
     ]))
