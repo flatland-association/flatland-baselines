@@ -229,9 +229,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
 
         for handle in range(self.env.get_num_agents()):
             agent = self.env.agents[handle]
-            if agent.state < TrainState.DONE and agent.state > TrainState.WAITING:
-                if agent.state == TrainState.WAITING:
-                    continue
+            if agent.state < TrainState.DONE and agent.state >= TrainState.WAITING:
                 if self._check_agent_can_move(
                         self.shortest_distance_agent_map[handle],
                         self.shortest_distance_agent_len[handle],
