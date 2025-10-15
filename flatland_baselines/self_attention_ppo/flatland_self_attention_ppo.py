@@ -435,7 +435,7 @@ if __name__ == '__main__':
         "--num-agents", "30",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50",
         "--algo", "PPO",
-        "--evaluation-num-env-runners", "2", "--evaluation-interval", "1",
+        "--evaluation-num-env-runners", "1", "--evaluation-interval", "1",
         "--checkpoint-freq", "1",
         "--train-batch-size-per-learner", "1000",
         # "--stop-iters", "2",
