@@ -432,7 +432,7 @@ if __name__ == '__main__':
     parser = add_flatland_training_with_parameter_sharing_args()
 
     train(parser.parse_args([
-        "--num-agents", "50",
+        "--num-agents", "30",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50",
         "--algo", "PPO",
         "--evaluation-num-env-runners", "2", "--evaluation-interval", "1",
