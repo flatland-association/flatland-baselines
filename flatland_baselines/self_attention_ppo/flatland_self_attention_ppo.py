@@ -214,7 +214,6 @@ class FlatlandMetricsCallback(RLlibCallback):
         metrics_logger.log_value(
             "normalized_reward",
             normalized_reward,
-            reduce="sum",
         )
 
         percentage_complete = float(episode_done_agents) / episode_num_agents
@@ -432,11 +431,11 @@ if __name__ == '__main__':
     parser = add_flatland_training_with_parameter_sharing_args()
 
     train(parser.parse_args([
-        "--num-agents", "20",
+        "--num-agents", "50",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50",
         "--algo", "PPO",
         "--evaluation-num-env-runners", "1", "--evaluation-interval", "1",
         "--checkpoint-freq", "1",
-        "--train-batch-size-per-learner", "1000",
+        "--train-batch-size-per-learner", "200",
         # "--stop-iters", "2",
     ]))
