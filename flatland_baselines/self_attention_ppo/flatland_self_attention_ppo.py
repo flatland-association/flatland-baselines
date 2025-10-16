@@ -429,6 +429,14 @@ def train(args: Optional[argparse.Namespace] = None, init_args=None) -> Union[Re
             )
         )
         .callbacks(FlatlandMetricsCallback)
+        .evaluation(
+            evaluation_num_env_runners=2,
+            evaluation_interval=1,
+            evaluation_force_reset_envs_before_iteration=True,
+            evaluation_duration=20,
+            evaluation_parallel_to_training=False,
+            evaluation_duration_unit="episodes"
+        )
     )
     res = run_rllib_example_script_experiment(base_config, args)
 
@@ -450,8 +458,9 @@ if __name__ == '__main__':
         "--num-agents", "50",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50",
         "--algo", "PPO",
-        "--evaluation-num-env-runners", "1", "--evaluation-interval", "1",
+        # "--evaluation-num-env-runners", "1",
+        # "--evaluation-interval", "1",
         "--checkpoint-freq", "1",
-        "--train-batch-size-per-learner", "200",
+        "--train-batch-size-per-learner", "500",
         # "--stop-iters", "2",
     ]))
