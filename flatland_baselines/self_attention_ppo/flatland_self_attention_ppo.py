@@ -222,6 +222,22 @@ class FlatlandMetricsCallback(RLlibCallback):
             percentage_complete,
         )
 
+        metrics_logger.log_value(
+            "max_episode_steps",
+            rail_env._max_episode_steps,
+        )
+
+        metrics_logger.log_value(
+            "elapsed_steps",
+            rail_env._elapsed_steps,
+        )
+
+        num_malfunctions = sum([agent.malfunction_handler.num_malfunctions for agent in rail_env.agents])
+        metrics_logger.log_value(
+            "num_malfunctions",
+            num_malfunctions,
+        )
+
 
 # https://docs.ray.io/en/latest/rllib/getting-started.html#rllib-python-api
 # TODO make configurable/registry?
