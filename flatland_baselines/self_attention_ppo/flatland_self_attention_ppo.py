@@ -209,7 +209,7 @@ class FlatlandMetricsCallback(RLlibCallback):
         normalized_reward = sum(list(rewards_dict.values())) / (
                 rail_env._max_episode_steps *
                 episode_num_agents
-        )
+        ) + 1
 
         metrics_logger.log_value(
             "normalized_reward",
