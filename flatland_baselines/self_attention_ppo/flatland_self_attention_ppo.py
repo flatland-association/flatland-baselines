@@ -255,6 +255,11 @@ class SelfAttentionTorchRLModule(TorchRLModule, ValueFunctionAPI):
         tree_embedding_sz = self.model_config["tree_embedding_sz"]
         action_sz = self.model_config["action_sz"]
         self.transformer = nn.Sequential(
+            nn.Linear(tree_embedding_sz, tree_embedding_sz),
+            nn.GELU(),
+            nn.Linear(tree_embedding_sz, tree_embedding_sz),
+            nn.GELU(),
+            nn.Linear(tree_embedding_sz, tree_embedding_sz),
             Transformer(tree_embedding_sz, 4),
             Transformer(tree_embedding_sz, 4),
             Transformer(tree_embedding_sz, 4),
@@ -464,3 +469,8 @@ if __name__ == '__main__':
         "--train-batch-size-per-learner", "500",
         # "--stop-iters", "2",
     ]))
+# TODO fix percentage_complete
+# TODO custom eval with small, middle and large envs
+# TODO wandb logging
+# TODO generate movies during eval
+# TODO generate stats nb during eval
