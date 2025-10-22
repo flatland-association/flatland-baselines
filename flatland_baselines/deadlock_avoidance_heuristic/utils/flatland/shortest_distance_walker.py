@@ -127,7 +127,7 @@ class ShortestDistanceWalker:
         return new_position, new_direction, action, possible_transitions
 
 
-# TODO use get_k_shortest_paths eventually. For now use ShortestDistanceWalker as regression tests are based on the shortest paths produced by this method.
+# TODO https://github.com/flatland-association/flatland-baselines/issues/24 use get_k_shortest_paths eventually. For now use ShortestDistanceWalker as regression tests are based on the shortest paths produced by this method.
 class ExtendedShortestDistanceWalker(ShortestDistanceWalker):
     def walk_to_target2(self, handle, position, direction, target, max_step=500):
         p = []

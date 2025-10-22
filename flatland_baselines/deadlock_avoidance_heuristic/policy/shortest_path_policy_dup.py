@@ -10,7 +10,7 @@ from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 
 
-# TODO backport to flatland-rl after refactorings
+# TODO https://github.com/flatland-association/flatland-baselines/issues/24 backport to flatland-rl after refactorings
 class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     """
     Works with `FullEnvObservation`
@@ -54,14 +54,6 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         """
         Update `_shortest_paths` and `_remaining_targets`.
 
-        Parameters
-        ----------
-        agent
-        env
-
-        Returns
-        -------
-
         """
         if agent.state == TrainState.DONE:
             self._shortest_paths.pop(agent.handle, None)
@@ -70,7 +62,7 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if agent.handle not in self._remaining_targets:
             self._remaining_targets[agent.handle] = agent.waypoints
         if agent.handle not in self._shortest_paths:
-            # TODO inconsistent: shortest path is shortest path to target, whereas above we update when intermediate target reached....?
+            # TODO https://github.com/flatland-association/flatland-baselines/issues/7 inconsistent: shortest path is shortest path to target, whereas above we update when intermediate target reached....?
             self._shortest_paths[agent.handle] = self.get_k_shortest_paths(agent.handle, env, agent.initial_position, agent.initial_direction, agent.target)[0]
 
         if agent.position is None:

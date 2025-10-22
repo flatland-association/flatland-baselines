@@ -172,10 +172,10 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             assert agent.position == self._shortest_paths[agent.handle][0].position
             if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
                 self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = 0
-                # TODO why?
+                # the initial position is never added to shortest_distance_positions_agent_map
                 if agent.old_position is not None:
                     self.shortest_distance_positions_agent_map[handle].remove(agent.position)
-            # TODO why?
+            #  the initial position is never added to shortest_distance_positions_agent_map
             if agent.old_position is not None:
                 self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
 
@@ -190,7 +190,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         self._rebuild_shortest_distance_agent_map(agent, handle)
 
     def _rebuild_shortest_distance_agent_map(self, agent, handle):
-        # TODO performance: can we update instead of re-build - how? Or at least lookup the offsets for the opposing agents instead of traversing path
+        # TODO performance improvement idea: we could update over the previous opposing trains (beware of close-following, map must be non-binary) and update their position and we only have to look at non-facing switches where new opposing trains can occur.
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
         num_opp_agents = 0
@@ -216,7 +216,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                     if self.env.agents[opp_a].direction != direction:
                         self.opp_agent_map[handle].add(opp_a)
 
-    # TODO store actions with shortest path?
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
         for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
             new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.env.rail.check_action_on_agent(action, configuration)
