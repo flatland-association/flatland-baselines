@@ -11,7 +11,8 @@ Shortest Path Deadlock Avoidance Heuristic
 
 #### Algorithm
 
-    Do not enter/move if there is no free space between my path and any oncoming train's path. (A train is oncoming if it is on my path and running towards me).
+> [!NOTE]  
+>  Do not enter/move if there is no free space between my path and any oncoming train's path. (A train is oncoming if it is on my path and running towards me).
 
 #### Guarantee
 
