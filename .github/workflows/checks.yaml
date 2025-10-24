@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  test-evaluation-demo:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
         run: docker compose up --force-recreate --build
         working-directory: demo
 
-  regression:
+  test-dla-regression:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -50,6 +50,7 @@ jobs:
       - name: Install flatland-rl
         working-directory: flatland-rl
         run: |
+          python -m pip install -r flatland-rl/requirements-dev.txt
           python -m pip install .
           python -m pip list
       - name: Run regression tests
