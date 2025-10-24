@@ -38,17 +38,24 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                  enable_eps: bool = False,
                  show_debug_plot: bool = False,
                  ):
-
-        self.env: RailEnv = None
+        super().__init__()
+        
         self.loss = 0
         self.action_size = action_size
-        self.agent_can_move = {}
         self.show_debug_plot = show_debug_plot
         self.enable_eps = enable_eps
         self.min_free_cell = min_free_cell
+
+        # will be injected from observation (`FullEnvObservation`)
+        self.raiL_env: Optional[RailEnv] = None
+
+        # -1 if no agent, agent handle otherwise
         self.agent_positions = None
 
-        self.opp_agent_map = defaultdict(set)
+        # next (r,c,d) and action to get there; or no entry if train must not move
+        self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
+        # set of oncoming agents
+        self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
     def _init_env(self, env: RailEnv):
         distance_walker = ExtendedShortestDistanceWalker(env)
@@ -62,16 +69,17 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
 
         super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
 
-        self.switches = np.zeros((self.env.height, self.env.width), dtype=int)
-        for r in range(self.env.height):
-            for c in range(self.env.width):
-                if not self._is_no_switch_cell((r, c)):
+        # 1 if position is a switch, 0 otherwise
+        self.switches = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int)
+        for r in range(self.raiL_env.height):
+            for c in range(self.raiL_env.width):
+                if self._is_switch_cell((r, c)):
                     self.switches[(r, c)] = 1
 
         # 1 if current shortest path (without current cell!), 0 otherwise
-        self.shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                     self.env.height,
-                                                     self.env.width),
+        self.shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
+                                                     self.raiL_env.height,
+                                                     self.raiL_env.width),
                                                     dtype=int)
         # all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
@@ -80,27 +88,25 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         # number of cells till first oncoming agent (without current cell!)
         self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
         # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
-        self.full_shortest_distance_agent_map = np.zeros((self.env.get_num_agents(),
-                                                          self.env.height,
-                                                          self.env.width),
+        self.full_shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
+                                                          self.raiL_env.height,
+                                                          self.raiL_env.width),
                                                          dtype=int)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         assert isinstance(observations[0], RailEnv)
-        if self.env is None:
-            self.env = observations[0]
-            self._init_env(self.env)
-        self.start_step()
+        if self.raiL_env is None:
+            self.raiL_env = observations[0]
+            self._init_env(self.raiL_env)
+        self._start_step()
         return {handle: self._act(handle, observations[handle]) for handle in handles}
 
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
-
         # Epsilon-greedy action selection
         if self.enable_eps:
             if np.random.random() < eps:
                 return np.random.choice(np.arange(self.action_size))
 
-        # agent = self.env.agents[state[0]]
         check = self.agent_can_move.get(handle, None)
         act = RailEnvActions.STOP_MOVING
         if check is not None:
@@ -111,30 +117,33 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         #    act = act.value
         return act
 
-    def start_step(self):
+    def _start_step(self):
+        # (1)
         self._build_agent_position_map()
 
+        # (2)
         self._update_shortest_distance_maps_and_opp_agent_map()
 
+        # (3)
         self._extract_agent_can_move()
 
     def _build_agent_position_map(self):
         """
-        Update agent positions at start of step.
+        start_step (1): update agent positions at start of step.
         More precisely, updates:
         - `self.agent_positions`
         """
         # build map with agent positions (only active agents)
-        self.agent_positions = np.zeros((self.env.height, self.env.width), dtype=int) - 1
-        for handle in range(self.env.get_num_agents()):
-            agent = self.env.agents[handle]
+        self.agent_positions = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int) - 1
+        for handle in range(self.raiL_env.get_num_agents()):
+            agent = self.raiL_env.agents[handle]
             if agent.state in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
                 if agent.position is not None:
                     self.agent_positions[agent.position] = handle
 
     def _update_shortest_distance_maps_and_opp_agent_map(self):
         """
-        Update shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
+       start_step (2): update the shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
         More precisely, updates:
         - `super()._shortest_paths`
         - `super()._remaining_targets`.
@@ -144,10 +153,10 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         """
         all_agent_positions: Set[Tuple[int, int]] = self._collect_all_agent_positions()
 
-        for agent in self.env.agents:
+        for agent in self.raiL_env.agents:
             handle = agent.handle
 
-            super()._update_agent(agent, self.env)
+            super()._update_agent(agent, self.raiL_env)
 
             self._build_full_shortest_distance_agent_map(agent, handle)
             if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
@@ -157,12 +166,12 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
 
     def _collect_all_agent_positions(self):
         all_agent_positions = set()
-        for agent in self.env.agents:
+        for agent in self.raiL_env.agents:
             all_agent_positions.add(agent.position)
         return all_agent_positions
 
     def _build_full_shortest_distance_agent_map(self, agent, handle):
-        if self.env._elapsed_steps == 1:
+        if self.raiL_env._elapsed_steps == 1:
             for wp in self._shortest_paths[agent.handle][1:]:
                 position, direction = wp.position, wp.direction
                 self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
@@ -198,7 +207,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             position, direction = wp.position, wp.direction
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
-                if self.env.agents[opp_a].direction != direction:
+                if self.raiL_env.agents[opp_a].direction != direction:
                     num_opp_agents += 1
                     break
             if num_opp_agents == 0:
@@ -213,22 +222,26 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 directions = self.shortest_distance_positions_directions_agent_map[(handle, position)]
                 assert len(directions) > 0
                 for direction in directions:
-                    if self.env.agents[opp_a].direction != direction:
+                    if self.raiL_env.agents[opp_a].direction != direction:
                         self.opp_agent_map[handle].add(opp_a)
 
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
         for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
-            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.env.rail.check_action_on_agent(action, configuration)
+            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.raiL_env.rail.check_action_on_agent(action, configuration)
             if new_configuration == next_configuration:
                 return preprocessed_action
         raise
 
     def _extract_agent_can_move(self):
+        """
+        start_step (3): update whether agent can move. More precisely, updates:
+        - `self.agent_can_move`
+        """
         self.agent_can_move = {}
 
-        for handle in range(self.env.get_num_agents()):
-            agent = self.env.agents[handle]
-            if agent.state < TrainState.DONE and agent.state >= TrainState.WAITING:
+        for handle in range(self.raiL_env.get_num_agents()):
+            agent = self.raiL_env.agents[handle]
+            if TrainState.DONE > agent.state >= TrainState.WAITING:
                 if self._check_agent_can_move(
                         self.shortest_distance_agent_map[handle],
                         self.shortest_distance_agent_len[handle],
@@ -253,9 +266,9 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
 
         if self.show_debug_plot:
-            a = np.floor(np.sqrt(self.env.get_num_agents()))
-            b = np.ceil(self.env.get_num_agents() / a)
-            for handle in range(self.env.get_num_agents()):
+            a = np.floor(np.sqrt(self.raiL_env.get_num_agents()))
+            b = np.ceil(self.raiL_env.get_num_agents() / a)
+            for handle in range(self.raiL_env.get_num_agents()):
                 plt.subplot(a, b, handle + 1)
                 plt.imshow(self.full_shortest_distance_agent_map[handle] + self.shortest_distance_agent_map[handle])
             plt.show(block=False)
@@ -295,7 +308,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         Parameters
         ----------
         my_shortest_walking_path : np.ndarray
-            shortest path up to first opposing agent
+            the shortest path up to first opposing agent
         my_shortest_walking_path_len: int
             length of shortest path up to first opposing agent
         opp_agents : np.ndarray
@@ -335,10 +348,10 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         pass
 
     @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
-    def _is_no_switch_cell(self, position) -> bool:
+    def _is_switch_cell(self, position) -> bool:
         for new_dir in range(4):
-            possible_transitions = self.env.rail.get_transitions((position, new_dir))
+            possible_transitions = self.raiL_env.rail.get_transitions((position, new_dir))
             num_transitions = fast_count_nonzero(possible_transitions)
             if num_transitions > 1:
-                return False
-        return True
+                return True
+        return False
