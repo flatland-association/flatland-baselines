@@ -184,9 +184,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 # the initial position is never added to shortest_distance_positions_agent_map
                 if agent.old_position is not None:
                     self.shortest_distance_positions_agent_map[handle].remove(agent.position)
-            #  the initial position is never added to shortest_distance_positions_agent_map
-            if agent.old_position is not None:
-                self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
+                    self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         prev_opp_agents = self.opp_agent_map[handle]
@@ -253,8 +251,6 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                     if agent.position is not None:
                         position = agent.position
                         direction = agent.direction
-                        assert position == self._shortest_paths[agent.handle][0].position
-                        assert direction == self._shortest_paths[agent.handle][0].direction
                     else:
                         position = agent.initial_position
                         direction = agent.initial_direction

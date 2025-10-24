@@ -10,7 +10,7 @@ from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 
 
-# TODO https://github.com/flatland-association/flatland-baselines/issues/24 backport to flatland-rl after refactorings
+# TODO https://github.com/flatland-association/flatland-baselines/issues/24 backport to flatland-rl after refactorings. We need to re-generate the regression trajectories with `get_k_shortest_paths` instead of custom `ShortestDistanceWalker`. For now use `ShortestDistanceWalker` as regression tests are based on the shortest paths produced by this method.
 class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     """
     Works with `FullEnvObservation`
