@@ -41,10 +41,11 @@ jobs:
           mkdir -p episodes
           unzip FLATLAND_BENCHMARK_EPISODES_FOLDER -d episodes
         working-directory: ${{ github.workspace }}
-      - name: Clone flatland-baselines
+      - name: Clone flatland-rl
         uses: actions/checkout@v4
         with:
           repository: flatland-association/flatland-rl
+          path: flatland-rl
           ref: ${{ env.flatland-rl-ref }}
       - name: Install flatland-rl
         working-directory: flatland-rl
