@@ -11,6 +11,7 @@ import numpy as np
 import ray
 import torch.nn as nn
 from ray import tune
+from ray.rllib.algorithms import AlgorithmConfig
 from ray.rllib.core import Columns
 from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
@@ -33,6 +34,10 @@ from flatland.ml.observations.gym_observation_builder import GymObservationBuild
 from flatland.ml.ray.examples.flatland_observation_builders_registry import register_flatland_ray_cli_observation_builders
 from flatland.ml.ray.wrappers import ray_env_generator
 from flatland_baselines.tree_lstm_ppo.flatland_marl.net_tree import Transformer
+
+from flatland.ml.ray.FlatlandMetricsAndTrajectoryCallback import FlatlandMetricsAndTrajectoryCallback
+from flatland.ml.ray.FlatlandMetricsCallback import FlatlandMetricsCallback
+
 
 
 # TODO backport to flatland-rl
@@ -160,83 +165,6 @@ def make_complete_nary(node: Node, depth, max_depth, tree_explored_actions_char)
 
 
 import gymnasium as gym
-from ray.rllib.callbacks.callbacks import RLlibCallback
-from ray.rllib.env.multi_agent_episode import MultiAgentEpisode
-from ray.rllib.env.vector.vector_multi_agent_env import VectorMultiAgentEnv
-
-from flatland.envs.rail_env import RailEnv
-from flatland.ml.ray.ray_multi_agent_rail_env import RayMultiAgentWrapper
-
-
-# TODO backport to flatland-rl
-# See also for https://gitlab.aicrowd.com/flatland/neurips2020-flatland-baselines/-/blob/master/train.py?ref_type=heads
-class FlatlandMetricsCallback(RLlibCallback):
-    """
-    Add `normalized_reward` and `percentage_complete` evaluation metrics.
-    """
-
-    def on_episode_end(
-            self,
-            *,
-            episode: MultiAgentEpisode,
-            env_runner,
-            metrics_logger,
-            env,
-            env_index,
-            rl_module,
-            **kwargs,
-    ) -> None:
-        # If we have a vector env, only render the sub-env at index 0.
-        if isinstance(env.unwrapped, (gym.vector.VectorEnv, VectorMultiAgentEnv)):
-            unwrapped = env.unwrapped.envs[0]
-        else:
-            unwrapped = env.unwrapped
-        while not isinstance(unwrapped, RayMultiAgentWrapper):
-            unwrapped = unwrapped.unwrapped
-        rail_env: RailEnv = unwrapped._wrap
-
-        rewards_dict = episode.get_rewards(-1)
-        episode.get_state()
-        episode_done_agents = 0
-        for h in rail_env.get_agent_handles():
-            if rail_env.dones[h]:
-                episode_done_agents += 1
-
-        episode_num_agents = len(rewards_dict)
-        assert episode_num_agents == rail_env.get_num_agents()
-        assert sum(list(rewards_dict.values())) == sum(list(rail_env.rewards_dict.values()))
-        # https://flatland-association.github.io/flatland-book/challenges/flatland3/eval.html
-        normalized_reward = sum(list(rewards_dict.values())) / (
-                rail_env._max_episode_steps *
-                episode_num_agents
-        ) + 1
-
-        metrics_logger.log_value(
-            "normalized_reward",
-            normalized_reward,
-        )
-
-        percentage_complete = float(sum([agent.state == 6 for agent in rail_env.agents])) / episode_num_agents
-        metrics_logger.log_value(
-            "percentage_complete",
-            percentage_complete,
-        )
-
-        metrics_logger.log_value(
-            "max_episode_steps",
-            rail_env._max_episode_steps,
-        )
-
-        metrics_logger.log_value(
-            "elapsed_steps",
-            rail_env._elapsed_steps,
-        )
-
-        num_malfunctions = sum([agent.malfunction_handler.num_malfunctions for agent in rail_env.agents])
-        metrics_logger.log_value(
-            "num_malfunctions",
-            num_malfunctions,
-        )
 
 
 # https://docs.ray.io/en/latest/rllib/getting-started.html#rllib-python-api
@@ -435,12 +363,8 @@ def train(args: Optional[argparse.Namespace] = None, init_args=None) -> Union[Re
         )
         .callbacks(FlatlandMetricsCallback)
         .evaluation(
-            evaluation_num_env_runners=2,
-            evaluation_interval=1,
-            evaluation_force_reset_envs_before_iteration=True,
-            evaluation_duration=20,
-            evaluation_parallel_to_training=False,
-            evaluation_duration_unit="episodes"
+            # TODO inject from cli
+            evaluation_config=AlgorithmConfig.overrides(callbacks=FlatlandMetricsAndTrajectoryCallback),
         )
     )
     res = run_rllib_example_script_experiment(base_config, args)
@@ -463,13 +387,10 @@ if __name__ == '__main__':
         "--num-agents", "50",
         "--obs-builder", "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50",
         "--algo", "PPO",
-        # "--evaluation-num-env-runners", "1",
-        # "--evaluation-interval", "1",
+        "--evaluation-interval", "1",
         "--checkpoint-freq", "1",
         "--train-batch-size-per-learner", "500",
-        # "--stop-iters", "2",
     ]))
-# TODO fix percentage_complete
 # TODO custom eval with small, middle and large envs
 # TODO wandb logging
 # TODO generate movies during eval
