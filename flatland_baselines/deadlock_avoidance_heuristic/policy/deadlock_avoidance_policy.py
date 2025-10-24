@@ -184,7 +184,10 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 # the initial position is never added to shortest_distance_positions_agent_map
                 if agent.old_position is not None:
                     self.shortest_distance_positions_agent_map[handle].remove(agent.position)
-                    self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
+            # the initial position is never added to shortest_distance_positions_agent_map
+            # N.B. We must remove each direction separately, as there can be "loopy" paths going through same cell twice but with different direction!
+            if agent.old_position is not None:
+                self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         prev_opp_agents = self.opp_agent_map[handle]
