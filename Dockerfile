@@ -22,11 +22,8 @@ RUN conda --version  && \
     conda activate flatland-baselines && \
     python -c 'from flatland.evaluators.client import FlatlandRemoteClient'
 
-RUN mkdir -p flatland_baselines/deadlock_avoidance_heuristic
-COPY run.sh ./
+RUN mkdir -p flatland_baselines/
 COPY entrypoint_generic.sh ./
-COPY flatland_baselines/deadlock_avoidance_heuristic/ ./flatland_baselines/deadlock_avoidance_heuristic
-COPY run_solution.py ./
+COPY flatland_baselines/ ./flatland_baselines/
 
-# TODO should we make generic entrypoint the default in baselines and have run.sh only in starterkit?
-ENTRYPOINT ["bash", "run.sh"]
+ENTRYPOINT ["bash", "entrypoint_generic.sh"]
