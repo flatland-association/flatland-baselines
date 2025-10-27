@@ -15,14 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-evaluation-demo:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run solution with debug environments
-        run: docker compose up --force-recreate --build
-        working-directory: demo
-
   test-dla-regression:
     runs-on: ubuntu-22.04
     strategy:

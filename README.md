@@ -1,45 +1,51 @@
 # Flatland Baselines
 
-🚂 This repo provides baselines for the Flatland Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud) and the scenarios in the Flatland scenario repository [flatland-scenarios](https://github.com/flatland-association/flatland-scenarios).
+🚂 This repo provides baselines for [Flatland](https://github.com/flatland-association/flatland-rl) environments,
+i.e. controllers/agents that drive trains through such grid worlds.
+Technically, a baselines implements `flatland.envs.RailEnvPolicy.RailEnvPolicy` interface.
 
 📊 [Flatland Benchmarks](https://github.com/flatland-association/flatland-benchmarks) (FAB) is an open-source web-based platform for running Benchmarks to foster
-Open Research.
-
-🏆 Flatland 3 Benchmarks follow up on the [Flatland 3 Challenge](https://flatland-association.github.io/flatland-book/challenges/flatland3.html).
-More precisely, Flatland 3 Benchmarks follow Flatland 3 Challenge's
-[Round 2 Environment Configurations](https://flatland-association.github.io/flatland-book/challenges/flatland3/envconfig.html#round-2), having the same
-environment configuration but generated with different seeds.
+Open Research. Flatland baselines can be used for the Flatland Benchmarks hosted at [fab.flatland.cloud](https://fab.flatland.cloud) and the scenarios in the
+Flatland scenario repository [flatland-scenarios](https://github.com/flatland-association/flatland-scenarios).
 
 Baselines provided:
 
-* 🧲 [shortest path deadlock avoidance](flatland_baselines/deadlock_avoidance_heuristic). 👏Thanks to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for contributing!
-
-
+* 🧲 [shortest path deadlock avoidance](flatland_baselines/deadlock_avoidance_heuristic). 👏Thanks
+  to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for contributing!
 
 ## TL;DR;
 
-Run baselines with debug environments:
+Generate a trajectory from deadlock avoidance baseline:
 
-```shell
-docker compose  -f demo/docker-compose.yml up --force-recreate --build 
+```bash
+conda env update -f environment.yml
+conda activate flatland-baselines
+mkdir output
+PYTHONPATH=$PWD flatland-trajectory-generate-from-policy \
+  --policy-pkg flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy --policy-cls DeadLockAvoidancePolicy \
+  --obs-builder-pkg flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation --obs-builder-cls FullEnvObservation \
+  --seed 42 \
+  --callbacks-pkg flatland.callbacks.generate_movie_callbacks --callbacks-cls GenerateMovieCallbacks \
+  --data-dir $PWD/output 
 ```
 
 Output:
 
 ```text
-evaluator-1       | ====================================================================================================
-evaluator-1       | ####################################################################################################
-evaluator-1       | EVALUATION COMPLETE !!
-evaluator-1       | ####################################################################################################
-evaluator-1       | # Mean Reward : 0.0
-evaluator-1       | # Sum Normalized Reward : 5.0 (primary score)
-evaluator-1       | # Mean Percentage Complete : 1.0 (secondary score)
-evaluator-1       | # Mean Normalized Reward : 1.0
-evaluator-1       | ####################################################################################################
-evaluator-1       | ####################################################################################################
-evaluator-1       | \ end grader
-evaluator-1       | \ end evaluator/run.sh
-evaluator-1       | + echo '\ end evaluator/run.sh'
-submission-1 exited with code 0
-evaluator-1 exited with code 0
+ 99%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▌   | 466/471 [00:14<00:00, 35.00it/s]
+Generating Thumbnail...
+Generating Normal Video...
+Videos :  ........../flatland-baselines/output/outputs/out.mp4 ........../flatland-baselines/output/outputs/out_thumb.mp4
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▎| 470/471 [00:17<00:00, 27.18it/s]
+```
+
+N.B. movie generation requires `ffmpeg` installed - drop the `--callbacks-*` options to skip.
+
+### Further CLI options
+
+See the options for number of agents, grid size etc.:
+
+```bash
+flatland-trajectory-generate-from-policy --help
+flatland-trajectory-generate-from-metadata --help
 ```
