@@ -1,5 +1,9 @@
 name: Checks
 
+env:
+  # DEPENDENCY SWITCH:
+  flatland-rl-ref: main
+
 on:
   workflow_dispatch:
   pull_request:
@@ -11,10 +15,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  test-evaluation-demo:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Run solution with debug environments
         run: docker compose up --force-recreate --build
         working-directory: demo
+
+  test-dla-regression:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Download episodes
+        run: |
+          wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v4.zip" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
+          mkdir -p episodes
+          unzip FLATLAND_BENCHMARK_EPISODES_FOLDER -d episodes
+        working-directory: ${{ github.workspace }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v4
+        with:
+          repository: flatland-association/flatland-rl
+          path: flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
+      - name: Install flatland-rl
+        working-directory: flatland-rl
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install .
+          python -m pip list
+      - name: Run regression tests
+        run: |
+          export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
+          export PYTHONPATH=$PWD 
+          pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests

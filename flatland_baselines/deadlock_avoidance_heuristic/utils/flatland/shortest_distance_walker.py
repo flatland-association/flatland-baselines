@@ -5,6 +5,7 @@ import numpy as np
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 from flatland.envs.rail_env import RailEnv, RailEnvActions
+from flatland.envs.rail_trainrun_data_structures import Waypoint
 
 # activate LRU caching
 _flatland_shortest_distance_walker_lru_cache_functions = []
@@ -69,8 +70,8 @@ class ShortestDistanceWalker:
     def get_action(self, min_distances):
         return np.argmin(min_distances)
 
-    def callback(self, handle, agent, position, direction, action, possible_transitions) -> bool:
-        return True
+    def collect_data(self, handle, agent, position, direction, action, possible_transitions):
+        pass
 
     @_enable_flatland_shortest_distance_walker_lru_cache(maxsize=100000)
     def get_agent_position_and_direction(self, agent_position, agent_direction, agent_initial_position):
@@ -90,11 +91,10 @@ class ShortestDistanceWalker:
         agent = self.env.agents[handle]
         step = 0
         while (position != agent.target) and (step < max_step):
-            position, direction, dist, action, possible_transitions = self.walk(handle, position, direction)
+            position, direction, dist, _, _ = self.walk(handle, position, direction)
             if position is None:
                 break
-            if not self.callback(handle, agent, position, direction, action, possible_transitions):
-                break
+            self.collect_data(handle, agent, position, direction)
             step += 1
 
     @_enable_flatland_shortest_distance_walker_lru_cache(maxsize=100000)
@@ -108,9 +108,6 @@ class ShortestDistanceWalker:
             _, direction = self.get_agent_position_and_direction(agent_pos, agent_dir, agent_initial_position)
 
         return position, direction
-
-    def callback_one_step(self, handle, agent, position, direction, action, possible_transitions):
-        pass
 
     def walk_one_step(self, handle):
         agent = self.env.agents[handle]
@@ -127,5 +124,19 @@ class ShortestDistanceWalker:
             new_position, new_direction, dist, action, possible_transitions = self.walk(handle, position, direction)
             if new_position is None:
                 return position, direction, RailEnvActions.STOP_MOVING, possible_transitions
-            self.callback_one_step(handle, agent, new_position, new_direction, action, possible_transitions)
         return new_position, new_direction, action, possible_transitions
+
+
+# TODO https://github.com/flatland-association/flatland-baselines/issues/24 use get_k_shortest_paths eventually. For now use ShortestDistanceWalker as regression tests are based on the shortest paths produced by this method.
+class ExtendedShortestDistanceWalker(ShortestDistanceWalker):
+    def walk_to_target2(self, handle, position, direction, target, max_step=500):
+        p = []
+        step = 0
+        p.append(Waypoint(position, direction))
+        while (position != target) and (step < max_step):
+            position, direction, dist, _, _ = self.walk(handle, position, direction)
+            if position is None:
+                break
+            p.append(Waypoint(position, direction))
+            step += 1
+        return p
