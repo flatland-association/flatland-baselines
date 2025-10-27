@@ -19,7 +19,7 @@ RUN conda --version  && \
     source /home/conda/.bashrc && \
     source activate base && \
     conda env list  && \
-    conda activate flatland-rl && \
+    conda activate flatland-baselines && \
     python -c 'from flatland.evaluators.client import FlatlandRemoteClient'
 
 RUN mkdir -p flatland_baselines/deadlock_avoidance_heuristic
