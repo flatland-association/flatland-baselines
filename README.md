@@ -1,5 +1,7 @@
 # Flatland Baselines
 
+[![Main](https://github.com/flatland-association/flatland-baselines/actions/workflows/checks.yaml/badge.svg?branch=main)](https://github.com/flatland-association/flatland-baselines/actions/workflows/checks.yaml)
+
 🚂 This repo provides baselines for [Flatland](https://github.com/flatland-association/flatland-rl) environments,
 i.e. controllers/agents that drive trains through such grid worlds.
 Technically, a baselines implements `flatland.envs.RailEnvPolicy.RailEnvPolicy` interface.
