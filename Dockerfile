@@ -41,6 +41,7 @@ RUN wget https://raw.githubusercontent.com/flatland-association/flatland-rl/refs
 
 RUN mkdir -p flatland_baselines/
 COPY entrypoint_generic.sh ./
+RUN chmod u+x entrypoint_generic.sh
 COPY flatland_baselines/ ./flatland_baselines/
 
 ENTRYPOINT ["bash", "entrypoint_generic.sh"]
