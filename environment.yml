@@ -4,4 +4,4 @@ dependencies:
   - pip:
       # DEPENDENCY SWITCH:
       # TODO use versioned dependency instead of latest
-      - git+https://github.com/flatland-association/flatland-rl.git@policy-runner-cli-callbacks
+      - git+https://github.com/flatland-association/flatland-rl.git@main
