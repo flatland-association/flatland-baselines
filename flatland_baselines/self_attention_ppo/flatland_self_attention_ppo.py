@@ -12,7 +12,7 @@ from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.core.rl_module.torch import TorchRLModule
 from ray.rllib.utils import override
 from ray.rllib.utils.test_utils import add_rllib_example_script_args
-from ray.tune.registry import registry_get_input, register_input
+from ray.tune.registry import registry_get_input
 
 from flatland.core.env_observation_builder import AgentHandle
 from flatland.envs.observations import TreeObsForRailEnv, Node
@@ -215,10 +215,8 @@ class SelfAttentionTorchRLModule(TorchRLModule, ValueFunctionAPI):
 
 
 if __name__ == '__main__':
-    # TODO should not be necessary
     register_flatland_ray_cli_observation_builders()
-    registered_obs_builder = "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50"
-    register_input("SelfAttentionTorchRLModule", SelfAttentionTorchRLModule)
+    obs_builder_class = "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50"
 
     parser = add_rllib_example_script_args()
     train_with_parameter_sharing(
@@ -233,11 +231,11 @@ if __name__ == '__main__':
         callbacks_pkg="flatland.ml.ray.flatland_metrics_callback",
         callbacks_cls="FlatlandMetricsCallback",
         train_batch_size_per_learner=500,
-        module_class="SelfAttentionTorchRLModule",
-        obs_builder=registered_obs_builder,
+        module_class=SelfAttentionTorchRLModule,
+        obs_builder_class=registry_get_input(obs_builder_class),
         model_config={
             "hidden_sz": 128,
-            "tree_embedding_sz": registry_get_input(registered_obs_builder)().get_observation_space().shape[0],
+            "tree_embedding_sz": registry_get_input(obs_builder_class)().get_observation_space().shape[0],
             "action_sz": 5
         },
         # test_id,env_id,n_agents,x_dim,y_dim,n_cities,max_rail_pairs_in_city,n_envs_run,seed,grid_mode,max_rails_between_cities,malfunction_duration_min,malfunction_duration_max,malfunction_interval,speed_ratios
