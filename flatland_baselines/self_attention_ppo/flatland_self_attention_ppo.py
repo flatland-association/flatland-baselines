@@ -230,7 +230,8 @@ if __name__ == '__main__':
             "--checkpoint-freq", "1",
             "--num-agents", "50",
         ]),
-
+        callbacks_pkg="FlatlandMetricsCallback",
+        callbacks_cls="flatland.ml.ray.FlatlandMetricsCallback",
         train_batch_size_per_learner=500,
         module_class="SelfAttentionTorchRLModule",
         obs_builder=registered_obs_builder,
