@@ -32,7 +32,9 @@ RUN wget https://raw.githubusercontent.com/flatland-association/flatland-rl/refs
     source activate base && \
     conda activate flatland-baselines && \
     python -m pip install -U -r requirements-ml.txt && \
-    python -c 'import torch'
+    python -c 'import torch' && \
+    python -m pip cache purge && \
+    conda clean --all
 
 RUN mkdir -p flatland_baselines/deadlock_avoidance_heuristic
 COPY run.sh ./
