@@ -39,6 +39,11 @@ jobs:
       - run: echo ${{steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE}}
       - name: Inspect disk
         run: df -h
+      - name: Prune docker system
+        run: |
+          docker system prune --all --force
+      - name: Inspect disk again
+        run: df -h
       - name: Build and Push Generic Container Image
         uses: docker/build-push-action@v6
         with:
