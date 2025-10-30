@@ -38,12 +38,16 @@ jobs:
         run: INPUT=${{ github.repository }}; echo "REPO_TAG_LOWERCASE=${INPUT,,}">>${GITHUB_OUTPUT}
       - run: echo ${{steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE}}
       - name: Inspect disk
-        run: df -h
+        run: |
+          df -h
+          docker system df
       - name: Prune docker system
         run: |
           docker system prune --all --force
       - name: Inspect disk again
-        run: df -h
+        run: |
+          df -h
+          docker system df
       - name: Build and Push Generic Container Image
         uses: docker/build-push-action@v6
         with:
