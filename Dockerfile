@@ -1,6 +1,6 @@
 FROM continuumio/miniconda3
 
-RUN apt-get update && apt-get install gcc build-essential wget zip -y
+RUN apt-get update && apt-get install gcc build-essential wget zip ffmpeg -y
 
 # Replace shell with bash so we can source files
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
