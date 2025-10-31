@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: tree-observation-enhancements
 
 on:
   workflow_dispatch:
@@ -50,3 +50,32 @@ jobs:
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests
+      - name: Run solution with debug environments
+        run: docker compose up --force-recreate --build
+        working-directory: demo
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.12" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v4
+        with:
+          repository: flatland-association/flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
+          path: flatland-rl
+      - name: Install pip dependencies
+        working-directory: flatland-rl
+        run: |
+          pip install -U pytest -r requirements-ml.txt -r requirements-ml.txt
+          pip install .
+      - name: Run pytest
+        run: pytest -s --ignore=flatland-rl
+
