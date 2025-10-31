@@ -3,6 +3,31 @@ Shortest Path Deadlock Avoidance Heuristic
 
 👏Thanks to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for contributing!
 
+## Idea and Correctness
+
+#### Assumptions
+
+- each train follows its fixed path
+
+#### Algorithm
+
+> [!NOTE]  
+>  Do not enter/move if there is no free space between my path and any oncoming train's path. (A train is oncoming if it is on my path and running towards me).
+
+#### Guarantee
+
+Pairwise deadlock-free: each pair of trains does not block each other, i.e. they can avoid each other if there were no other trains blocking them.
+
+#### Correctness
+
+By design, there is always a non-overlap between two trains where they can evade each other. Hence, pair-wise deadlock free.
+
+#### Limitation
+
+If the "free" space guaranteed by the algorithm is "filled in" by other trains, deadlocks can occur.
+
+#### Extensions and Heuristics
+
 ### Problem description
 
 Deadlock or over-filling is a situation in railway where two or more trains are blocking each other while asking
