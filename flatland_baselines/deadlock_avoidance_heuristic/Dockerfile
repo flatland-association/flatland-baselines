@@ -1,4 +1,6 @@
-FROM ghcr.io/flatland-association/flatland-baselines:entrypoint-refactoring
+# https://docs.docker.com/reference/build-checks/invalid-default-arg-in-from/
+ARG TAG=latest
+FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
 
 ENV POLICY_PKG=flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy
 ENV POLICY_CLS=DeadLockAvoidancePolicy
