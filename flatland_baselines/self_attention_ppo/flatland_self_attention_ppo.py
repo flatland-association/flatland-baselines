@@ -20,8 +20,10 @@ from flatland.envs.observations import TreeObsForRailEnv, Node
 from flatland.envs.rail_env import RailEnv
 from flatland.ml.observations.gym_observation_builder import GymObservationBuilder
 from flatland.ml.ray.examples.flatland_observation_builders_registry import register_flatland_ray_cli_observation_builders
-from flatland.ml.ray.examples.flatland_training_with_parameter_sharing import train_with_parameter_sharing, _get_algo_config
+from flatland.ml.ray.examples.flatland_rollout import do_rollout
+from flatland.ml.ray.examples.flatland_training_with_parameter_sharing import train_with_parameter_sharing, _get_algo_config_parameter_sharing
 from flatland.ml.ray.flatland_metrics_and_trajectory_callback import FlatlandMetricsAndTrajectoryCallback
+from flatland.ml.ray.wrappers import ray_policy_wrapper_from_rllib_checkpoint
 from flatland_baselines.tree_lstm_ppo.flatland_marl.net_tree import Transformer
 
 
@@ -219,58 +221,12 @@ class SelfAttentionTorchRLModule(TorchRLModule, ValueFunctionAPI):
 if __name__ == '__main__':
     register_flatland_ray_cli_observation_builders()
     obs_builder_class = "FlattenedNormalizedTreeObsForRailEnv_max_depth_2_50"
+    checkpoint_path = "/Users/che/workspaces/flatland-benchmarks-f3-starterkit/checkpoint_000199"
 
-    evaluate_only = False
+    evaluate_only = True
 
     parser = add_rllib_example_script_args()
-    if evaluate_only:
-        algo_config: AlgorithmConfig = _get_algo_config(
-            # args going into run_rllib_example_script_experiment()
-            args=parser.parse_args([
-                "--enable-new-api-stack",
-                "--algo", "PPO",
-                "--evaluation-interval", "1",
-                "--checkpoint-freq", "1",
-                "--num-agents", "50",
-            ]),
-            callbacks_pkg="flatland.ml.ray.flatland_metrics_callback",
-            callbacks_cls="FlatlandMetricsCallback",
-            train_batch_size_per_learner=500,
-            module_class=SelfAttentionTorchRLModule,
-            obs_builder_class=registry_get_input(obs_builder_class),
-            model_config={
-                "hidden_sz": 128,
-                "tree_embedding_sz": registry_get_input(obs_builder_class)().get_observation_space().shape[0],
-                "action_sz": 5
-            },
-            # test_id,env_id,n_agents,x_dim,y_dim,n_cities,max_rail_pairs_in_city,n_envs_run,seed,grid_mode,max_rails_between_cities,malfunction_duration_min,malfunction_duration_max,malfunction_interval,speed_ratios
-            # Test_03,Level_0,50,30,35,3,2,10,42,False,2,20,50,540,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}"
-            # see https://flatland-association.github.io/flatland-book/challenges/flatland3/envconfig.html Round 2, Test03
-            env_config=dict(
-                x_dim=30,
-                y_dim=35,
-                n_cities=3,
-                max_rail_pairs_in_city=2,
-                grid_mode=False,
-                max_rails_between_cities=2,
-                malfunction_duration_min=20,
-                malfunction_duration_max=50,
-                malfunction_interval=540,
-                speed_ratios={1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}, ),
-        )
-        # test_algo = test_algo.evaluation(
-        #     evaluation_config=AlgorithmConfig.overrides(callbacks=FlatlandMetricsAndTrajectoryCallback),
-        # )
-        algo_config.callbacks(FlatlandMetricsAndTrajectoryCallback)
-        algo: Algorithm = algo_config.build_algo()
-        algo.restore("/Users/che/workspaces/flatland-benchmarks-f3-starterkit/checkpoint_000199")
-        assert algo.training_iteration > 0
-        eval_results = algo.evaluate()
-        print(eval_results)
-        raise Exception()
-
-
-    train_with_parameter_sharing(
+    d = dict(
         # args going into run_rllib_example_script_experiment()
         args=parser.parse_args([
             "--enable-new-api-stack",
@@ -304,6 +260,27 @@ if __name__ == '__main__':
             malfunction_interval=540,
             speed_ratios={1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}, ),
     )
+
+    if evaluate_only:
+        algo_config: AlgorithmConfig = _get_algo_config_parameter_sharing(**d)
+        algo = algo_config.build_algo()
+        # TODO seems not work yet - success rate consistently at 0 whereas often > 0 for RLlib way.
+        do_rollout(env=algo.env_creator(None), num_episodes_during_inference=5, policy=ray_policy_wrapper_from_rllib_checkpoint(checkpoint_path, algo, "p0"))
+
+    if evaluate_only:
+        algo_config: AlgorithmConfig = _get_algo_config_parameter_sharing(**d)
+        algo_config.callbacks(FlatlandMetricsAndTrajectoryCallback)
+        algo: Algorithm = algo_config.build_algo()
+
+        algo.restore(checkpoint_path)
+        assert algo.training_iteration > 0
+        # TODO terribly slow - why? observations?
+        eval_results = algo.evaluate()
+        print(eval_results)
+    if not evaluate_only:
+        train_with_parameter_sharing(
+            **d
+        )
 
     # TODO custom eval with small, middle and large envs
     # TODO test wandb logging
