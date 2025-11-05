@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: inject-policy-obs-builder-through-env-vars
 
 on:
   workflow_dispatch:
