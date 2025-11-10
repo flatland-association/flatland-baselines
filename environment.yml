@@ -5,4 +5,4 @@ dependencies:
       # DEPENDENCY SWITCH:
       # TODO use versioned dependency instead of latest
       - pytest
-      - git+https://github.com/flatland-association/flatland-rl.git@inject-policy-obs-builder-through-env-vars
+      - git+https://github.com/flatland-association/flatland-rl.git@main
