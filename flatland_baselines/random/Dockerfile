@@ -3,10 +3,6 @@
 ARG TAG=entrypoint-refactoring
 FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
 
-# HERE: ADD your code and checkpoints etc.
-COPY my_orga/ my_orga/
-
-# HERE: ADD your policy and obs builder (must be on PYTHONPATH)
 ENV POLICY=my_orga.random_policy.RandomPolicy
 ENV OBS_BUILDER=flatland.core.env_observation_builder.DummyObservationBuilder
 
@@ -15,7 +11,6 @@ RUN echo "from flatland.utils.cli_utils import resolve_type" > test.py && \
   echo "assert resolve_type('${POLICY}') is not None" >> test.py && \
   echo "assert resolve_type('${OBS_BUILDER}') is not None" >> test.py
 
-# TODO should not be necessary any more
 RUN bash entrypoint_generic.sh python test.py
 
 
