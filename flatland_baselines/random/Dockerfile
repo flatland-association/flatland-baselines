@@ -3,7 +3,7 @@
 ARG TAG=entrypoint-refactoring
 FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
 
-ENV POLICY=my_orga.random_policy.RandomPolicy
+ENV POLICY=tests.trajectories.test_trajectories.RandomPolicy
 ENV OBS_BUILDER=flatland.core.env_observation_builder.DummyObservationBuilder
 
 # fail fast (verirfy at build time that POLICY and OBS_BUILDER are on PYTHONPATH)
