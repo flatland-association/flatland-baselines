@@ -62,7 +62,17 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}:${{ env.TAG }}
-
+      - name: Build and Push Random Policy Container Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: flatland_baselines/random/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          build-args: |
+            TAG=${{ env.TAG }}
+          tags: |
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-random:${{ env.TAG }}
       - name: Build and Push DLA Container Image
         uses: docker/build-push-action@v6
         with:
