@@ -3,6 +3,7 @@ name: Build FAB Flatland Baselines Docker Image and upload to ghcr.io
 on:
   push:
     branches: [ "main" ]
+  pull_request:
   workflow_dispatch:
     inputs:
       tag:
@@ -20,8 +21,12 @@ jobs:
       packages: write
     steps:
       - name: Evaluate tag
+        # precedence:
+        # - input tag on workflow_dispatch
+        # - head ref on pull_request
+        # - "latest"
         run: |
-          echo "TAG=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_ENV
+          echo "TAG=${{ github.event.inputs.tag || github.head_ref || 'latest' }}" >> $GITHUB_ENV
       - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
