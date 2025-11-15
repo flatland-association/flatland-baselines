@@ -23,7 +23,7 @@ jobs:
       - name: Evaluate tag
         # precedence:
         # - input tag on workflow_dispatch
-        # - head ref on pull_request
+        # - head ref on pull_request (must be valid tag!)
         # - "latest"
         run: |
           echo "TAG=${{ github.event.inputs.tag || github.head_ref || 'latest' }}" >> $GITHUB_ENV
