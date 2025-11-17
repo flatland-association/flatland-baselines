@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from testcontainers.compose import DockerCompose
 
-from flatland.evaluators.trajectory_analysis import data_frame_for_trajectories
+from flatland.evaluators.trajectory_analysis import data_frame_for_trajectories, persist_data_frame_for_trajectories
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +75,11 @@ def _containers_fixture(environments) -> Path:
 
 
 def _run(root_data_dir: Path):
+    print(root_data_dir)
     data = data_frame_for_trajectories(root_data_dir)
     all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data
-    if False:
-        # TODO depends on feature branch of of flatland-rl
-        analysis_dir = Path("../analysis-meta")
-        persist_data_frame_for_trajectories(*data, output_dir=analysis_dir)
+    analysis_dir = Path("../analysis-meta")
+    persist_data_frame_for_trajectories(*data, output_dir=analysis_dir)
     # TODO assertions for environments_v2
     assert (all_trains_arrived["mean_normalized_reward"] == 1.0).all()
     assert (all_trains_arrived["success_rate"] == 1.0).all()

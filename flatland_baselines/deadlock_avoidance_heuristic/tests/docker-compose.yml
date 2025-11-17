@@ -32,7 +32,7 @@ services:
       - |
         flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/metadata.csv --data-dir /outputs-meta
     build:
-      dockerfile: Dockerfile
+      dockerfile: ../Dockerfile
     depends_on:
       setup:
         condition: service_completed_successfully
