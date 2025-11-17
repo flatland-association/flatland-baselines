@@ -1,0 +1,55 @@
+services:
+  setup:
+    image: alpine
+    volumes:
+      - scenarios:/scenarios
+      - ${DATA_DIR:-./outputs-meta}:/outputs-meta
+    entrypoint: [ "/bin/sh","-c" ]
+    command:
+      - |
+        set -euxo pipefail
+
+        chmod a+rwx -R /scenarios
+        wget "https://data.flatland.cloud/benchmarks/Flatland3/debug-environments.zip" -O debug-environments.zip -O debug-environments.zip
+        rm -fR /scenarios/debug-environments
+        mkdir -p /scenarios/debug-environments
+        unzip debug-environments.zip -o -d /scenarios
+        rm -fR /scenarios/Test*
+        mv -f /scenarios/debug-environments/Test* /scenarios/
+        
+        wget https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip -O environments_v2.zip
+        rm -fR scenarios/environments_v2
+        mkdir -p scenarios/environments_v2
+        unzip environments_v2.zip -d scenarios/environments_v2
+        
+        find /scenarios
+        
+        chmod a+rwx -R /scenarios
+        chmod a+rwx -R /outputs-meta
+
+  run-environments:
+    command:
+      - |
+        flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/metadata.csv --data-dir /outputs-meta
+    build:
+      dockerfile: Dockerfile
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    volumes:
+      - scenarios:/inputs
+      - ${DATA_DIR:-./outputs-meta}:/outputs-meta
+  # up --wait should wait for run to be completed, but must not exit(0) for testcontainers-python not to fail
+  done:
+    build:
+      dockerfile: Dockerfile_alpine_bash
+    entrypoint: [ "/bin/bash","-c" ]
+    command:
+      - |
+        while true; do echo "Current date: $(date)"; sleep 1; done
+    depends_on:
+      run-environments:
+        condition: service_completed_successfully
+
+volumes:
+  scenarios:
