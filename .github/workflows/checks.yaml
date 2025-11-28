@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: refactor-trajectory-analysis
+  flatland-rl-ref: main
 
 on:
   workflow_dispatch:

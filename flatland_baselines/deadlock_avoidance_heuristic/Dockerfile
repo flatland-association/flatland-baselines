@@ -1,6 +1,6 @@
 # TODO use released version
 # https://docs.docker.com/reference/build-checks/invalid-default-arg-in-from/
-ARG TAG=entrypoint-refactoring
+ARG TAG=latest
 FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
 
 ENV POLICY=flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy.DeadLockAvoidancePolicy
