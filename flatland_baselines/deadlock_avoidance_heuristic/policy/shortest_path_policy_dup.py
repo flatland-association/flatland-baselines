@@ -57,10 +57,27 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             return
 
         if agent.handle not in self._shortest_paths:
-            initial_wp = agent.waypoints[0][0]
-            target_wp = agent.waypoints[-1][0]
-            self._shortest_paths[agent.handle] = \
-                self.get_k_shortest_paths(agent.handle, env, initial_wp.position, initial_wp.direction, target_wp.position)[0]
+            p = []
+            for pp1, pp2 in zip(agent.waypoints, agent.waypoints[1:]):
+                p1: Waypoint = pp1[0]
+                p2: Waypoint = pp2[0]
+                if len(p) > 0:
+                    assert p[-1] == p1, (p[-1], p1)
+                pp_next = self.get_k_shortest_paths(agent.handle, env, p1.position, p1.direction, p2.position)
+                p_next = None
+                if p2.direction is None:
+                    p_next = pp_next[0]
+                else:
+                    for _p_next in pp_next:
+                        if _p_next[-1].direction == p2.direction:
+                            p_next = _p_next
+                            break
+                assert p_next is not None, f"Not found next path from {p1} to {p2}"
+                if len(p) > 0:
+                    p += p_next[1:]
+                else:
+                    p += p_next
+            self._shortest_paths[agent.handle] = p
 
         if agent.position is None:
             return
