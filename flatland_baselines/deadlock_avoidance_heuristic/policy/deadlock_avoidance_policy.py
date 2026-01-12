@@ -38,6 +38,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                  min_free_cell: int = 1,
                  enable_eps: bool = False,
                  show_debug_plot: bool = False,
+                 _injected_get_k_shortest_paths=None,
                  ):
         super().__init__()
 
@@ -58,17 +59,30 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         # set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
+        self._injected_get_k_shortest_paths = _injected_get_k_shortest_paths
+
     def _init_env(self, env: RailEnv):
-        distance_walker = ExtendedShortestDistanceWalker(env)
 
-        def get_k_shortest_paths(handle, env,
-                                 source_position: Tuple[int, int],
-                                 source_direction: int,
-                                 target_position=Tuple[int, int],
-                                 k: int = 1, debug=False) -> List[Tuple[Waypoint]]:
-            return [distance_walker.walk_to_target2(handle, source_position, source_direction, target_position)]
+        if self._injected_get_k_shortest_paths is None:
+            distance_walker = ExtendedShortestDistanceWalker(env)
 
-        super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
+            def get_k_shortest_paths(handle, env,
+                                     source_position: Tuple[int, int],
+                                     source_direction: int,
+                                     target_position=Tuple[int, int],
+                                     k: int = 1, debug=False) -> List[Tuple[Waypoint]]:
+                return [distance_walker.walk_to_target2(handle, source_position, source_direction, target_position)]
+
+            super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
+        else:
+            def get_k_shortest_paths(handle, env,
+                                     source_position: Tuple[int, int],
+                                     source_direction: int,
+                                     target_position=Tuple[int, int],
+                                     k: int = 1, debug=False) -> List[Tuple[Waypoint]]:
+                return self._injected_get_k_shortest_paths(env, source_position, source_direction, target_position)
+
+            super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
 
         # 1 if position is a switch, 0 otherwise
         self.switches = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int)

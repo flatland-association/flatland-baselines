@@ -6,6 +6,7 @@ import numpy as np
 
 from flatland.env_generation.env_generator import env_generator
 from flatland.envs.observations import FullEnvObservation
+from flatland.envs.rail_env_shortest_paths import get_k_shortest_paths
 from flatland.trajectories.policy_runner import PolicyRunner
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
 
@@ -22,7 +23,7 @@ def test_intermediate():
     with tempfile.TemporaryDirectory() as tmpdirname:
         temp_data_dir = Path(tmpdirname)
         trajectory = PolicyRunner.create_from_policy(
-            policy=DeadLockAvoidancePolicy(),
+            policy=DeadLockAvoidancePolicy(_injected_get_k_shortest_paths=get_k_shortest_paths),
             data_dir=temp_data_dir,
             env=env,
             snapshot_interval=0,
