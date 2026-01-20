@@ -1,0 +1,7 @@
+name: flatland-rl
+dependencies:
+  - python==3.12.9
+  - pip:
+      # DEPENDENCY SWITCH:
+      #      - git+https://github.com/flatland-association/flatland-rl.git@239e3702d4c143a57d348cd98d4bc6882e3b3b71
+      - flatland-rl==4.2.2
