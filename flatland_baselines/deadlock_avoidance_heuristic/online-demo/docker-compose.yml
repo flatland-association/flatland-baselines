@@ -1,0 +1,83 @@
+services:
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  evaluator:
+    build:
+      context: evaluator
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      downloader:
+        condition: service_completed_successfully
+    environment:
+      AICROWD_TESTS_FOLDER: /tmp/debug-environments/
+      redis_ip: redis
+      AICROWD_DEBUG_SUBMISSION: 1
+    volumes:
+      - environments-evaluator-vol:/tmp/debug-environments/
+
+  submission:
+    build:
+      context: ../../..
+      dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online-demo/submission/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      downloader:
+        condition: service_completed_successfully
+    environment:
+      AICROWD_TESTS_FOLDER: /tmp/debug-environments/
+      redis_ip: redis
+    volumes:
+      - environments-submission-vol:/tmp/debug-environments/
+
+  downloader:
+    image: alpine
+    entrypoint: [ "/bin/sh","-c" ]
+    command:
+      - |
+        set -x
+        set -e
+        
+        # comment out if using data from local volume
+        mkdir -p /tmp/orig
+        wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip" -O environments.zip
+        unzip -o environments.zip -d /tmp/orig
+        
+        rm -fR /tmp/debug-environments/*
+        rm -fR /tmp/debug-environments-submission/*
+        mkdir -p /tmp/debug-environments/
+        mkdir -p /tmp/debug-environments-submission/
+        cp -R /tmp/orig/* /tmp/debug-environments/
+        cp -R /tmp/orig/* /tmp/debug-environments-submission/
+        find /tmp/debug-environments/
+        find /tmp/debug-environments-submission/
+        # evaluation client does gets command from evaluator via redis, does not need metadata.csv
+        rm /tmp/debug-environments-submission/metadata.csv
+    volumes:
+      #      - ....:/tmp/orig
+      - environments-evaluator-vol:/tmp/debug-environments
+      - environments-submission-vol:/tmp/debug-environments-submission
+  shutdown-redis:
+    image: redis
+    entrypoint: [ "/bin/sh","-c" ]
+    command:
+      - |
+        redis-cli -h redis -p 6379 shutdown now
+    depends_on:
+      evaluator:
+        condition: service_completed_successfully
+      submission:
+        condition: service_completed_successfully
+volumes:
+  environments-from-host-vol:
+  environments-evaluator-vol:
+  environments-submission-vol:
