@@ -64,7 +64,7 @@ def main():
 
     print("Evaluation Complete...")
     print(remote_client.submit())
-    print("\\ end random_agent", flush=True)
+    print("\\ end DeadLockAvoidancePolicy", flush=True)
 
 
 if __name__ == '__main__':

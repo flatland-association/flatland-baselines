@@ -7,5 +7,8 @@ source /home/conda/.bashrc
 source activate base
 conda activate flatland-rl
 python -m pip list
+whoami
+pwd
+ls -al .
 python evaluator.py
 echo "\\ end evaluator/run.sh"
