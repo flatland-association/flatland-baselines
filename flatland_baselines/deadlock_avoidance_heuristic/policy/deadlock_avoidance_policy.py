@@ -48,36 +48,36 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         # will be injected from observation (`FullEnvObservation`)
         self.raiL_env: Optional[RailEnv] = None
 
-        # -1 if no agent, agent handle otherwise
+        # start_step (1): -1 if no agent, agent handle otherwise
         self.agent_positions = None
 
-        # next (r,c,d) and action to get there; or no entry if train must not move
+        # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
-        # set of oncoming agents
+        # start_step (2.3.2): set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
     def _init_env(self, env: RailEnv):
         super(DeadLockAvoidancePolicy, self).__init__()
 
-        # 1 if position is a switch, 0 otherwise
+        # _init_env: 1 if position is a switch, 0 otherwise
         self.switches = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int)
         for r in range(self.raiL_env.height):
             for c in range(self.raiL_env.width):
                 if self._is_switch_cell((r, c)):
                     self.switches[(r, c)] = 1
 
-        # 1 if current shortest path (without current cell!), 0 otherwise
+        # start_step (2.3.3): 1 if current shortest path (without current cell!), 0 otherwise
         self.shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
                                                      self.raiL_env.height,
                                                      self.raiL_env.width),
                                                     dtype=int)
-        # all positions on current shortest path (without current cell!)
+        # start_step (2.2): all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
-        # directions for all positions on current shortest path (without current cell!)
+        # start_step (2.2): directions for all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_directions_agent_map: Dict[Tuple[AgentHandle, Tuple[int, int]], Set[int]] = defaultdict(set)
-        # number of cells till first oncoming agent (without current cell!)
+        # start_step (2.3.3): number of cells till first oncoming agent (without current cell!)
         self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
-        # 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
+        # start_step (2.2): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
         self.full_shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
                                                           self.raiL_env.height,
                                                           self.raiL_env.width),
@@ -101,6 +101,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         act = RailEnvActions.STOP_MOVING
         if check is not None:
             act = check[3]
+
+
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
         # submission-1      | TypeError: can not serialize 'RailEnvActions' object
         # if isinstance(act, RailEnvActions):
@@ -136,31 +138,47 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
        start_step (2): update the shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
         More precisely, updates:
         - `super()._shortest_paths`
-        - `super()._remaining_targets`.
-        - `self.opp_agent_map`
-        - `self.shortest_distance_agent_map`
-        - `self.full_shortest_distance_agent_map`
+        - `self.shortest_distance_agent_map` (2.2)
+        - `self.full_shortest_distance_agent_map` (2.2)
+        - `self.shortest_distance_positions_directions_agent_map` (2.2)
+        - `self.opp_agent_map` (2.3.2)
+        - `self.shortest_distance_agent_map` (2.3.3)
+        - `self.shortest_distance_agent_len` (2.3.3)
         """
+        # (2.0)
         all_agent_positions: Set[Tuple[int, int]] = self._collect_all_agent_positions()
 
         for agent in self.raiL_env.agents:
             handle = agent.handle
 
+            # (2.1)
             super()._update_agent(agent, self.raiL_env)
 
+            # (2.2)
             self._build_full_shortest_distance_agent_map(agent, handle)
             if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
                 continue
 
+            # (2.3)
             self._build_shortest_distance_agent_map(agent, handle, all_agent_positions)
 
     def _collect_all_agent_positions(self):
+        """
+        start_step (2.0)
+        """
         all_agent_positions = set()
         for agent in self.raiL_env.agents:
             all_agent_positions.add(agent.position)
         return all_agent_positions
 
     def _build_full_shortest_distance_agent_map(self, agent, handle):
+        """
+        start_step (2.2)
+        Updates:
+        - `self.full_shortest_distance_agent_map`
+        - `self.shortest_distance_agent_map`
+        - `self.shortest_distance_positions_directions_agent_map`
+        """
         if self.raiL_env._elapsed_steps == 1:
             for wp in self._shortest_paths[agent.handle][1:]:
                 position, direction = wp.position, wp.direction
@@ -180,16 +198,28 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
+        """
+        start_step (2.3)
+        """
+        # (2.3.1)
         prev_opp_agents = self.opp_agent_map[handle]
         overlap = self.shortest_distance_positions_agent_map[handle].intersection(all_agent_positions)
         if overlap == prev_opp_agents:
             return
 
+        # (2.3.2)
         self._rebuild_opp_agent_map(handle, overlap)
-
+        # (2.3.3)
         self._rebuild_shortest_distance_agent_map(agent, handle)
 
     def _rebuild_shortest_distance_agent_map(self, agent, handle):
+        """
+        start_step (2.3.3)
+
+        Updates:
+        - `self.shortest_distance_agent_map`
+        - `self.shortest_distance_agent_len`
+        """
         # TODO performance improvement idea: we could update over the previous opposing trains (beware of close-following, map must be non-binary) and update their position and we only have to look at non-facing switches where new opposing trains can occur.
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
@@ -206,6 +236,11 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                 self.shortest_distance_agent_map[(handle, position[0], position[1])] = 1
 
     def _rebuild_opp_agent_map(self, handle, overlap):
+        """
+        start_step (2.3.2)
+        Updates:
+        - `self.opp_agent_map` (2.3.2)
+        """
         self.opp_agent_map[handle] = set()
         for position in overlap:
             opp_a = self.agent_positions[position]
