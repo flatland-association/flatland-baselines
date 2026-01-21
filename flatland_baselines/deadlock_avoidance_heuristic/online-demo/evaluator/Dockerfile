@@ -1,6 +1,6 @@
 FROM continuumio/miniconda3
 
-RUN apt-get update && apt-get install gcc build-essential wget zip -y
+RUN apt-get update && apt-get install gcc build-essential wget zip ffmpeg -y
 
 # Replace shell with bash so we can source files
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
@@ -9,6 +9,7 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN useradd conda --home-dir /home/conda --create-home
 RUN chown -R conda /opt/conda
 USER conda
+WORKDIR /home/conda
 
 # setup flatland-rl conda env
 COPY environment.yml ./
@@ -25,6 +26,10 @@ COPY run.sh ./
 COPY evaluator.py ./
 
 # create directory as conda!
-RUN mkdir -p /tmp/results
+RUN mkdir -p /tmp/results/
+RUN mkdir -p /tmp/analysis_data_dir/
+RUN mkdir -p /tmp/episodes/
+RUN mkdir -p /tmp/actions/
+RUN mkdir -p /tmp/visualizations
 
 ENTRYPOINT bash run.sh
