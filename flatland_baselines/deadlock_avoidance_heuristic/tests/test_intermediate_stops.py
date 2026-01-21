@@ -6,17 +6,23 @@ import numpy as np
 
 from flatland.env_generation.env_generator import env_generator
 from flatland.envs.observations import FullEnvObservation
-from flatland.envs.rail_env_shortest_paths import get_k_shortest_paths
+from flatland.envs.rewards import DefaultRewards
 from flatland.trajectories.policy_runner import PolicyRunner
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
 
 
 def test_intermediate():
+    rewards = DefaultRewards(intermediate_not_served_penalty=0.77,
+                             cancellation_factor=22,
+                             intermediate_late_arrival_penalty_factor=33,
+                             intermediate_early_departure_penalty_factor=44,
+                             )
     env, _, _ = env_generator(
         n_cities=5,
         line_length=3,
         obs_builder_object=FullEnvObservation(),
-        seed=982374
+        seed=982374,
+        rewards=rewards
     )
     for a in env.agents:
         print(a.waypoints)
@@ -31,9 +37,9 @@ def test_intermediate():
         )
         assert np.isclose(trajectory.trains_arrived["success_rate"], 1.0)
 
-        # -1 is bug fixed by https://github.com/flatland-association/flatland-rl/pull/328
         # TODO review design decision: vanish immediately at target?
-        assert trajectory.trains_rewards_dones_infos["reward"].sum() == - env.rewards.intermediate_not_served_penalty * env.number_of_agents - 1
+        assert min(env.agents[6].latest_arrival - env.agents[6].arrival_time, 0) == -2
+        assert trajectory.trains_rewards_dones_infos["reward"].sum() == - rewards.intermediate_not_served_penalty * env.number_of_agents - 2
 
         for agent_id, a in enumerate(env.agents):
             print(a.waypoints)
