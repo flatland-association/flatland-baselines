@@ -6,6 +6,7 @@ from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env_action import RailEnvActions
 from flatland.envs.rail_env_policy import RailEnvPolicy
 from flatland.envs.rail_env_shortest_paths import get_k_shortest_paths
+from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 
@@ -19,10 +20,6 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     def __init__(self, _get_k_shortest_paths=None):
         super().__init__()
         self._shortest_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
-        if _get_k_shortest_paths is None:
-            self.get_k_shortest_paths = lambda *args: get_k_shortest_paths(*args[1:])
-        else:
-            self.get_k_shortest_paths = _get_k_shortest_paths
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.position is None:
@@ -57,27 +54,8 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             return
 
         if agent.handle not in self._shortest_paths:
-            p = []
-            for pp1, pp2 in zip(agent.waypoints, agent.waypoints[1:]):
-                p1: Waypoint = pp1[0]
-                p2: Waypoint = pp2[0]
-                if len(p) > 0:
-                    assert p[-1] == p1, (p[-1], p1)
-                pp_next = self.get_k_shortest_paths(agent.handle, env, p1.position, p1.direction, p2.position)
-                p_next = None
-                if p2.direction is None:
-                    p_next = pp_next[0]
-                else:
-                    for _p_next in pp_next:
-                        if _p_next[-1].direction == p2.direction:
-                            p_next = _p_next
-                            break
-                assert p_next is not None, f"Not found next path from {p1} to {p2}"
-                if len(p) > 0:
-                    p += p_next[1:]
-                else:
-                    p += p_next
-            self._shortest_paths[agent.handle] = p
+            always_first_waypoint = [pp[0] for pp in agent.waypoints]
+            self._set_shortest_path_from_non_flexible_waypoints(agent, always_first_waypoint, env.rail)
 
         if agent.position is None:
             return
@@ -85,3 +63,31 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         while self._shortest_paths[agent.handle][0].position != agent.position:
             self._shortest_paths[agent.handle] = self._shortest_paths[agent.handle][1:]
         assert self._shortest_paths[agent.handle][0].position == agent.position
+
+    def _set_shortest_path_from_non_flexible_waypoints(self, agent: EnvAgent, waypoints: List[Waypoint], rail: RailGridTransitionMap):
+        """
+        Sets the shortest path to path built by routing shortest path between waypoints.
+
+        Assumes the shortest path complies with the directions at the intermediate waypoints.
+        """
+        p: List[Waypoint] = []
+        for p1, p2 in zip(waypoints, waypoints[1:]):
+            if len(p) > 0:
+                assert p[-1] == p1, (p[-1], p1)
+            # TODO add caching for get_k_shortest_paths?
+            path_segment_candidates: List[Tuple[Waypoint]] = get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail)
+            next_path_segment = None
+            if p2.direction is None:
+                next_path_segment = path_segment_candidates[0]
+            else:
+                # TODO add optional direction at target to get_k_shortest_paths
+                for _p_next in path_segment_candidates:
+                    if _p_next[-1].direction == p2.direction:
+                        next_path_segment = _p_next
+                        break
+            assert next_path_segment is not None, f"Not found next path from {p1} to {p2}"
+            if len(p) > 0:
+                p += next_path_segment[1:]
+            else:
+                p += next_path_segment
+        self._shortest_paths[agent.handle] = p
