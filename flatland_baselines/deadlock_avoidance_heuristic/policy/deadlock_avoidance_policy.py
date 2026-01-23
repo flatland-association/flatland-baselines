@@ -47,7 +47,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.min_free_cell = min_free_cell
 
         # will be injected from observation (`FullEnvObservation`)
-        self.raiL_env: Optional[RailEnv] = None
+        self.rail_env: Optional[RailEnv] = None
 
         # start_step (1): -1 if no agent, agent handle otherwise
         self.agent_positions = None
@@ -63,16 +63,16 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         super(DeadLockAvoidancePolicy, self).__init__()
 
         # _init_env: 1 if position is a switch, 0 otherwise
-        self.switches = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int)
-        for r in range(self.raiL_env.height):
-            for c in range(self.raiL_env.width):
+        self.switches = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int)
+        for r in range(self.rail_env.height):
+            for c in range(self.rail_env.width):
                 if self._is_switch_cell((r, c)):
                     self.switches[(r, c)] = 1
 
         # start_step (2.3.3): 1 if current shortest path (without current cell!), 0 otherwise
-        self.shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
-                                                     self.raiL_env.height,
-                                                     self.raiL_env.width),
+        self.shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
+                                                     self.rail_env.height,
+                                                     self.rail_env.width),
                                                     dtype=int)
         # start_step (2.2): all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
@@ -81,16 +81,16 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # start_step (2.3.3): number of cells till first oncoming agent (without current cell!)
         self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
         # start_step (2.2): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
-        self.full_shortest_distance_agent_map = np.zeros((self.raiL_env.get_num_agents(),
-                                                          self.raiL_env.height,
-                                                          self.raiL_env.width),
+        self.full_shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
+                                                          self.rail_env.height,
+                                                          self.rail_env.width),
                                                          dtype=int)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         assert isinstance(observations[0], RailEnv)
-        if self.raiL_env is None:
-            self.raiL_env = observations[0]
-            self._init_env(self.raiL_env)
+        if self.rail_env is None:
+            self.rail_env = observations[0]
+            self._init_env(self.rail_env)
         self._start_step()
         return {handle: self._act(handle, observations[handle]) for handle in handles}
 
@@ -103,24 +103,25 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         check = self.agent_can_move.get(handle, None)
         act = RailEnvActions.STOP_MOVING
 
-        if self.raiL_env.agents[handle].position is not None:
-            self.agent_waypoints_done[handle].add(Waypoint(self.raiL_env.agents[handle].position, self.raiL_env.agents[handle].direction))
+        if self.rail_env.agents[handle].position is not None:
+            self.agent_waypoints_done[handle].add(Waypoint(self.rail_env.agents[handle].position, self.rail_env.agents[handle].direction))
 
         if check is not None:
             act = check[3]
         else:
-            if self.raiL_env.agents[handle].state in [TrainState.MOVING, TrainState.STOPPED]:
+            if self.rail_env.agents[handle].state in [TrainState.MOVING, TrainState.STOPPED]:
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
-                remaining_flexible_waypoints: List[List[Waypoint]] = self.raiL_env.agents[handle].waypoints
+                remaining_flexible_waypoints: List[List[Waypoint]] = self.rail_env.agents[handle].waypoints
                 while True:
                     if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[handle]):
                         break
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(self.raiL_env.agents[handle].position, self.raiL_env.agents[handle].direction)] + [
-                    pp[0] for pp in self.raiL_env.agents[handle].waypoints if pp[0] not in self.agent_waypoints_done[handle]]
-                self._set_shortest_path_from_non_flexible_waypoints(self.raiL_env.agents[handle], remaining_waypoints_taking_first, self.raiL_env.rail)
+                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(self.rail_env.agents[handle].position, self.rail_env.agents[handle].direction)] + [
+                    pp[0] for pp in self.rail_env.agents[handle].waypoints if pp[0] not in self.agent_waypoints_done[handle]]
 
-                self.init_shortest_distance_positions(self.raiL_env.agents[handle], handle)
+                self._set_shortest_path_from_non_flexible_waypoints(self.rail_env.agents[handle], remaining_waypoints_taking_first, self.rail_env.rail)
+
+                self.init_shortest_distance_positions(self.rail_env.agents[handle], handle)
                 self.opp_agent_map.pop(handle, None)
 
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
@@ -146,9 +147,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         - `self.agent_positions`
         """
         # build map with agent positions (only active agents)
-        self.agent_positions = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int) - 1
-        for handle in range(self.raiL_env.get_num_agents()):
-            agent = self.raiL_env.agents[handle]
+        self.agent_positions = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int) - 1
+        for handle in range(self.rail_env.get_num_agents()):
+            agent = self.rail_env.agents[handle]
             if agent.state in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
                 if agent.position is not None:
                     self.agent_positions[agent.position] = handle
@@ -168,11 +169,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # (2.0)
         all_agent_positions: Set[Tuple[int, int]] = self._collect_all_agent_positions()
 
-        for agent in self.raiL_env.agents:
+        for agent in self.rail_env.agents:
             handle = agent.handle
 
             # (2.1)
-            super()._update_agent(agent, self.raiL_env)
+            super()._update_agent(agent, self.rail_env)
 
             # (2.2)
             self._build_full_shortest_distance_agent_map(agent, handle)
@@ -187,7 +188,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         start_step (2.0)
         """
         all_agent_positions = set()
-        for agent in self.raiL_env.agents:
+        for agent in self.rail_env.agents:
             all_agent_positions.add(agent.position)
         return all_agent_positions
 
@@ -201,7 +202,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         - `self.shortest_distance_positions_directions_agent_map`
         """
         # (2.2.1)
-        if self.raiL_env._elapsed_steps == 1:
+        if self.rail_env._elapsed_steps == 1:
             self.init_shortest_distance_positions(agent, handle)
         # (2.2.2)
         if agent.position is not None and agent.position != agent.old_position:
@@ -263,7 +264,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             position, direction = wp.position, wp.direction
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
-                if self.raiL_env.agents[opp_a].direction != direction:
+                if self.rail_env.agents[opp_a].direction != direction:
                     num_opp_agents += 1
                     break
             if num_opp_agents == 0:
@@ -283,12 +284,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 directions = self.shortest_distance_positions_directions_agent_map[handle][position]
                 assert len(directions) > 0
                 for direction in directions:
-                    if self.raiL_env.agents[opp_a].direction != direction:
+                    if self.rail_env.agents[opp_a].direction != direction:
                         self.opp_agent_map[handle].add(opp_a)
 
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
         for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
-            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.raiL_env.rail.check_action_on_agent(action, configuration)
+            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.rail_env.rail.check_action_on_agent(action, configuration)
             if new_configuration == next_configuration:
                 return preprocessed_action
         raise
@@ -300,8 +301,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         """
         self.agent_can_move = {}
 
-        for handle in range(self.raiL_env.get_num_agents()):
-            agent = self.raiL_env.agents[handle]
+        for handle in range(self.rail_env.get_num_agents()):
+            agent = self.rail_env.agents[handle]
             if TrainState.DONE > agent.state >= TrainState.WAITING:
                 if self._check_agent_can_move(
                         self.shortest_distance_agent_map[handle],
@@ -328,9 +329,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
 
         if self.show_debug_plot:
-            a = np.floor(np.sqrt(self.raiL_env.get_num_agents()))
-            b = np.ceil(self.raiL_env.get_num_agents() / a)
-            for handle in range(self.raiL_env.get_num_agents()):
+            a = np.floor(np.sqrt(self.rail_env.get_num_agents()))
+            b = np.ceil(self.rail_env.get_num_agents() / a)
+            for handle in range(self.rail_env.get_num_agents()):
                 plt.subplot(a, b, handle + 1)
                 plt.imshow(self.full_shortest_distance_agent_map[handle] + self.shortest_distance_agent_map[handle])
             plt.show(block=False)
@@ -412,7 +413,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     @_enable_flatland_deadlock_avoidance_policy_lru_cache(maxsize=100000)
     def _is_switch_cell(self, position) -> bool:
         for new_dir in range(4):
-            possible_transitions = self.raiL_env.rail.get_transitions((position, new_dir))
+            possible_transitions = self.rail_env.rail.get_transitions((position, new_dir))
             num_transitions = fast_count_nonzero(possible_transitions)
             if num_transitions > 1:
                 return True
