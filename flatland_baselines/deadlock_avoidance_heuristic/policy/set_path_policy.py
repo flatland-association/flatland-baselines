@@ -57,7 +57,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
         if agent.handle not in self._set_paths:
             always_first_waypoint = [pp[0] for pp in agent.waypoints]
-            self._set_shortest_path_from_non_flexible_waypoints(agent, always_first_waypoint, env.rail)
+            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
 
         if agent.position is None:
             return
@@ -66,9 +66,9 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
         assert self._set_paths[agent.handle][0].position == agent.position
 
-    def _set_shortest_path_from_non_flexible_waypoints(self, agent: EnvAgent, waypoints: List[Waypoint], rail: RailGridTransitionMap):
+    def _shortest_path_from_non_flexible_waypoints(self, waypoints: List[Waypoint], rail: RailGridTransitionMap):
         """
-        Sets the shortest path to path built by routing the shortest path between waypoints.
+        Computes the shortest path to path built by routing the shortest path between waypoints.
 
         Assumes the shortest path complies with the directions at the intermediate waypoints.
         """
@@ -92,4 +92,4 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 p += next_path_segment[1:]
             else:
                 p += next_path_segment
-        self._set_paths[agent.handle] = p
+        return p

@@ -120,7 +120,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
                 remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(agent.position, agent.direction)] + [pp[0] for pp in remaining_flexible_waypoints]
 
-                self._set_shortest_path_from_non_flexible_waypoints(agent, remaining_waypoints_taking_first, self.rail_env.rail)
+                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(remaining_waypoints_taking_first, self.rail_env.rail)
 
                 self.init_shortest_distance_positions(agent, handle)
                 self.opp_agent_map.pop(handle, None)
