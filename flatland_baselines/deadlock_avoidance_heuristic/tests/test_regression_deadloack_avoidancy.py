@@ -81,7 +81,7 @@ def _run(root_data_dir: Path):
     analysis_dir = Path("../analysis-meta")
     persist_data_frame_for_trajectories(*data, output_dir=analysis_dir)
     # TODO assertions for environments_v2
-    assert (all_trains_arrived["mean_normalized_reward"] == 1.0).all()
+    assert (all_trains_arrived["normalized_reward"] == 1.0).all()
     assert (all_trains_arrived["success_rate"] == 1.0).all()
 
 
