@@ -9,8 +9,9 @@ import numpy as np
 from flatland.core.env_observation_builder import AgentHandle
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
+from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.policy.shortest_path_policy_dup import SetPathPolicy
+from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -56,6 +57,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # start_step (2.3.2): set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
+        self.agent_waypoints_done: Dict[AgentHandle, Set[Waypoint]] = defaultdict(set)
+
     def _init_env(self, env: RailEnv):
         super(DeadLockAvoidancePolicy, self).__init__()
 
@@ -99,11 +102,24 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         check = self.agent_can_move.get(handle, None)
         act = RailEnvActions.STOP_MOVING
+
+        if self.raiL_env.agents[handle].position is not None:
+            self.agent_waypoints_done[handle].add(Waypoint(self.raiL_env.agents[handle].position, self.raiL_env.agents[handle].direction))
+
         if check is not None:
             act = check[3]
         else:
             if self.raiL_env.agents[handle].state in [TrainState.MOVING, TrainState.STOPPED]:
-                # TODO choose-non-shortest-path -> rename to chosen path?
+                # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
+                remaining_flexible_waypoints: List[List[Waypoint]] = self.raiL_env.agents[handle].waypoints
+                while True:
+                    if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[handle]):
+                        break
+                    remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
+                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(self.raiL_env.agents[handle].position, self.raiL_env.agents[handle].direction)] + [
+                    pp[0] for pp in self.raiL_env.agents[handle].waypoints if pp[0] not in self.agent_waypoints_done[handle]]
+                self._set_shortest_path_from_non_flexible_waypoints(self.raiL_env.agents[handle], remaining_waypoints_taking_first, self.raiL_env.rail)
+
                 self.init_shortest_distance_positions(self.raiL_env.agents[handle], handle)
                 self.opp_agent_map.pop(handle, None)
 
