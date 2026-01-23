@@ -1,5 +1,7 @@
 from typing import List, Dict, Tuple
 
+from flatland.envs.rail_env_policies import ShortestPathPolicy
+
 from flatland.envs.agent_chains import AgentHandle
 from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.rail_env import RailEnv
@@ -10,22 +12,22 @@ from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 
-
-# TODO https://github.com/flatland-association/flatland-baselines/issues/24 backport to flatland-rl after refactorings. We need to re-generate the regression trajectories with `get_k_shortest_paths` instead of custom `ShortestDistanceWalker`. For now use `ShortestDistanceWalker` as regression tests are based on the shortest paths produced by this method.
-class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
+class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     """
-    Works with `FullEnvObservation`
+    Works with `FullEnvObservation` only.
+
+    Policy where agents follow a set path.
     """
 
-    def __init__(self, _get_k_shortest_paths=None):
+    def __init__(self):
         super().__init__()
-        self._shortest_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
+        self._set_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.position is None:
             return RailEnvActions.MOVE_FORWARD
 
-        if len(self._shortest_paths[agent.handle]) == 0:
+        if len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
         for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
@@ -33,7 +35,7 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 RailEnvActions.from_value(a), (agent.position, agent.direction)
             )
             if new_cell_valid and transition_valid and (
-                    new_position == self._shortest_paths[agent.handle][1].position and new_direction == self._shortest_paths[agent.handle][1].direction):
+                    new_position == self._set_paths[agent.handle][1].position and new_direction == self._set_paths[agent.handle][1].direction):
                 return a
         raise Exception("Invalid state")
 
@@ -50,23 +52,23 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         Build `_shortest_paths`.
         """
         if agent.state == TrainState.DONE:
-            self._shortest_paths.pop(agent.handle, None)
+            self._set_paths.pop(agent.handle, None)
             return
 
-        if agent.handle not in self._shortest_paths:
+        if agent.handle not in self._set_paths:
             always_first_waypoint = [pp[0] for pp in agent.waypoints]
             self._set_shortest_path_from_non_flexible_waypoints(agent, always_first_waypoint, env.rail)
 
         if agent.position is None:
             return
 
-        while self._shortest_paths[agent.handle][0].position != agent.position:
-            self._shortest_paths[agent.handle] = self._shortest_paths[agent.handle][1:]
-        assert self._shortest_paths[agent.handle][0].position == agent.position
+        while self._set_paths[agent.handle][0].position != agent.position:
+            self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
+        assert self._set_paths[agent.handle][0].position == agent.position
 
     def _set_shortest_path_from_non_flexible_waypoints(self, agent: EnvAgent, waypoints: List[Waypoint], rail: RailGridTransitionMap):
         """
-        Sets the shortest path to path built by routing shortest path between waypoints.
+        Sets the shortest path to path built by routing the shortest path between waypoints.
 
         Assumes the shortest path complies with the directions at the intermediate waypoints.
         """
@@ -90,4 +92,4 @@ class DupShortestPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 p += next_path_segment[1:]
             else:
                 p += next_path_segment
-        self._shortest_paths[agent.handle] = p
+        self._set_paths[agent.handle] = p

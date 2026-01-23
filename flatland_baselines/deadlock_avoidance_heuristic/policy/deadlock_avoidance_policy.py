@@ -10,7 +10,7 @@ from flatland.core.env_observation_builder import AgentHandle
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.policy.shortest_path_policy_dup import DupShortestPathPolicy
+from flatland_baselines.deadlock_avoidance_heuristic.policy.shortest_path_policy_dup import SetPathPolicy
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -30,7 +30,7 @@ def _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cac
         func.cache_clear()
 
 
-class DeadLockAvoidancePolicy(DupShortestPathPolicy):
+class DeadLockAvoidancePolicy(SetPathPolicy):
     def __init__(self,
                  action_size: int = 5,
                  min_free_cell: int = 1,
@@ -189,8 +189,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             self.init_shortest_distance_positions(agent, handle)
         # (2.2.2)
         if agent.position is not None and agent.position != agent.old_position:
-            assert agent.position == self._shortest_paths[agent.handle][0].position
-            if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
+            assert agent.position == self._set_paths[agent.handle][0].position
+            if agent.position not in {wp.position for wp in self._set_paths[agent.handle][1:]}:
                 self.full_shortest_distance_agent_map[(handle, agent.position[0], agent.position[1])] = 0
                 # the initial position is never added to shortest_distance_positions_agent_map
                 if agent.old_position is not None:
@@ -210,7 +210,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         """
         self.shortest_distance_positions_agent_map[handle] = set()
         self.shortest_distance_positions_directions_agent_map[handle] = defaultdict(set)
-        for wp in self._shortest_paths[agent.handle][1:]:
+        for wp in self._set_paths[agent.handle][1:]:
             position, direction = wp.position, wp.direction
             self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
             self.shortest_distance_positions_agent_map[handle].add(position)
@@ -243,7 +243,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         self.shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_agent_len[handle] = 0
         num_opp_agents = 0
-        for wp in self._shortest_paths[agent.handle][1:]:
+        for wp in self._set_paths[agent.handle][1:]:
             position, direction = wp.position, wp.direction
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
@@ -302,11 +302,11 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
                         position = agent.initial_position
                         direction = agent.initial_direction
                     # Guard against invalid initial positions:
-                    if len(self._shortest_paths[agent.handle]) < 2:
-                        warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._shortest_paths[agent.handle]}")
+                    if len(self._set_paths[agent.handle]) < 2:
+                        warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
                         continue
-                    next_position = self._shortest_paths[agent.handle][1].position
-                    next_direction = self._shortest_paths[agent.handle][1].direction
+                    next_position = self._set_paths[agent.handle][1].position
+                    next_direction = self._set_paths[agent.handle][1].direction
                     action = self._get_action((position, direction), (next_position, next_direction))
 
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
