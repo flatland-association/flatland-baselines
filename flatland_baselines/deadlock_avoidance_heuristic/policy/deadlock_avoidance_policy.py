@@ -58,6 +58,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
         self.agent_waypoints_done: Dict[AgentHandle, Set[Waypoint]] = defaultdict(set)
+        self.agent_waypoints_tried: Dict[AgentHandle, Set[str]] = defaultdict(set)
 
     def _init_env(self, env: RailEnv):
         super(DeadLockAvoidancePolicy, self).__init__()
@@ -103,25 +104,25 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         check = self.agent_can_move.get(handle, None)
         act = RailEnvActions.STOP_MOVING
 
-        if self.rail_env.agents[handle].position is not None:
-            self.agent_waypoints_done[handle].add(Waypoint(self.rail_env.agents[handle].position, self.rail_env.agents[handle].direction))
+        agent = self.rail_env.agents[handle]
+        if agent.position is not None:
+            self.agent_waypoints_done[handle].add(Waypoint(agent.position, agent.direction))
 
         if check is not None:
             act = check[3]
         else:
-            if self.rail_env.agents[handle].state in [TrainState.MOVING, TrainState.STOPPED]:
+            if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
-                remaining_flexible_waypoints: List[List[Waypoint]] = self.rail_env.agents[handle].waypoints
+                remaining_flexible_waypoints: List[List[Waypoint]] = agent.waypoints
                 while True:
                     if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[handle]):
                         break
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(self.rail_env.agents[handle].position, self.rail_env.agents[handle].direction)] + [
-                    pp[0] for pp in self.rail_env.agents[handle].waypoints if pp[0] not in self.agent_waypoints_done[handle]]
+                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(agent.position, agent.direction)] + [pp[0] for pp in remaining_flexible_waypoints]
 
-                self._set_shortest_path_from_non_flexible_waypoints(self.rail_env.agents[handle], remaining_waypoints_taking_first, self.rail_env.rail)
+                self._set_shortest_path_from_non_flexible_waypoints(agent, remaining_waypoints_taking_first, self.rail_env.rail)
 
-                self.init_shortest_distance_positions(self.rail_env.agents[handle], handle)
+                self.init_shortest_distance_positions(agent, handle)
                 self.opp_agent_map.pop(handle, None)
 
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
