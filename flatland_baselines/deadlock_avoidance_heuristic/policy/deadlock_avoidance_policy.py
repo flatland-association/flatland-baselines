@@ -74,7 +74,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         # start_step (2.2): all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
         # start_step (2.2): directions for all positions on current shortest path (without current cell!)
-        self.shortest_distance_positions_directions_agent_map: Dict[Tuple[AgentHandle, Tuple[int, int]], Set[int]] = defaultdict(set)
+        self.shortest_distance_positions_directions_agent_map: Dict[AgentHandle, Dict[Tuple[int, int], Set[int]]] = defaultdict(lambda: defaultdict(set))
         # start_step (2.3.3): number of cells till first oncoming agent (without current cell!)
         self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
         # start_step (2.2): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
@@ -101,7 +101,11 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         act = RailEnvActions.STOP_MOVING
         if check is not None:
             act = check[3]
-
+        else:
+            if self.raiL_env.agents[handle].state in [TrainState.MOVING, TrainState.STOPPED]:
+                # TODO choose-non-shortest-path -> rename to chosen path?
+                self.init_shortest_distance_positions(self.raiL_env.agents[handle], handle)
+                self.opp_agent_map.pop(handle, None)
 
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
         # submission-1      | TypeError: can not serialize 'RailEnvActions' object
@@ -174,17 +178,16 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
     def _build_full_shortest_distance_agent_map(self, agent, handle):
         """
         start_step (2.2)
+
         Updates:
         - `self.full_shortest_distance_agent_map`
         - `self.shortest_distance_agent_map`
         - `self.shortest_distance_positions_directions_agent_map`
         """
+        # (2.2.1)
         if self.raiL_env._elapsed_steps == 1:
-            for wp in self._shortest_paths[agent.handle][1:]:
-                position, direction = wp.position, wp.direction
-                self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
-                self.shortest_distance_positions_agent_map[handle].add(position)
-                self.shortest_distance_positions_directions_agent_map[(handle, position)].add(direction)
+            self.init_shortest_distance_positions(agent, handle)
+        # (2.2.2)
         if agent.position is not None and agent.position != agent.old_position:
             assert agent.position == self._shortest_paths[agent.handle][0].position
             if agent.position not in {wp.position for wp in self._shortest_paths[agent.handle][1:]}:
@@ -195,7 +198,23 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
             # the initial position is never added to shortest_distance_positions_agent_map
             # N.B. We must remove each direction separately, as there can be "loopy" paths going through same cell twice but with different direction!
             if agent.old_position is not None:
-                self.shortest_distance_positions_directions_agent_map[(handle, agent.position)].remove(int(agent.direction))
+                self.shortest_distance_positions_directions_agent_map[handle][agent.position].remove(int(agent.direction))
+
+    def init_shortest_distance_positions(self, agent, handle):
+        """
+        start_step (2.2.1)
+
+        Initializes:
+        - `self.shortest_distance_agent_map`
+        - `self.shortest_distance_positions_directions_agent_map`
+        """
+        self.shortest_distance_positions_agent_map[handle] = set()
+        self.shortest_distance_positions_directions_agent_map[handle] = defaultdict(set)
+        for wp in self._shortest_paths[agent.handle][1:]:
+            position, direction = wp.position, wp.direction
+            self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
+            self.shortest_distance_positions_agent_map[handle].add(position)
+            self.shortest_distance_positions_directions_agent_map[handle][position].add(direction)
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         """
@@ -245,7 +264,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         for position in overlap:
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
-                directions = self.shortest_distance_positions_directions_agent_map[(handle, position)]
+                directions = self.shortest_distance_positions_directions_agent_map[handle][position]
                 assert len(directions) > 0
                 for direction in directions:
                     if self.raiL_env.agents[opp_a].direction != direction:
