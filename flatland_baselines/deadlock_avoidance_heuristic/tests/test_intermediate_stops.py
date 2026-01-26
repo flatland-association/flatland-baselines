@@ -26,7 +26,9 @@ def test_intermediate(gen_movies=False, debug=False):
         rewards=rewards
     )
     for a in env.agents:
-        print(a.waypoints)
+        print(f"agent {a.handle}:")
+        print(f" {a.waypoints}")
+        print(f" {a.waypoints_earliest_departure}")
     with tempfile.TemporaryDirectory() as tmpdirname:
         temp_data_dir = Path(tmpdirname)
         trajectory = PolicyRunner.create_from_policy(

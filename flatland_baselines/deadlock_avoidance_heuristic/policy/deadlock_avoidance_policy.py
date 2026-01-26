@@ -1,3 +1,4 @@
+import copy
 import warnings
 from collections import defaultdict
 from functools import lru_cache
@@ -112,18 +113,35 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             act = check[3]
         else:
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
+                print(f"considering {agent.handle} at {self.rail_env._elapsed_steps}: {self._set_paths[agent.handle]}")
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
-                remaining_flexible_waypoints: List[List[Waypoint]] = agent.waypoints
+                remaining_flexible_waypoints: List[List[Waypoint]] = copy.deepcopy(agent.waypoints)
                 while True:
                     if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[handle]):
                         break
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-                remaining_waypoints_taking_first: List[Waypoint] = [Waypoint(agent.position, agent.direction)] + [pp[0] for pp in remaining_flexible_waypoints]
+                assert len(remaining_flexible_waypoints) > 0
 
-                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(remaining_waypoints_taking_first, self.rail_env.rail)
+                if len(remaining_flexible_waypoints[0]) > 1:
+                    before = self._set_paths[agent.handle]
 
-                self.init_shortest_distance_positions(agent, handle)
-                self.opp_agent_map.pop(handle, None)
+                    remaining_waypoints_taking_second_and_then_first: List[Waypoint] = \
+                        [Waypoint(agent.position, agent.direction)] + [remaining_flexible_waypoints[0][1]] + [pp[0] for pp in remaining_flexible_waypoints[1:]]
+
+                    # TODO optimization: do not re-compute every time, keep track of alternatives tried
+                    print(f"get new path for agent {agent.handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
+                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(remaining_waypoints_taking_second_and_then_first,
+                                                                                                    self.rail_env.rail, debug_segments=agent.handle == 560)
+                    if before == self._set_paths[agent.handle]:
+                        print(
+                            f"changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
+                    else:
+                        print(
+                            f"not changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
+                    if len(self._set_paths[agent.handle]) == 0:
+                        self._set_paths[agent.handle] = before
+                    self.init_shortest_distance_positions(agent, handle)
+                    self.opp_agent_map.pop(handle, None)
 
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
         # submission-1      | TypeError: can not serialize 'RailEnvActions' object
@@ -283,7 +301,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
                 directions = self.shortest_distance_positions_directions_agent_map[handle][position]
-                assert len(directions) > 0
+                assert len(directions) > 0, f"Inconsistency for agent {handle} at {self.rail_env._elapsed_steps}: no directions for position {position}"
                 for direction in directions:
                     if self.rail_env.agents[opp_a].direction != direction:
                         self.opp_agent_map[handle].add(opp_a)

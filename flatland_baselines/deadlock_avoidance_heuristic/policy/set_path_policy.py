@@ -1,6 +1,9 @@
+from collections import defaultdict
+from functools import lru_cache
 from typing import List, Dict, Tuple
 
-from flatland.envs.rail_env_policies import ShortestPathPolicy
+import matplotlib.pyplot as plt
+import numpy as np
 
 from flatland.envs.agent_chains import AgentHandle
 from flatland.envs.agent_utils import EnvAgent
@@ -11,6 +14,7 @@ from flatland.envs.rail_env_shortest_paths import get_k_shortest_paths
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
+
 
 class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     """
@@ -57,16 +61,17 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
         if agent.handle not in self._set_paths:
             always_first_waypoint = [pp[0] for pp in agent.waypoints]
-            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
+            print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
+            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail, debug_segments=agent.handle == 560)
 
         if agent.position is None:
             return
 
-        while self._set_paths[agent.handle][0].position != agent.position:
+        while len(self._set_paths[agent.handle]) > 0 and self._set_paths[agent.handle][0].position != agent.position:
             self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
         assert self._set_paths[agent.handle][0].position == agent.position
 
-    def _shortest_path_from_non_flexible_waypoints(self, waypoints: List[Waypoint], rail: RailGridTransitionMap):
+    def _shortest_path_from_non_flexible_waypoints(self, waypoints: List[Waypoint], rail: RailGridTransitionMap, debug_segments: bool = False):
         """
         Computes the shortest path to path built by routing the shortest path between waypoints.
 
@@ -76,20 +81,37 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         for p1, p2 in zip(waypoints, waypoints[1:]):
             if len(p) > 0:
                 assert p[-1] == p1, (p[-1], p1)
-            # TODO add caching for get_k_shortest_paths?
-            path_segment_candidates: List[Tuple[Waypoint]] = get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail)
-            next_path_segment = None
-            if p2.direction is None:
-                next_path_segment = path_segment_candidates[0]
-            else:
-                # TODO add optional direction at target to get_k_shortest_paths
-                for _p_next in path_segment_candidates:
-                    if _p_next[-1].direction == p2.direction:
-                        next_path_segment = _p_next
-                        break
-            assert next_path_segment is not None, f"Not found next path from {p1} to {p2}"
+            path_segment_candidates: List[Tuple[Waypoint]] = _get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail,
+                                                                                   target_direction=p2.direction)
+            next_path_segment = path_segment_candidates[0]
+            assert p2.position == next_path_segment[-1].position
+            assert len(set(next_path_segment)) == len(next_path_segment)
+            if p2.direction is not None:
+                assert next_path_segment[-1].direction == p2.direction, f"Not found next path from {p1} to {p2} "
             if len(p) > 0:
                 p += next_path_segment[1:]
             else:
                 p += next_path_segment
+            if debug_segments:
+                cells = [wp.position for wp in next_path_segment]
+                height = max([r for (r, c) in cells]) + 1
+                width = max([c for (r, c) in cells]) + 1
+                data = np.zeros(shape=(height, width))
+                for cell in cells:
+                    data[cell] = 1
+                plt.imshow(data)
+                plt.show()
+        if len(set(p)) != len(p):
+            # TODO dla currently cannot handle this - generalize dla implementation?
+            counts = defaultdict(lambda: 0)
+            for wp in p:
+                counts[wp] += 1
+            duplicates = {wp for wp, count in counts.items() if count > 1}
+            print(f"Found loopy line {waypoints} with duplicates {duplicates}")
+            return []
         return p
+
+
+@lru_cache
+def _get_k_shortest_paths(*args, **kwargs):
+    return get_k_shortest_paths(*args, **kwargs)
