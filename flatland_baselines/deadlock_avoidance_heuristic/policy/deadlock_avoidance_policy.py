@@ -41,6 +41,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  count_num_opp_agents_towards_min_free_cell: bool = True,
                  use_switches_heuristic: bool = True,
                  use_entering_prevention: bool = False,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy: bool = False,
                  ):
         super().__init__()
 
@@ -52,6 +53,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.count_num_opp_agents_towards_min_free_cell = count_num_opp_agents_towards_min_free_cell
         self.use_switches_heuristic = use_switches_heuristic
         self.use_entering_prevention = use_entering_prevention
+        self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
 
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
@@ -130,7 +132,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
                 assert len(remaining_flexible_waypoints) > 0
 
-                if len(remaining_flexible_waypoints[0]) > 1:
+                if self.use_alternative_at_first_intermediate_and_then_always_first_strategy and len(remaining_flexible_waypoints[0]) > 1:
                     before = self._set_paths[agent.handle]
 
                     remaining_waypoints_taking_second_and_then_first: List[Waypoint] = \
