@@ -38,6 +38,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  min_free_cell: int = 1,
                  enable_eps: bool = False,
                  show_debug_plot: bool = False,
+                 count_num_opp_agents_towards_min_free_cell: bool = True,
+                 use_switches_heuristic: bool = True,
+                 use_entering_prevention: bool = False,
                  ):
         super().__init__()
 
@@ -46,6 +49,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.show_debug_plot = show_debug_plot
         self.enable_eps = enable_eps
         self.min_free_cell = min_free_cell
+        self.count_num_opp_agents_towards_min_free_cell = count_num_opp_agents_towards_min_free_cell
+        self.use_switches_heuristic = use_switches_heuristic
+        self.use_entering_prevention = use_entering_prevention
 
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
@@ -65,11 +71,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         super(DeadLockAvoidancePolicy, self).__init__()
 
         # _init_env: 1 if position is a switch, 0 otherwise
-        self.switches = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int)
-        for r in range(self.rail_env.height):
-            for c in range(self.rail_env.width):
-                if self._is_switch_cell((r, c)):
-                    self.switches[(r, c)] = 1
+        self.switches = None
+        if self.use_switches_heuristic:
+            self.switches = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int)
+            for r in range(self.rail_env.height):
+                for c in range(self.rail_env.width):
+                    if self._is_switch_cell((r, c)):
+                        self.switches[(r, c)] = 1
 
         # start_step (2.3.3): 1 if current shortest path (without current cell!), 0 otherwise
         self.shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
@@ -330,7 +338,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         self.full_shortest_distance_agent_map,
                         agent.handle,
                         self.switches,
-                        True
+                        self.count_num_opp_agents_towards_min_free_cell,
                 ):
                     if agent.position is not None:
                         position = agent.position
@@ -347,6 +355,18 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     action = self._get_action((position, direction), (next_position, next_direction))
 
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
+        if self.use_entering_prevention:
+            entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
+                               agent.state == TrainState.READY_TO_DEPART and self.agent_can_move.get(handle, None)]
+            if len(entering_agents) > 0:
+                print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
+                for a1 in entering_agents:
+                    for a2 in entering_agents:
+                        if a1 != a2 and a1 in self.agent_can_move and a2 in self.agent_can_move:
+                            free = self._get_free(a1, a2)
+                            if len(free) < self.min_free_cell:
+                                self.agent_can_move.pop(a1)
+                                print(f"!!!! prevent entering conflict {a1, a2} -> let not enter {a1}")
 
         if self.show_debug_plot:
             a = np.floor(np.sqrt(self.rail_env.get_num_agents()))
@@ -424,9 +444,22 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 free_cells = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
 
             if free_cells < min_free_cell:
-                print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}")
+                free = self._get_free(handle, opp_a)
+                if switches is None and not self.count_num_opp_agents_towards_min_free_cell:
+                    assert len(free) == free_cells, (free, free_cells)
+                print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}. {free_cells}: {free}")
                 return False
         return True
+
+    def _get_free(self, handle, opp_a):
+        own_path = self._set_paths.get(handle, None)
+        opp_path = self._set_paths.get(opp_a, None)
+        if own_path is None:
+            return 0
+        elif opp_path is None:
+            return len(own_path) - 1
+
+        return _get_free_from_path(own_path, opp_path)
 
     def save(self, filename):
         pass
@@ -442,3 +475,17 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if num_transitions > 1:
                 return True
         return False
+
+
+def _get_free_from_path(own_path: List[Waypoint], opp_path: List[Waypoint]):
+    my_cells = {wp.position for wp in own_path[1:]}
+    opp_cells = {wp.position for wp in opp_path}
+    my_cells_own = my_cells.difference(opp_cells)
+    num = 0
+    for i, wp in enumerate(own_path):
+        num = i
+        if wp.position not in my_cells_own:
+            num = i - 1
+            break
+    free = own_path[:num + 1]
+    return free
