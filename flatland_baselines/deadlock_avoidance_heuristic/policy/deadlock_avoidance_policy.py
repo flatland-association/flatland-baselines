@@ -328,6 +328,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         self.shortest_distance_agent_len[handle],
                         self.opp_agent_map.get(handle, set()),
                         self.full_shortest_distance_agent_map,
+                        agent.handle,
                         self.switches,
                         True
                 ):
@@ -362,8 +363,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             my_shortest_walking_path_len: int,
             opp_agents: Set,
             full_shortest_distance_agent_map: np.ndarray,
+            handle: AgentHandle,
             switches: Optional[np.ndarray] = None,
-            count_num_opp_agents_towards_min_free_cell: bool = False
+            count_num_opp_agents_towards_min_free_cell: bool = False,
     ):
         """
         The algorithm collects for each train along its route all trains that are currently on a resource in the route.
@@ -406,7 +408,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         if len_opp_agents == 0:
             return True
 
+        # TODO does this make sense? min_free_cell - len_opp_agents often <= 0?
         if my_shortest_walking_path_len < self.min_free_cell - len_opp_agents:
+            print(f" *** {self.rail_env._elapsed_steps}: agent cannot move")
             return False
         min_free_cell = self.min_free_cell
         if count_num_opp_agents_towards_min_free_cell:
@@ -420,6 +424,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 free_cells = np.count_nonzero((my_shortest_walking_path - switches - opp) > 0)
 
             if free_cells < min_free_cell:
+                print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}")
                 return False
         return True
 
