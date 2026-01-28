@@ -254,6 +254,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         - `self.shortest_distance_agent_map`
         - `self.shortest_distance_positions_directions_agent_map`
         """
+        self.full_shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_positions_agent_map[handle] = set()
         self.shortest_distance_positions_directions_agent_map[handle] = defaultdict(set)
         for wp in self._set_paths[agent.handle][1:]:
@@ -388,6 +389,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             handle: AgentHandle,
             switches: Optional[np.ndarray] = None,
             count_num_opp_agents_towards_min_free_cell: bool = False,
+            debug: bool = False,
     ):
         """
         The algorithm collects for each train along its route all trains that are currently on a resource in the route.
@@ -450,6 +452,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if switches is None and not self.count_num_opp_agents_towards_min_free_cell:
                     assert len(free) == free_cells, (free, free_cells)
                 print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}. {free_cells}: {free}")
+                if debug:
+                    plt.imshow(my_shortest_walking_path)
+                    plt.show()
+                    plt.imshow(opp)
+                    plt.show()
                 return False
         return True
 
