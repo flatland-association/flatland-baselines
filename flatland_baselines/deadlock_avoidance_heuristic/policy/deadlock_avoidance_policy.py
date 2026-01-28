@@ -471,7 +471,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if switches is None and not self.count_num_opp_agents_towards_min_free_cell:
                     assert len(free) == free_cells, (free, free_cells)
                 print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}. {free_cells}: {free}")
-                if debug or True:
+                if debug:
                     cells1 = [wp.position for wp in self._set_paths[handle]]
                     cells2 = [wp.position for wp in self._set_paths[opp_a]]
                     print(f"cells1 = {cells1}; cells2={cells2}")
