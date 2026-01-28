@@ -42,6 +42,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  use_switches_heuristic: bool = True,
                  use_entering_prevention: bool = False,
                  use_alternative_at_first_intermediate_and_then_always_first_strategy: bool = False,
+                 seed: int = None
                  ):
         super().__init__()
 
@@ -70,6 +71,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_waypoints_tried: Dict[AgentHandle, Set[str]] = defaultdict(set)
 
         self.closed = defaultdict(list)
+
+        self.np_random = np.random.RandomState(seed)
 
     def _init_env(self, env: RailEnv):
         super(DeadLockAvoidancePolicy, self).__init__()
@@ -111,8 +114,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         # Epsilon-greedy action selection
         if self.enable_eps:
-            if np.random.random() < eps:
-                return np.random.choice(np.arange(self.action_size))
+            if self.np_random.random() < eps:
+                return self.np_random.choice(np.arange(self.action_size))
 
         check = self.agent_can_move.get(handle, None)
         act = RailEnvActions.STOP_MOVING
@@ -148,7 +151,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     self.closed[handle].append(alternatives[0])
 
                     # randomize the alternative if all alternatives already tried
-                    alternative = alternatives[np.random.randint(len(alternatives))]
+                    alternative = alternatives[self.np_random.randint(len(alternatives))]
                     for alt in alternatives:
                         if alt not in self.closed[handle]:
                             alternative = alt
