@@ -69,6 +69,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_waypoints_done: Dict[AgentHandle, Set[Waypoint]] = defaultdict(set)
         self.agent_waypoints_tried: Dict[AgentHandle, Set[str]] = defaultdict(set)
 
+        self.closed = defaultdict(list)
+
     def _init_env(self, env: RailEnv):
         super(DeadLockAvoidancePolicy, self).__init__()
 
@@ -135,13 +137,27 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if self.use_alternative_at_first_intermediate_and_then_always_first_strategy and len(remaining_flexible_waypoints[0]) > 1:
                     before = self._set_paths[agent.handle]
 
-                    remaining_waypoints_taking_second_and_then_first: List[Waypoint] = \
-                        [Waypoint(agent.position, agent.direction)] + [remaining_flexible_waypoints[0][1]] + [pp[0] for pp in remaining_flexible_waypoints[1:]]
+                    # TODO optimize, do not re-compute every time.
+                    alternatives = []
+                    for j in range(len(remaining_flexible_waypoints[0])):
+                        alt = [Waypoint(agent.position, agent.direction)] + [remaining_flexible_waypoints[0][j]] + [pp[0] for pp in
+                                                                                                                    remaining_flexible_waypoints[1:]]
+                        alternatives.append(alt)
 
-                    # TODO optimization: do not re-compute every time, keep track of alternatives tried
+                    # as in set path before:
+                    self.closed[handle].append(alternatives[0])
+
+                    # randomize the alternative if all alternatives already tried
+                    alternative = alternatives[np.random.randint(len(alternatives))]
+                    for alt in alternatives:
+                        if alt not in self.closed[handle]:
+                            alternative = alt
+                    self.closed[handle].append(alternative)
+
                     print(f"get new path for agent {agent.handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
-                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(remaining_waypoints_taking_second_and_then_first,
-                                                                                                    self.rail_env.rail, debug_segments=agent.handle == 560)
+                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(alternative, self.rail_env.rail,
+                                                                                                    debug_segments=agent.handle == 560)
+
                     if before == self._set_paths[agent.handle]:
                         print(
                             f"not changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]} ")
