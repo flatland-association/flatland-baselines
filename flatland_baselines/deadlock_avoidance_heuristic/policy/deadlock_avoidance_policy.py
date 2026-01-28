@@ -81,22 +81,22 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     if self._is_switch_cell((r, c)):
                         self.switches[(r, c)] = 1
 
-        # start_step (2.3.3): 1 if current shortest path (without current cell!), 0 otherwise
-        self.shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
-                                                     self.rail_env.height,
-                                                     self.rail_env.width),
-                                                    dtype=int)
+        # start_step (2.2): 1 if current shortest path (without current cell!), 0 otherwise
+        self.full_shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
+                                                          self.rail_env.height,
+                                                          self.rail_env.width),
+                                                         dtype=int)
         # start_step (2.2): all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_agent_map: Dict[AgentHandle, Set[Tuple[int, int]]] = defaultdict(set)
         # start_step (2.2): directions for all positions on current shortest path (without current cell!)
         self.shortest_distance_positions_directions_agent_map: Dict[AgentHandle, Dict[Tuple[int, int], Set[int]]] = defaultdict(lambda: defaultdict(set))
         # start_step (2.3.3): number of cells till first oncoming agent (without current cell!)
         self.shortest_distance_agent_len: Dict[AgentHandle, int] = defaultdict(lambda: 0)
-        # start_step (2.2): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
-        self.full_shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
-                                                          self.rail_env.height,
-                                                          self.rail_env.width),
-                                                         dtype=int)
+        # start_step (2.3.3): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
+        self.shortest_distance_agent_map = np.zeros((self.rail_env.get_num_agents(),
+                                                     self.rail_env.height,
+                                                     self.rail_env.width),
+                                                    dtype=int)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         assert isinstance(observations[0], RailEnv)
@@ -144,10 +144,10 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                                                                                                     self.rail_env.rail, debug_segments=agent.handle == 560)
                     if before == self._set_paths[agent.handle]:
                         print(
-                            f"changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
+                            f"not changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]} ")
                     else:
                         print(
-                            f"not changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
+                            f"changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
                     if len(self._set_paths[agent.handle]) == 0:
                         self._set_paths[agent.handle] = before
                     self.init_shortest_distance_positions(agent, handle)
