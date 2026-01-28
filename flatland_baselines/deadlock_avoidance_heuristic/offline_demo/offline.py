@@ -2,9 +2,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from flatland.trajectories.policy_grid_runner import generate_trajectories_from_metadata
 
 from flatland.evaluators.trajectory_analysis import data_frame_for_trajectories
+from flatland.trajectories.policy_grid_runner import generate_trajectories_from_metadata
 
 if __name__ == '__main__':
     data_dir = Path("./results_environments_v2").resolve()
@@ -20,7 +20,7 @@ if __name__ == '__main__':
                 "--policy-cls", "DeadLockAvoidancePolicy",
                 "--obs-builder-pkg", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation",
                 "--obs-builder-cls", "FullEnvObservation",
-                "--callbacks-pkg", "flatland.callbacks.generate_movie_callbacks", "--callbacks-cls", "GenerateMovieCallbacks"
+                # "--callbacks-pkg", "flatland.callbacks.generate_movie_callbacks", "--callbacks-cls", "GenerateMovieCallbacks"
             ])
         assert e_info.value.code == 0
     if True:
@@ -28,8 +28,8 @@ if __name__ == '__main__':
             root_data_dir=Path(data_dir))
         print(all_trains_arrived)
 
-        sum_normalized_reward = all_trains_arrived["mean_normalized_reward"].sum()
-        mean_normalized_reward = all_trains_arrived["mean_normalized_reward"].mean()
+        sum_normalized_reward = all_trains_arrived["normalized_reward"].sum()
+        mean_normalized_reward = all_trains_arrived["normalized_reward"].mean()
         mean_percentage_complete = all_trains_arrived["success_rate"].mean()
         mean_reward = all_trains_rewards_dones_infos.groupby(['episode_id']).agg({"reward": "sum"}).mean()['reward']
 
