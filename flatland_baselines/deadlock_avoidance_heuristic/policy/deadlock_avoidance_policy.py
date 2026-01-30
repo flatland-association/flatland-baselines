@@ -42,6 +42,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  use_switches_heuristic: bool = True,
                  use_entering_prevention: bool = False,
                  use_alternative_at_first_intermediate_and_then_always_first_strategy: bool = False,
+                 drop_next_threshold: int = None,
                  seed: int = None
                  ):
         super().__init__()
@@ -55,6 +56,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.use_switches_heuristic = use_switches_heuristic
         self.use_entering_prevention = use_entering_prevention
         self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
+        self.drop_next_threshold = drop_next_threshold
 
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
@@ -71,6 +73,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_waypoints_tried: Dict[AgentHandle, Set[str]] = defaultdict(set)
 
         self.closed = defaultdict(list)
+        self.num_blocked = defaultdict(lambda: 0)
 
         self.np_random = np.random.RandomState(seed)
 
@@ -126,16 +129,18 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         if check is not None:
             act = check[3]
+            self.num_blocked[agent.handle] = 0
         else:
+            self.num_blocked[agent.handle] += 1
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
+
                 print(f"considering {agent.handle} at {self.rail_env._elapsed_steps}: {self._set_paths[agent.handle]}")
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
-                remaining_flexible_waypoints: List[List[Waypoint]] = copy.deepcopy(agent.waypoints)
-                while True:
-                    if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[handle]):
-                        break
+                remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
+
+                if self.drop_next_threshold is not None and self.num_blocked[agent.handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
+                    # print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-                assert len(remaining_flexible_waypoints) > 0
 
                 if self.use_alternative_at_first_intermediate_and_then_always_first_strategy and len(remaining_flexible_waypoints[0]) > 1:
                     before = self._set_paths[agent.handle]
@@ -176,6 +181,15 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # if isinstance(act, RailEnvActions):
         #    act = act.value
         return act
+
+    def _get_remaining_flexible_waypoints(self, agent):
+        remaining_flexible_waypoints: List[List[Waypoint]] = copy.deepcopy(agent.waypoints)
+        while True:
+            if set(remaining_flexible_waypoints[0]).isdisjoint(self.agent_waypoints_done[agent.handle]):
+                break
+            remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
+        assert len(remaining_flexible_waypoints) > 0
+        return remaining_flexible_waypoints
 
     def _start_step(self):
         # (1)
