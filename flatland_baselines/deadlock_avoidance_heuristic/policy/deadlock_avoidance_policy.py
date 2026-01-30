@@ -158,8 +158,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     self.closed[handle].append(alternative)
 
                     print(f"get new path for agent {agent.handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
-                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(alternative, self.rail_env.rail,
-                                                                                                    debug_segments=agent.handle == 560)
+                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(alternative, self.rail_env.rail)
 
                     if before == self._set_paths[agent.handle]:
                         print(

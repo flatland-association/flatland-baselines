@@ -62,7 +62,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if agent.handle not in self._set_paths:
             always_first_waypoint = [pp[0] for pp in agent.waypoints]
             print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
-            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail, debug_segments=agent.handle == 560)
+            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
 
         if agent.position is None:
             return
