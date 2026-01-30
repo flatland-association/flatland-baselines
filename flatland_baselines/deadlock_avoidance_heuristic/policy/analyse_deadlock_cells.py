@@ -30,11 +30,12 @@ if __name__ == '__main__':
     im1 = np.zeros((height, width))
     for cell in cells1:
         im1[cell] = 1
+    plt.subplot(1, 2, 1)
     plt.imshow(im1)
-    plt.show()
 
     im2 = np.zeros((height, width))
     for cell in cells2:
         im2[cell] = 1
+    plt.subplot(1, 2, 2)
     plt.imshow(im2)
     plt.show()
