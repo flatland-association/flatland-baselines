@@ -82,7 +82,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             if len(p) > 0:
                 assert p[-1] == p1, (p[-1], p1)
             path_segment_candidates: List[Tuple[Waypoint]] = _get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail,
-                                                                                   target_direction=p2.direction)
+                                                                                   target_direction=p2.direction, cutoff=200)
             next_path_segment = path_segment_candidates[0]
             assert p2.position == next_path_segment[-1].position
             assert len(set(next_path_segment)) == len(next_path_segment)

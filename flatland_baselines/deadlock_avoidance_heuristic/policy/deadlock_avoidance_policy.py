@@ -12,7 +12,7 @@ from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy
+from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -41,8 +41,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  count_num_opp_agents_towards_min_free_cell: bool = True,
                  use_switches_heuristic: bool = True,
                  use_entering_prevention: bool = False,
-                 use_alternative_at_first_intermediate_and_then_always_first_strategy: bool = False,
-                 drop_next_threshold: int = None,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy: int = 2,
+                 drop_next_threshold: int = 10,
+                 k_shortest_path_cutoff: int = 100,
                  seed: int = None
                  ):
         super().__init__()
@@ -55,8 +56,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.count_num_opp_agents_towards_min_free_cell = count_num_opp_agents_towards_min_free_cell
         self.use_switches_heuristic = use_switches_heuristic
         self.use_entering_prevention = use_entering_prevention
-        self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
+        self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
         self.drop_next_threshold = drop_next_threshold
+        self.k_shortest_path_cutoff = k_shortest_path_cutoff
 
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
@@ -74,6 +76,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         self.closed = defaultdict(list)
         self.num_blocked = defaultdict(lambda: 0)
+        self.alternatives = defaultdict(list)
 
         self.np_random = np.random.RandomState(seed)
 
@@ -129,50 +132,57 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         if check is not None:
             act = check[3]
-            self.num_blocked[agent.handle] = 0
+            self.num_blocked[handle] = 0
         else:
-            self.num_blocked[agent.handle] += 1
+            self.num_blocked[handle] += 1
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
 
-                print(f"considering {agent.handle} at {self.rail_env._elapsed_steps}: {self._set_paths[agent.handle]}")
+                print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
                 remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
 
-                if self.drop_next_threshold is not None and self.num_blocked[agent.handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
+                if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
                     # print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
 
-                if self.use_alternative_at_first_intermediate_and_then_always_first_strategy and len(remaining_flexible_waypoints[0]) > 1:
-                    before = self._set_paths[agent.handle]
+                if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy > 0 and len(remaining_flexible_waypoints[0]) > 1:
+                    before = self._set_paths[handle]
 
-                    # TODO optimize, do not re-compute every time.
-                    alternatives = []
-                    for j in range(len(remaining_flexible_waypoints[0])):
-                        alt = [Waypoint(agent.position, agent.direction)] + [remaining_flexible_waypoints[0][j]] + [pp[0] for pp in
-                                                                                                                    remaining_flexible_waypoints[1:]]
-                        alternatives.append(alt)
+                    if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(agent.position, agent.direction):
+                        print(f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
+                        alternatives = []
+                        for first_intermediate in remaining_flexible_waypoints[0]:
+                            then_always_first_intermediates = [first_intermediate] + [pp[0] for pp in remaining_flexible_waypoints[1:]]
+                            prefixes = _get_k_shortest_paths(None, agent.position, agent.direction, first_intermediate.position,
+                                                             target_direction=first_intermediate.direction,
+                                                             rail=self.rail_env.rail,
+                                                             k=self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy,
+                                                             cutoff=self.k_shortest_path_cutoff)
+                            suffix = self._shortest_path_from_non_flexible_waypoints(then_always_first_intermediates, self.rail_env.rail)
+                            for prefix in prefixes:
+                                alternatives.append(list(prefix) + suffix[1:])
+                        self.alternatives[handle] = alternatives
 
                     # as in set path before:
-                    self.closed[handle].append(alternatives[0])
+                    self.closed[handle].append(before)
 
                     # randomize the alternative if all alternatives already tried
-                    alternative = alternatives[self.np_random.randint(len(alternatives))]
-                    for alt in alternatives:
+                    alternative = self.alternatives[handle][self.np_random.randint(len(self.alternatives[handle]))]
+                    for alt in self.alternatives[handle]:
                         if alt not in self.closed[handle]:
                             alternative = alt
                     self.closed[handle].append(alternative)
 
-                    print(f"get new path for agent {agent.handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
-                    self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(alternative, self.rail_env.rail)
+                    print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
 
-                    if before == self._set_paths[agent.handle]:
+                    if before == self._set_paths[handle]:
                         print(
-                            f"not changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]} ")
+                            f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
                     else:
                         print(
-                            f"changed {agent.handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[agent.handle])}:\n - {before} \n - {self._set_paths[agent.handle]}")
-                    if len(self._set_paths[agent.handle]) == 0:
-                        self._set_paths[agent.handle] = before
+                            f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
+                    if len(self._set_paths[handle]) == 0:
+                        self._set_paths[handle] = before
                     self.init_shortest_distance_positions(agent, handle)
                     self.opp_agent_map.pop(handle, None)
 
