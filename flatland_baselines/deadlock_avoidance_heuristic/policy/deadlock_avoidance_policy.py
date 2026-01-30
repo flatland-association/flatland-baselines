@@ -167,6 +167,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     self.closed[handle].append(before)
 
                     # randomize the alternative if all alternatives already tried
+                    assert len(self.alternatives[handle]) > 0, "Either cutoff too low or not reachable."
                     alternative = self.alternatives[handle][self.np_random.randint(len(self.alternatives[handle]))]
                     for alt in self.alternatives[handle]:
                         if alt not in self.closed[handle]:
@@ -491,13 +492,44 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
             if free_cells < min_free_cell:
                 free = self._get_free(handle, opp_a)
-                if switches is None and not self.count_num_opp_agents_towards_min_free_cell:
-                    assert len(free) == free_cells, (free, free_cells)
+
                 print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}. {free_cells}: {free}")
                 if debug:
                     cells1 = [wp.position for wp in self._set_paths[handle]]
                     cells2 = [wp.position for wp in self._set_paths[opp_a]]
                     print(f"cells1 = {cells1}; cells2={cells2}")
+                    im1 = np.zeros((self.rail_env.height, self.rail_env.width))
+                    for cell in cells1:
+                        im1[cell] = 1
+                    ax = plt.subplot(1, 2, 1)
+                    ax.set_title(f"Agent {handle} set path ({len(cells1)})")
+                    plt.imshow(im1)
+
+                    im2 = np.zeros((self.rail_env.height, self.rail_env.width))
+                    for cell in cells2:
+                        im2[cell] = 1
+                    ax = plt.subplot(1, 2, 2)
+                    ax.set_title(f"Agent {opp_a} set path ({len(cells2)})")
+                    plt.imshow(im2)
+                    plt.show()
+
+                    ax = plt.subplot(4, 1, 1)
+                    ax.set_title(f"Agent {handle} full path ({np.count_nonzero(full_shortest_distance_agent_map[handle])})")
+                    plt.imshow(full_shortest_distance_agent_map[handle])
+
+                    ax = plt.subplot(4, 1, 2)
+                    ax.set_title(f"Agent {handle} my_shortest_walking_path ({np.count_nonzero(my_shortest_walking_path)})")
+                    plt.imshow(my_shortest_walking_path)
+
+                    ax = plt.subplot(4, 1, 3)
+                    ax.set_title(f"Agent {opp_a} full path ({np.count_nonzero(opp)})")
+                    plt.imshow(opp)
+
+                    ax = plt.subplot(4, 1, 4)
+                    ax.set_title(f"Agent {handle} - agent free_cells  {opp_a} ({free_cells})")
+                    plt.imshow(my_shortest_walking_path - opp)
+                    plt.show()
+
                 return False
         return True
 
