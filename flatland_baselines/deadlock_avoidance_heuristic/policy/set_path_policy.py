@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from functools import lru_cache
 from typing import List, Dict, Tuple
@@ -71,11 +72,13 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 always_first_waypoint = [pp[0] for pp in agent.waypoints]
                 if self.verbose:
                     print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
-                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
+                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail,
+                                                                                                debug_label=f"Agent {agent.handle}")
             else:
                 if self.verbose:
                     print(f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}")
-                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints([agent.waypoints[0][0], agent.waypoints[-1][0]], env.rail)
+                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints([agent.waypoints[0][0], agent.waypoints[-1][0]], env.rail,
+                                                                                                debug_label=f"Agent {agent.handle}")
 
         if agent.position is None:
             return
@@ -84,7 +87,8 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
         assert self._set_paths[agent.handle][0].position == agent.position
 
-    def _shortest_path_from_non_flexible_waypoints(self, waypoints: List[Waypoint], rail: RailGridTransitionMap, debug_segments: bool = False):
+    def _shortest_path_from_non_flexible_waypoints(self, waypoints: List[Waypoint], rail: RailGridTransitionMap, debug_segments: bool = False,
+                                                   debug_label: str = ""):
         """
         Computes the shortest path to path built by routing the shortest path between waypoints.
 
@@ -98,17 +102,19 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             path_segment_candidates: List[Tuple[Waypoint]] = _get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail,
                                                                                    target_direction=p2.direction, cutoff=self.k_shortest_path_cutoff)
             assert len(path_segment_candidates) > 0, \
-                f"Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
+                f"[{debug_label}] Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
             next_path_segment = path_segment_candidates[0]
             assert p2.position == next_path_segment[-1].position
             assert len(set(next_path_segment)) == len(next_path_segment)
             if p2.direction is not None:
                 assert next_path_segment[-1].direction == p2.direction, \
-                    f"Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
+                    f"[{debug_label}] Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
             if len(p) > 0:
                 p += next_path_segment[1:]
             else:
                 p += next_path_segment
+            if debug_segments:
+                print(f"Segment {p1} {p2} has len {len(next_path_segment)}")
             if debug_segments:
                 cells = [wp.position for wp in next_path_segment]
                 height = max([r for (r, c) in cells]) + 1
@@ -124,8 +130,8 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             for wp in p:
                 counts[wp] += 1
             duplicates = {wp for wp, count in counts.items() if count > 1}
-            if self.verbose:
-                print(f"Found loopy line {waypoints} with duplicates {duplicates}")
+
+            warnings.warn(f"[{debug_label}] Found loopy line {waypoints} with duplicates {duplicates}")
             return []
         return p
 

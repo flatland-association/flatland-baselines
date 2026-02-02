@@ -163,7 +163,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                                                              rail=self.rail_env.rail,
                                                              k=self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy,
                                                              cutoff=self.k_shortest_path_cutoff)
-                            suffix = self._shortest_path_from_non_flexible_waypoints(then_always_first_intermediates, self.rail_env.rail)
+                            suffix = self._shortest_path_from_non_flexible_waypoints(then_always_first_intermediates, self.rail_env.rail,
+                                                                                     debug_label=f"Agent {agent.handle}")
                             for prefix in prefixes:
                                 alternatives.append(list(prefix) + suffix[1:])
                         self.alternatives[handle] = alternatives
