@@ -508,22 +508,22 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     print(
                         f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
                 if debug:
-                    cells1 = [wp.position for wp in self._set_paths[handle]]
-                    cells2 = [wp.position for wp in self._set_paths[opp_a]]
+                    cells_1 = [wp.position for wp in self._set_paths[handle]]
+                    cells_2 = [wp.position for wp in self._set_paths[opp_a]]
                     if self.verbose:
-                        print(f"cells1 = {cells1}; cells2={cells2}")
+                        print(f"cells_1 = {cells_1}; cells_2={cells_2}")
                     im1 = np.zeros((self.rail_env.height, self.rail_env.width))
-                    for cell in cells1:
+                    for cell in cells_1:
                         im1[cell] = 1
                     ax = plt.subplot(1, 2, 1)
-                    ax.set_title(f"Agent {handle} set path ({len(cells1)})")
+                    ax.set_title(f"Agent {handle} set path ({len(cells_1)})")
                     plt.imshow(im1)
 
                     im2 = np.zeros((self.rail_env.height, self.rail_env.width))
-                    for cell in cells2:
+                    for cell in cells_2:
                         im2[cell] = 1
                     ax = plt.subplot(1, 2, 2)
-                    ax.set_title(f"Agent {opp_a} set path ({len(cells2)})")
+                    ax.set_title(f"Agent {opp_a} set path ({len(cells_2)})")
                     plt.imshow(im2)
                     plt.show()
 
