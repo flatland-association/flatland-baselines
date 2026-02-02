@@ -41,9 +41,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  count_num_opp_agents_towards_min_free_cell: bool = True,
                  use_switches_heuristic: bool = True,
                  use_entering_prevention: bool = False,
-                 use_alternative_at_first_intermediate_and_then_always_first_strategy: int = 2,
-                 drop_next_threshold: int = 10,
-                 k_shortest_path_cutoff: int = 100,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy: int = None,
+                 drop_next_threshold: int = None,
+                 k_shortest_path_cutoff: int = None,
                  seed: int = None
                  ):
         super().__init__()
@@ -144,7 +144,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
                     # print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-
+                # TODO handle case when no intermediate anymore,
                 if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy > 0 and len(remaining_flexible_waypoints[0]) > 1:
                     before = self._set_paths[handle]
 
@@ -493,7 +493,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if free_cells < min_free_cell:
                 free = self._get_free(handle, opp_a)
 
-                print(f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a}. {free_cells}: {free}")
+                print(
+                    f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
                 if debug:
                     cells1 = [wp.position for wp in self._set_paths[handle]]
                     cells2 = [wp.position for wp in self._set_paths[opp_a]]
