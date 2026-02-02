@@ -23,9 +23,10 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     Policy where agents follow a set path.
     """
 
-    def __init__(self):
+    def __init__(self, k_shortest_path_cutoff=None):
         super().__init__()
         self._set_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
+        self.k_shortest_path_cutoff = k_shortest_path_cutoff
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.position is None:
@@ -81,13 +82,17 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         for p1, p2 in zip(waypoints, waypoints[1:]):
             if len(p) > 0:
                 assert p[-1] == p1, (p[-1], p1)
+
             path_segment_candidates: List[Tuple[Waypoint]] = _get_k_shortest_paths(None, p1.position, p1.direction, p2.position, rail=rail,
-                                                                                   target_direction=p2.direction, cutoff=200)
+                                                                                   target_direction=p2.direction, cutoff=self.k_shortest_path_cutoff)
+            assert len(path_segment_candidates) > 0, \
+                f"Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
             next_path_segment = path_segment_candidates[0]
             assert p2.position == next_path_segment[-1].position
             assert len(set(next_path_segment)) == len(next_path_segment)
             if p2.direction is not None:
-                assert next_path_segment[-1].direction == p2.direction, f"Not found next path from {p1} to {p2} "
+                assert next_path_segment[-1].direction == p2.direction, \
+                    f"Not found next path from {p1} to {p2}. Either not connected or no path respecting k_shortest_path_cutoff={self.k_shortest_path_cutoff}."
             if len(p) > 0:
                 p += next_path_segment[1:]
             else:

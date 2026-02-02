@@ -46,7 +46,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  k_shortest_path_cutoff: int = None,
                  seed: int = None
                  ):
-        super().__init__()
+        super().__init__(k_shortest_path_cutoff=k_shortest_path_cutoff)
 
         self.loss = 0
         self.action_size = action_size
