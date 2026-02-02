@@ -142,10 +142,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
 
                 if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
-                    # print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
+                    print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
-                # TODO handle case when no intermediate anymore,
-                if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy > 0 and len(remaining_flexible_waypoints[0]) > 1:
+                if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy > 0 and len(remaining_flexible_waypoints[0]) > 0:
                     before = self._set_paths[handle]
 
                     if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(agent.position, agent.direction):
