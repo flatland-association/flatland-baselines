@@ -23,10 +23,14 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     Policy where agents follow a set path.
     """
 
-    def __init__(self, k_shortest_path_cutoff=None):
+    def __init__(self,
+                 k_shortest_path_cutoff: int = None,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy: int = None,
+                 ):
         super().__init__()
         self._set_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
         self.k_shortest_path_cutoff = k_shortest_path_cutoff
+        self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.position is None:
@@ -61,9 +65,13 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             return
 
         if agent.handle not in self._set_paths:
-            always_first_waypoint = [pp[0] for pp in agent.waypoints]
-            print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
-            self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
+            if self.use_alternative_at_first_intermediate_and_then_always_first_strategy is not None and self.use_alternative_at_first_intermediate_and_then_always_first_strategy > 0:
+                always_first_waypoint = [pp[0] for pp in agent.waypoints]
+                print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
+                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail)
+            else:
+                print(f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}")
+                self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints([agent.waypoints[0][0], agent.waypoints[-1][0]], env.rail)
 
         if agent.position is None:
             return
