@@ -44,11 +44,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  use_alternative_at_first_intermediate_and_then_always_first_strategy: int = None,
                  drop_next_threshold: int = None,
                  k_shortest_path_cutoff: int = None,
-                 seed: int = None
+                 seed: int = None,
+                 verbose: bool = False,
                  ):
         super().__init__(
             k_shortest_path_cutoff=k_shortest_path_cutoff,
             use_alternative_at_first_intermediate_and_then_always_first_strategy=use_alternative_at_first_intermediate_and_then_always_first_strategy,
+            verbose=verbose,
         )
 
         self.loss = 0
@@ -84,8 +86,6 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.np_random = np.random.RandomState(seed)
 
     def _init_env(self, env: RailEnv):
-        super(DeadLockAvoidancePolicy, self).__init__()
-
         # _init_env: 1 if position is a switch, 0 otherwise
         self.switches = None
         if self.use_switches_heuristic:
@@ -140,18 +140,21 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] += 1
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
 
-                print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
+                if self.verbose:
+                    print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
                 # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go.
                 remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
 
                 if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
-                    print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
+                    if self.verbose:
+                        print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
                     remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
                 if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy > 0 and len(remaining_flexible_waypoints[0]) > 0:
                     before = self._set_paths[handle]
 
                     if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(agent.position, agent.direction):
-                        print(f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
+                        if self.verbose:
+                            print(f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
                         alternatives = []
                         for first_intermediate in remaining_flexible_waypoints[0]:
                             then_always_first_intermediates = [first_intermediate] + [pp[0] for pp in remaining_flexible_waypoints[1:]]
@@ -176,14 +179,17 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                             alternative = alt
                     self.closed[handle].append(alternative)
 
-                    print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
+                    if self.verbose:
+                        print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
 
                     if before == self._set_paths[handle]:
-                        print(
-                            f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
+                        if self.verbose:
+                            print(
+                                f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
                     else:
-                        print(
-                            f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
+                        if self.verbose:
+                            print(
+                                f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
                     if len(self._set_paths[handle]) == 0:
                         self._set_paths[handle] = before
                     self.init_shortest_distance_positions(agent, handle)
@@ -407,14 +413,16 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
                                agent.state == TrainState.READY_TO_DEPART and self.agent_can_move.get(handle, None)]
             if len(entering_agents) > 0:
-                print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
+                if self.verbose:
+                    print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
                 for a1 in entering_agents:
                     for a2 in entering_agents:
                         if a1 != a2 and a1 in self.agent_can_move and a2 in self.agent_can_move:
                             free = self._get_free(a1, a2)
                             if len(free) < self.min_free_cell:
                                 self.agent_can_move.pop(a1)
-                                print(f"!!!! prevent entering conflict {a1, a2} -> let not enter {a1}")
+                                if self.verbose:
+                                    print(f"!!!! prevent entering conflict {a1, a2} -> let not enter {a1}")
 
         if self.show_debug_plot:
             a = np.floor(np.sqrt(self.rail_env.get_num_agents()))
@@ -479,7 +487,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         # TODO does this make sense? min_free_cell - len_opp_agents often <= 0?
         if my_shortest_walking_path_len < self.min_free_cell - len_opp_agents:
-            print(f" *** {self.rail_env._elapsed_steps}: agent cannot move")
+            if self.verbose:
+                print(f" *** {self.rail_env._elapsed_steps}: agent cannot move")
             return False
         min_free_cell = self.min_free_cell
         if count_num_opp_agents_towards_min_free_cell:
@@ -495,12 +504,14 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if free_cells < min_free_cell:
                 free = self._get_free(handle, opp_a)
 
-                print(
-                    f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
+                if self.verbose:
+                    print(
+                        f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
                 if debug:
                     cells1 = [wp.position for wp in self._set_paths[handle]]
                     cells2 = [wp.position for wp in self._set_paths[opp_a]]
-                    print(f"cells1 = {cells1}; cells2={cells2}")
+                    if self.verbose:
+                        print(f"cells1 = {cells1}; cells2={cells2}")
                     im1 = np.zeros((self.rail_env.height, self.rail_env.width))
                     for cell in cells1:
                         im1[cell] = 1
