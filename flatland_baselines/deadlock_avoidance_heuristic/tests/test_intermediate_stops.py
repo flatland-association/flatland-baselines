@@ -32,7 +32,7 @@ def test_intermediate(gen_movies=False, debug=False):
     with tempfile.TemporaryDirectory() as tmpdirname:
         temp_data_dir = Path(tmpdirname)
         trajectory = PolicyRunner.create_from_policy(
-            policy=DeadLockAvoidancePolicy(),
+            policy=DeadLockAvoidancePolicy(use_alternative_at_first_intermediate_and_then_always_first_strategy=1),
             data_dir=temp_data_dir,
             env=env,
             snapshot_interval=0,
