@@ -23,16 +23,25 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
     Policy where agents follow a set path.
     """
-
     def __init__(self,
                  k_shortest_path_cutoff: int = None,
-                 use_alternative_at_first_intermediate_and_then_always_first_strategy: int = None,
+                 use_always_first_strategy: int = None,
                  verbose: bool = False,
                  ):
+        """
+
+        Parameters
+        ----------
+        k_shortest_path_cutoff : Optional[int]
+            Global cutoff for shortest path finding. Use with care as it can cause agents to have no set path at all.
+        use_always_first_strategy : Optional[int]
+            If not set or zero, ignore intermediate stops altogether. Otherwise, use shortest path between first option at all intermediate stops.
+        verbose : bool
+        """
         super().__init__()
         self._set_paths: Dict[AgentHandle, Tuple[Waypoint]] = {}
         self.k_shortest_path_cutoff = k_shortest_path_cutoff
-        self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_alternative_at_first_intermediate_and_then_always_first_strategy
+        self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_always_first_strategy
         self.verbose = verbose
 
     def _act(self, env: RailEnv, agent: EnvAgent):
