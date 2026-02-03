@@ -9,10 +9,8 @@ import numpy as np
 from flatland.core.env_observation_builder import AgentHandle
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
-from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 from flatland_baselines.deadlock_avoidance_heuristic.policy.shortest_path_policy_dup import DupShortestPathPolicy
-from flatland_baselines.deadlock_avoidance_heuristic.utils.flatland.shortest_distance_walker import ExtendedShortestDistanceWalker
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -59,16 +57,7 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
     def _init_env(self, env: RailEnv):
-        distance_walker = ExtendedShortestDistanceWalker(env)
-
-        def get_k_shortest_paths(handle, env,
-                                 source_position: Tuple[int, int],
-                                 source_direction: int,
-                                 target_position=Tuple[int, int],
-                                 k: int = 1, debug=False) -> List[Tuple[Waypoint]]:
-            return [distance_walker.walk_to_target2(handle, source_position, source_direction, target_position)]
-
-        super(DeadLockAvoidancePolicy, self).__init__(_get_k_shortest_paths=get_k_shortest_paths)
+        super(DeadLockAvoidancePolicy, self).__init__()
 
         # 1 if position is a switch, 0 otherwise
         self.switches = np.zeros((self.raiL_env.height, self.raiL_env.width), dtype=int)
