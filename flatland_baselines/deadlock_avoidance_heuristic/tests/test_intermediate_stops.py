@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from flatland.env_generation.env_generator import env_generator
+from flatland.env_generation.env_generator import env_generator_legacy
 from flatland.envs.observations import FullEnvObservation
 from flatland.envs.rewards import DefaultRewards
 from flatland.trajectories.policy_runner import PolicyRunner
@@ -17,7 +17,7 @@ def test_intermediate():
                              intermediate_late_arrival_penalty_factor=33,
                              intermediate_early_departure_penalty_factor=44,
                              )
-    env, _, _ = env_generator(
+    env, _, _ = env_generator_legacy(
         n_cities=5,
         line_length=3,
         obs_builder_object=FullEnvObservation(),
