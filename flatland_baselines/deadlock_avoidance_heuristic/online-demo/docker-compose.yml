@@ -23,12 +23,12 @@ services:
       AICROWD_DEBUG_SUBMISSION: 1
     volumes:
       - environments-evaluator-vol:/tmp/debug-environments/
-      - ./outputs/analysis_data_dir:/tmp/analysis_data_dir/
-      - ./outputs/results:/tmp/results/
-      - ./outputs/actions:/tmp/actions/
-      - ./outputs/episodes:/tmp/episodes/
-      - ./outputs/visualizations:/tmp/visualizations
-
+      # uncomment for writing outputs to local volume
+      #      - ./outputs/analysis_data_dir:/tmp/analysis_data_dir/
+      #      - ./outputs/results:/tmp/results/
+      #      - ./outputs/actions:/tmp/actions/
+      #      - ./outputs/episodes:/tmp/episodes/
+      #      - ./outputs/visualizations:/tmp/visualizations
   submission:
     build:
       context: ../../..
@@ -61,19 +61,14 @@ services:
         rm -fR /tmp/debug-environments-submission/*
         mkdir -p /tmp/debug-environments/
         mkdir -p /tmp/debug-environments-submission/
-        #        cp -R /tmp/orig/* /tmp/debug-environments/
-        #        cp -R /tmp/orig/* /tmp/debug-environments-submission/
-        mkdir -p /tmp/debug-environments/Test_00/
-        mkdir -p /tmp/debug-environments-submission/Test_00/
-        cp /tmp/orig/Test_00/Level_0.pkl /tmp/debug-environments/Test_00/
-        cp /tmp/orig/Test_00/Level_0.pkl /tmp/debug-environments-submission/Test_00/
-        cp /tmp/orig/metadata.csv /tmp/debug-environments/metadata.csv
-        cp /tmp/orig/metadata.csv /tmp/debug-environments-submission/metadata.csv
+        cp -R /tmp/orig/* /tmp/debug-environments/
+        cp -R /tmp/orig/* /tmp/debug-environments-submission/
         find /tmp/debug-environments/
         find /tmp/debug-environments-submission/
         # evaluation client does gets command from evaluator via redis, does not need metadata.csv
         rm /tmp/debug-environments-submission/metadata.csv
     volumes:
+      # uncomment if using data from local volume
       #      - ....:/tmp/orig
       - environments-evaluator-vol:/tmp/debug-environments
       - environments-submission-vol:/tmp/debug-environments-submission
