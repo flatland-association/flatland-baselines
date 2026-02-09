@@ -45,6 +45,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                  k_shortest_path_cutoff: int = None,
                  seed: int = None,
                  verbose: bool = False,
+                 audit: bool = False,
                  ):
         """
 
@@ -71,6 +72,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         seed : Optional[int]
             Seed for sampling of altneratives.
         verbose :bool
+        audit :bool
         """
         super().__init__(
             k_shortest_path_cutoff=k_shortest_path_cutoff,
@@ -107,6 +109,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.alternatives = defaultdict(list)
 
         self.np_random = np.random.RandomState(seed)
+        self.audit = None
+        if audit is True:
+            self.audit = []
 
     def _init_env(self, env: RailEnv):
         # _init_env: 1 if position is a switch, 0 otherwise
@@ -169,11 +174,18 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         handle = agent.handle
         if self.verbose:
             print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
+        if self.audit is not None:
+            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                               "v": f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}"})
+
         # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go. No priority for now
         remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
         if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
             if self.verbose:
                 print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
+            if self.audit is not None:
+                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                   "v": f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}"})
             remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
 
         if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy is not None and \
@@ -184,6 +196,10 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(agent.position, agent.direction):
                 if self.verbose:
                     print(f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                       "v": f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}"})
+
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
                     then_always_first_intermediates = [first_intermediate] + [pp[0] for pp in remaining_flexible_waypoints[1:]]
@@ -211,15 +227,26 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
             if self.verbose:
                 print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
+            if self.audit is not None:
+                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                   "v": f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}"})
 
             if before == self._set_paths[handle]:
                 if self.verbose:
                     print(
                         f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                       "v": f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} "})
+
             else:
                 if self.verbose:
                     print(
                         f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                       "v": f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}"})
+
             if len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before
             self.init_shortest_distance_positions(agent, handle)
@@ -427,6 +454,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     # Guard against invalid initial positions:
                     if len(self._set_paths[agent.handle]) < 2:
                         warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
+                        if self.audit is not None:
+                            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
+                                               "v": f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}"})
                         continue
                     next_position = self._set_paths[agent.handle][1].position
                     next_direction = self._set_paths[agent.handle][1].direction
@@ -531,6 +561,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if self.verbose:
                     print(
                         f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
+                                       "v": f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}"})
                 if debug:
                     cells_1 = [wp.position for wp in self._set_paths[handle]]
                     cells_2 = [wp.position for wp in self._set_paths[opp_a]]

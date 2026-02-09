@@ -23,6 +23,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
     Policy where agents follow a set path.
     """
+
     def __init__(self,
                  k_shortest_path_cutoff: int = None,
                  use_always_first_strategy: int = None,
@@ -81,11 +82,17 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 always_first_waypoint = [pp[0] for pp in agent.waypoints]
                 if self.verbose:
                     print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                       "v": f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}"})
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail,
                                                                                                 debug_label=f"Agent {agent.handle}")
             else:
                 if self.verbose:
                     print(f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}")
+                if self.audit is not None:
+                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
+                                       "v": f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}"})
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints([agent.waypoints[0][0], agent.waypoints[-1][0]], env.rail,
                                                                                                 debug_label=f"Agent {agent.handle}")
 
@@ -140,7 +147,10 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 counts[wp] += 1
             duplicates = {wp for wp, count in counts.items() if count > 1}
 
-            warnings.warn(f"[{debug_label}] Found loopy line {waypoints} with duplicates {duplicates}")
+            warnings.warn(f"[{debug_label}] Found loopy line {waypoints} with duplicates {duplicates} in path {p}")
+            if self.audit is not None:
+                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": debug_label, "k": "audit",
+                                   "v": f"[{debug_label}] Found loopy line {waypoints} with duplicates {duplicates} in path {p}"})
             return []
         return p
 
