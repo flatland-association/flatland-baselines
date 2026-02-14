@@ -218,7 +218,8 @@ class DeadLockAvoidancePolicy(DupShortestPathPolicy):
 
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
         for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
-            new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.raiL_env.rail.check_action_on_agent(action, configuration)
+            new_cell_valid, new_configuration, transition_valid, preprocessed_action, _ = self.raiL_env.rail.check_action_on_agent(action, configuration)
+            # new_cell_valid, new_configuration, transition_valid, preprocessed_action = self.raiL_env.rail.check_action_on_agent(action, configuration)
             if new_configuration == next_configuration:
                 return preprocessed_action
         raise
