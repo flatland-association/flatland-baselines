@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: graph-generalizatioh-part-5
+  flatland-rl-ref: main
 
 on:
   workflow_dispatch:
