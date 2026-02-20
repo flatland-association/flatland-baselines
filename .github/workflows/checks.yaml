@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: sparse-rail-generator-seeding
 
 on:
   workflow_dispatch:
