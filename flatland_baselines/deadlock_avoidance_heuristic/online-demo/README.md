@@ -38,3 +38,35 @@ redis-1 exited with code 0
 shutdown-redis-1 exited with code 0
 
 ```
+
+With main
+
+```
+evaluator-1   | ####################################################################################################
+evaluator-1   | EVALUATION COMPLETE !!
+evaluator-1   | ####################################################################################################
+evaluator-1   | # Mean Reward : -3427.52
+evaluator-1   | # Sum Normalized Reward : 43.141500749639434 (primary score)
+evaluator-1   | # Mean Percentage Complete : 0.671 (secondary score)
+evaluator-1   | # Mean Normalized Reward : 0.86283
+evaluator-1   | ####################################################################################################
+evaluator-1   | ####################################################################################################
+
+```
+
+With 4.2.2 and current dla (after shortest path refactoring?!):
+
+```
+evaluator-1   | ####################################################################################################
+evaluator-1   | # Mean Reward : -3427.52
+evaluator-1   | # Sum Normalized Reward : 43.141500749639434 (primary score)
+evaluator-1   | # Mean Percentage Complete : 0.671 (secondary score)
+evaluator-1   | # Mean Normalized Reward : 0.86283
+evaluator-1   | ####################################################################################################
+evaluator-1   | ####################################################################################################
+evaluator-1   | \ end grader
+evaluator-1   | \ end evaluator/run.sh
+evaluator-1   | + echo '\ end evaluator/run.sh'
+
+```
+
