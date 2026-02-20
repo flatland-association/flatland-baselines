@@ -87,11 +87,13 @@ def _run(root_data_dir: Path):
 
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
 @pytest.mark.parametrize('environments', ['debug-environments'])
+@pytest.mark.slow
 def test_debug_environments(_containers_fixture):
     _run(_containers_fixture)
 
 
 @pytest.mark.skip("run manually")
 @pytest.mark.parametrize('environments', ['environments_v2'])
+@pytest.mark.slow
 def test_environments_v2(_containers_fixture):
     _run(_containers_fixture)
