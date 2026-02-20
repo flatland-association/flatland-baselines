@@ -2,13 +2,15 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: graph-generalizatioh-part-5
+  flatland-rl-ref: main
 
 on:
   workflow_dispatch:
   pull_request:
   push:
     branches: [ "main" ]
+  schedule:
+    - cron: '30 5 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
