@@ -32,4 +32,4 @@ RUN mkdir -p /tmp/episodes/
 RUN mkdir -p /tmp/actions/
 RUN mkdir -p /tmp/visualizations
 
-ENTRYPOINT bash run.sh
+ENTRYPOINT ["bash", "run.sh"]
