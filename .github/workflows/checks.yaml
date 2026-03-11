@@ -75,4 +75,4 @@ jobs:
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/online-demo/
-          pytest -s flatland_baselines/deadlock_avoidance_heuristic/offline-demo/
+          pytest -s flatland_baselines/deadlock_avoidance_heuristic/offline_demo/
