@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 
@@ -8,12 +9,16 @@ from flatland.evaluators.trajectory_analysis import data_frame_for_trajectories
 from flatland.trajectories.policy_grid_runner import generate_trajectories_from_metadata
 
 
-@pytest.mark.slow
-def test_offline():
+def test_offline_calibrated_against_offline_legacy_way():
+    """
+    Verify offline evaluation yields the same result as online evaluation in legacy way with current code basis.
+    """
+    _dir = os.getenv("BENCHMARK_EPISODES_FOLDER")
+    assert _dir is not None, _dir
+    metadata_csv = (Path(_dir) / "malfunction_deadlock_avoidance_heuristics" / "metadata.csv").resolve()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         data_dir = Path(tmpdirname) / "data"
-        metadata_csv = Path("/Users/che/workspaces/flatland-scenarios/trajectories/malfunction_deadlock_avoidance_heuristics/metadata.csv").resolve()
-
         data_dir.mkdir()
         with pytest.raises(SystemExit) as e_info:
             generate_trajectories_from_metadata([
@@ -23,9 +28,10 @@ def test_offline():
                 "--policy-cls", "DeadLockAvoidancePolicy",
                 "--obs-builder-pkg", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation",
                 "--obs-builder-cls", "FullEnvObservation",
+                # Old deprecated behavior of stateful rail_generator: ignore seed passed from env int rail_generator, draw from random generator initialised every time by its own seed.
                 "--legacy-env-generator", True,
+                # Mimick online evaluation, which does a reset on the env loaded from pkl using FLATLAND_EVALUATION_RANDOM_SEED
                 "--post-seed", 1001,
-                # "--callbacks-pkg", "flatland.callbacks.generate_movie_callbacks", "--callbacks-cls", "GenerateMovieCallbacks"
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
@@ -47,6 +53,7 @@ def test_offline():
         print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
         print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
+        # From online evaluation, see
         # evaluator-1   | # Mean Reward : -3427.52
         # evaluator-1   | # Sum Normalized Reward : 43.141500749639434 (primary score)
         # evaluator-1   | # Mean Percentage Complete : 0.671 (secondary score)
