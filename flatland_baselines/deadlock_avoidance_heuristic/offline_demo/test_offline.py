@@ -34,18 +34,19 @@ def test_offline_calibrated_against_offline_legacy_way():
                 "--post-seed", 1001,
             ])
         assert e_info.value.code == 0
-        verify_online_offline_calibration(data_dir)
+        all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
+            root_data_dir=Path(data_dir))
+        print(all_trains_arrived)
+
+        sum_normalized_reward = all_trains_arrived["normalized_reward"].sum()
+        mean_normalized_reward = all_trains_arrived["normalized_reward"].mean()
+        mean_percentage_complete = all_trains_arrived["success_rate"].mean()
+        mean_reward = all_trains_rewards_dones_infos.groupby(['episode_id']).agg({"reward": "sum"}).mean()['reward']
+        verify_online_offline_calibration(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
 
 
-def verify_online_offline_calibration(data_dir: Path):
-    all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
-        root_data_dir=Path(data_dir))
-    print(all_trains_arrived)
-
-    sum_normalized_reward = all_trains_arrived["normalized_reward"].sum()
-    mean_normalized_reward = all_trains_arrived["normalized_reward"].mean()
-    mean_percentage_complete = all_trains_arrived["success_rate"].mean()
-    mean_reward = all_trains_rewards_dones_infos.groupby(['episode_id']).agg({"reward": "sum"}).mean()['reward']
+def verify_online_offline_calibration(mean_normalized_reward, mean_percentage_complete, mean_reward,
+                                      sum_normalized_reward):
 
     # Round off the reward values, see service.py
     mean_reward = round(mean_reward, 2)
