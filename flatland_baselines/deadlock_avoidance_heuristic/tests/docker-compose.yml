@@ -9,6 +9,7 @@ services:
       - |
         set -euxo pipefail
 
+        # download and extract debug-environments.zip to scenarios volume
         chmod a+rwx -R /scenarios
         wget "https://data.flatland.cloud/benchmarks/Flatland3/debug-environments.zip" -O debug-environments.zip -O debug-environments.zip
         rm -fR /scenarios/debug-environments
@@ -17,6 +18,7 @@ services:
         rm -fR /scenarios/Test*
         mv -f /scenarios/debug-environments/Test* /scenarios/
         
+        # download and extract environments_v2.zip to scenarios volume
         wget https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip -O environments_v2.zip
         rm -fR scenarios/environments_v2
         mkdir -p scenarios/environments_v2
@@ -24,6 +26,7 @@ services:
         
         find /scenarios
         
+        # set permissions on scenarios volume and DATA_DIR
         chmod a+rwx -R /scenarios
         chmod a+rwx -R /outputs-meta
 
