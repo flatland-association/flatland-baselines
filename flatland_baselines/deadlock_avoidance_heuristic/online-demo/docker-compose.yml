@@ -23,12 +23,11 @@ services:
       AICROWD_DEBUG_SUBMISSION: 1
     volumes:
       - environments-evaluator-vol:/tmp/debug-environments/
-      # uncomment for writing outputs to local volume
-      #      - ./outputs/analysis_data_dir:/tmp/analysis_data_dir/
-      #      - ./outputs/results:/tmp/results/
-      #      - ./outputs/actions:/tmp/actions/
-      #      - ./outputs/episodes:/tmp/episodes/
-      #      - ./outputs/visualizations:/tmp/visualizations
+      - ${DATA_DIR:-./outputs}/analysis_data_dir:/tmp/analysis_data_dir/
+      - ${DATA_DIR:-./outputs}/results:/tmp/results/
+      - ${DATA_DIR:-./outputs}/actions:/tmp/actions/
+      - ${DATA_DIR:-./outputs}/episodes:/tmp/episodes/
+      - ${DATA_DIR:-./outputs}/visualizations:/tmp/visualizations
   submission:
     build:
       context: ../../..
@@ -65,13 +64,24 @@ services:
         cp -R /tmp/orig/* /tmp/debug-environments-submission/
         find /tmp/debug-environments/
         find /tmp/debug-environments-submission/
-        # evaluation client does gets command from evaluator via redis, does not need metadata.csv
+        # client gets command from evaluator via redis, does not need metadata.csv
         rm /tmp/debug-environments-submission/metadata.csv
+        
+        mkdir -p /tmp/analysis_data_dir/
+        mkdir -p /tmp/results/
+        mkdir -p /tmp/actions/
+        mkdir -p /tmp/episodes/
+        mkdir -p /tmp/visualizations
+        chmod a+rwx -R /tmp
+
     volumes:
-      # uncomment if using data from local volume
-      #      - ....:/tmp/orig
       - environments-evaluator-vol:/tmp/debug-environments
       - environments-submission-vol:/tmp/debug-environments-submission
+      - ${DATA_DIR:-./outputs}/analysis_data_dir:/tmp/analysis_data_dir/
+      - ${DATA_DIR:-./outputs}/results:/tmp/results/
+      - ${DATA_DIR:-./outputs}/actions:/tmp/actions/
+      - ${DATA_DIR:-./outputs}/episodes:/tmp/episodes/
+      - ${DATA_DIR:-./outputs}/visualizations:/tmp/visualizations
   shutdown-redis:
     image: redis
     entrypoint: [ "/bin/sh","-c" ]
@@ -84,6 +94,5 @@ services:
       submission:
         condition: service_completed_successfully
 volumes:
-  environments-from-host-vol:
   environments-evaluator-vol:
   environments-submission-vol:
