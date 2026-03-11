@@ -31,7 +31,7 @@ services:
   submission:
     build:
       context: ../../..
-      dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online-demo/submission/Dockerfile
+      dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/Dockerfile
     depends_on:
       redis:
         condition: service_started
