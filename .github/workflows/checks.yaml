@@ -74,5 +74,5 @@ jobs:
           python -m pip install -r requirements-dev.txt
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
-          pytest -s flatland_baselines/deadlock_avoidance_heuristic/online-demo/
+          pytest -s flatland_baselines/deadlock_avoidance_heuristic/online_demo/
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/offline_demo/
