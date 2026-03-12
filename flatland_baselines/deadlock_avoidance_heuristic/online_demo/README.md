@@ -1,7 +1,7 @@
 ## TL;DR;
 
 ```shell
-docker compose  -f flatland_baselines/deadlock_avoidance_heuristic/online-demo/docker-compose.yml up --force-recreate --build
+docker compose  -f flatland_baselines/deadlock_avoidance_heuristic/online_demo/docker-compose.yml up --force-recreate --build
 
 
 evaluator-1   | ====================================================================================================

@@ -12,7 +12,7 @@ USER conda
 WORKDIR /home/conda
 
 # setup flatland-rl conda env
-COPY flatland_baselines/deadlock_avoidance_heuristic/online-demo/submission/environment.yml ./
+COPY flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/environment.yml ./
 RUN conda --version  && \
     conda env create -f environment.yml && \
     conda init bash && \
@@ -23,8 +23,8 @@ RUN conda --version  && \
     python -c 'from flatland.evaluators.client import FlatlandRemoteClient'
 
 RUN mkdir -p flatland_baselines/deadlock_avoidance_heuristic
-COPY flatland_baselines/deadlock_avoidance_heuristic/online-demo/submission/run.sh ./
+COPY flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/run.sh ./
 COPY flatland_baselines/deadlock_avoidance_heuristic/ ./flatland_baselines/deadlock_avoidance_heuristic
-COPY flatland_baselines/deadlock_avoidance_heuristic/online-demo/submission/run_solution.py ./
+COPY flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/run_solution.py ./
 
 ENTRYPOINT ["bash", "run.sh"]

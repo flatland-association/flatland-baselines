@@ -57,7 +57,7 @@ def verify_online_offline_calibration(mean_normalized_reward, mean_percentage_co
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # From online evaluation, see online-demo/test_online.py
+    # From online evaluation, see online_demo/test_online.py
     # evaluator-1   | # Mean Reward : -3427.52
     # evaluator-1   | # Sum Normalized Reward : 43.141500749639434 (primary score)
     # evaluator-1   | # Mean Percentage Complete : 0.671 (secondary score)
