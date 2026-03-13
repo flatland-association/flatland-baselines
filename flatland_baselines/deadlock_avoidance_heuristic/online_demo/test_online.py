@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from testcontainers.compose import DockerCompose
 
-from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline import verify_online_offline_calibration
+from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline import verify_online_offline_calibration_old_envs
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def _containers_fixture(environments) -> Path:
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
 @pytest.mark.parametrize('environments', ['environments_v2'])
 @pytest.mark.slow
-def test_online_calibrated_against_offline_legacy_way(_containers_fixture):
+def test_online_calibrated_against_offline_old_envs(_containers_fixture):
     """
     Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis.
     """
@@ -102,4 +102,4 @@ def test_online_calibrated_against_offline_legacy_way(_containers_fixture):
     mean_percentage_complete = df["percentage_complete"].mean()
     mean_reward = df['reward'].mean()
 
-    verify_online_offline_calibration(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+    verify_online_offline_calibration_old_envs(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)

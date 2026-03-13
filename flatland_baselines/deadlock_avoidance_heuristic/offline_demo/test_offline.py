@@ -9,9 +9,10 @@ from flatland.evaluators.trajectory_analysis import data_frame_for_trajectories
 from flatland.trajectories.policy_grid_runner import generate_trajectories_from_metadata
 
 
-def test_offline_calibrated_against_offline_legacy_way():
+def test_offline_calibrated_against_online_post_seed_old_envs():
     """
-    Verify offline evaluation yields the same result as online evaluation in legacy way with current code basis.
+    Verify offline evaluation yields the same result as online evaluation in legacy way with current code base,
+    and doing a reset on the loaded env (either using `--post-seed` or `FLATLAND_EVALUATION_RANDOM_SEED`).
     """
     _dir = os.getenv("BENCHMARK_EPISODES_FOLDER")
     assert _dir is not None, _dir
@@ -28,9 +29,9 @@ def test_offline_calibrated_against_offline_legacy_way():
                 "--policy-cls", "DeadLockAvoidancePolicy",
                 "--obs-builder-pkg", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation",
                 "--obs-builder-cls", "FullEnvObservation",
-                # Old deprecated behavior of stateful rail_generator: ignore seed passed from env int rail_generator, draw from random generator initialised every time by its own seed.
+                # environments_v2.zip where generated with old stateful rail generator, therefore, we need to use legacy env generator as we use new envs (and not the pickles from environments_v2.zip) here.
                 "--legacy-env-generator", True,
-                # Mimick online evaluation, which does a reset on the env loaded from pkl using FLATLAND_EVALUATION_RANDOM_SEED
+                # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
                 "--post-seed", 1001,
             ])
         assert e_info.value.code == 0
@@ -42,11 +43,12 @@ def test_offline_calibrated_against_offline_legacy_way():
         mean_normalized_reward = all_trains_arrived["normalized_reward"].mean()
         mean_percentage_complete = all_trains_arrived["success_rate"].mean()
         mean_reward = all_trains_rewards_dones_infos.groupby(['episode_id']).agg({"reward": "sum"}).mean()['reward']
-        verify_online_offline_calibration(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+        verify_online_offline_calibration_old_envs(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
 
 
-def verify_online_offline_calibration(mean_normalized_reward, mean_percentage_complete, mean_reward,
-                                      sum_normalized_reward):
+# old envs means environments_v2.zip, which were generated with the old stateful rail generator.
+def verify_online_offline_calibration_old_envs(mean_normalized_reward, mean_percentage_complete, mean_reward,
+                                               sum_normalized_reward):
     # Round off the reward values, see service.py
     mean_reward = round(mean_reward, 2)
     mean_normalized_reward = round(mean_normalized_reward, 5)
