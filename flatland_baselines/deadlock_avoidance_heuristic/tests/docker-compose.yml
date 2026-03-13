@@ -10,17 +10,15 @@ services:
         set -euxo pipefail
 
         # download and extract debug-environments.zip to scenarios volume
-        chmod a+rwx -R /scenarios
         wget "https://data.flatland.cloud/benchmarks/Flatland3/debug-environments.zip" -O debug-environments.zip -O debug-environments.zip
         rm -fR /scenarios/debug-environments
-        mkdir -p /scenarios/debug-environments
-        unzip debug-environments.zip -o -d /scenarios
-        rm -fR /scenarios/Test*
-        mv -f /scenarios/debug-environments/Test* /scenarios/
+        # data stored in debug-environments folder in zip
+        unzip debug-environments.zip -o -d /scenarios/
         
         # download and extract environments_v2.zip to scenarios volume
         wget https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip -O environments_v2.zip
         rm -fR scenarios/environments_v2
+        # data stored top-level in zip
         mkdir -p scenarios/environments_v2
         unzip environments_v2.zip -d scenarios/environments_v2
         
