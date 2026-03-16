@@ -26,8 +26,3 @@ evaluator-1   | \ end grader
 evaluator-1   | \ end evaluator/run.sh
 evaluator-1   | + echo '\ end evaluator/run.sh'
 ```
-
-With `flatland-rl==4.2.1`:
-
-one commit before new get_k_shortest_path (https://github.com/flatland-association/flatland-baselines/pull/41)
-8f8bf7c6a50f4fc71634c5e1755ec26c6136c55c 
