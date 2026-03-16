@@ -72,7 +72,11 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
     assert np.isclose(mean_normalized_reward, 0.86283)
 
 
-def test_offline_calibrated_against_online_post_seed_envs_v3():
+@pytest.mark.parametrize("post_seed", [
+    "1001",
+    None
+])
+def test_offline_calibrated_against_online_envs_v3(post_seed):
     """
     Verify offline evaluation yields the same result as online evaluation with current code base envs v3 generated with new stateless rail generator,
     and doing a reset on the loaded env (either using `--post-seed` or `FLATLAND_EVALUATION_RANDOM_SEED`).
@@ -95,7 +99,7 @@ def test_offline_calibrated_against_online_post_seed_envs_v3():
                 "--obs-builder-pkg", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation",
                 "--obs-builder-cls", "FullEnvObservation",
                 # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
-                "--post-seed", 1001,
+                "--post-seed", post_seed,
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
@@ -106,12 +110,12 @@ def test_offline_calibrated_against_online_post_seed_envs_v3():
         mean_normalized_reward = all_trains_arrived["normalized_reward"].mean()
         mean_percentage_complete = all_trains_arrived["success_rate"].mean()
         mean_reward = all_trains_rewards_dones_infos.groupby(['episode_id']).agg({"reward": "sum"}).mean()['reward']
-        verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+        verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward, post_seed)
 
 
 # environments_v3.zip (truncated to first 20 envs), which were generated with the new stateless rail generator.
 def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward,
-                                                    sum_normalized_reward):
+                                                    sum_normalized_reward, post_seed):
     # Round off the reward values, see service.py
     mean_reward = round(mean_reward, 2)
     mean_normalized_reward = round(mean_normalized_reward, 5)
@@ -122,12 +126,25 @@ def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # From online evaluation, see online_demo/test_online.py
-    # Mean Reward : -41.4
-    # Sum Normalized Reward : 19.32558075096354 (primary score)
-    # Mean Percentage Complete : 0.986 (secondary score)
-    # Mean Normalized Reward : 0.96628
-    assert np.isclose(mean_reward, -41.4)
-    assert np.isclose(sum_normalized_reward, 19.32558075096354)
-    assert np.isclose(mean_percentage_complete, 0.986)
-    assert np.isclose(mean_normalized_reward, 0.96628)
+    if post_seed == "1001":
+        # From online evaluation, see online_demo/test_online.py
+        # Mean Reward : -41.4
+        # Sum Normalized Reward : 19.32558075096354 (primary score)
+        # Mean Percentage Complete : 0.986 (secondary score)
+        # Mean Normalized Reward : 0.96628
+        assert np.isclose(mean_reward, -41.4)
+        assert np.isclose(sum_normalized_reward, 19.32558075096354)
+        assert np.isclose(mean_percentage_complete, 0.986)
+        assert np.isclose(mean_normalized_reward, 0.96628)
+    elif post_seed is None:
+        # From online evaluation, see online_demo/test_online.py
+        # Mean Reward : -40.1
+        # Sum Normalized Reward : 19.33360268334587 (primary score)
+        # Mean Percentage Complete : 0.986 (secondary score)
+        # Mean Normalized Reward : 0.96668
+        assert np.isclose(mean_reward, -40.1)
+        assert np.isclose(sum_normalized_reward, 19.33360268334587)
+        assert np.isclose(mean_percentage_complete, 0.986)
+        assert np.isclose(mean_normalized_reward, 0.96668)
+    else:
+        raise AssertionError()
