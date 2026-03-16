@@ -51,8 +51,8 @@ def main():
                 if env._elapsed_steps < env._max_episode_steps:
                     nbr_done = sum(list(done.values())[:-1])
 
-            except:
-                print("[ERR] DONE BUT step() CALLED")
+            except BaseException as e:
+                print(f"[ERR] DONE BUT step() CALLED {e}")
 
             if (True):  # debug
                 if done['__all__']:

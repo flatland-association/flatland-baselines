@@ -21,7 +21,7 @@ services:
       AICROWD_TESTS_FOLDER: /tmp/debug-environments/
       redis_ip: redis
     volumes:
-      - debug-environments:/tmp/
+      - environments-evaluator-vol:/tmp/
 
   submission:
     build:
@@ -36,7 +36,7 @@ services:
       AICROWD_TESTS_FOLDER: /tmp/debug-environments/
       redis_ip: redis
     volumes:
-      - debug-environments-submission:/tmp/
+      - environments-submission-vol:/tmp/
 
   downloader:
     image: alpine
@@ -45,16 +45,25 @@ services:
       - |
         set -x
         set -e
-        wget "https://data.flatland.cloud/benchmarks/Flatland3/debug-environments.zip" -O debug-environments.zip
-        unzip -o debug-environments.zip -d /tmp/debug-environments
-        unzip -o debug-environments.zip -d /tmp/debug-environments-submission
+        mkdir -p /tmp/orig
+        wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip" -O environments.zip
+        unzip -o environments.zip -d /tmp/orig
+        
+        
+        rm -fR /tmp/debug-environments/debug-environments/*
+        rm -fR /tmp/debug-environments-submission/debug-environments/*
+        mkdir -p /tmp/debug-environments/debug-environments/
+        mkdir -p /tmp/debug-environments-submission/debug-environments/
+        cp -R /tmp/orig/* /tmp/debug-environments/debug-environments/
+        cp -R /tmp/orig/* /tmp/debug-environments-submission/debug-environments/
+        find /tmp/debug-environments/
         find /tmp/debug-environments-submission/
         # evaluation client does gets command from evaluator via redis, does not need metadata.csv
         rm /tmp/debug-environments-submission/debug-environments/metadata.csv
     volumes:
-      - debug-environments:/tmp/debug-environments
-      - debug-environments-submission:/tmp/debug-environments-submission
-
+      #      - ....:/tmp/orig
+      - environments-evaluator-vol:/tmp/debug-environments
+      - environments-submission-vol:/tmp/debug-environments-submission
   shutdown-redis:
     image: redis
     entrypoint: [ "/bin/sh","-c" ]
@@ -67,5 +76,6 @@ services:
       submission:
         condition: service_completed_successfully
 volumes:
-  debug-environments:
-  debug-environments-submission:
+  orig:
+  environments-evaluator-vol:
+  environments-submission-vol:
