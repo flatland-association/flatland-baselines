@@ -94,6 +94,8 @@ services:
       redis_ip: redis
       AICROWD_DEBUG_SUBMISSION: 1
       FLATLAND_EVALUATION_RANDOM_SEED: ${FLATLAND_EVALUATION_RANDOM_SEED:-1001}
+      # clone this ref in run.sh to override the current version
+      FLATLAND_RL_REF: ${FLATLAND_RL_REF:-}
     volumes:
       - type: volume
         source: scenarios
@@ -117,6 +119,9 @@ services:
     environment:
       AICROWD_TESTS_FOLDER: /tmp/${ENVIRONMENTS:-debug-environments}/
       redis_ip: redis
+      # clone this ref in run.sh to override the current version
+      FLATLAND_BASELINES_REF: ${FLATLAND_BASELINES_REF:-}
+      FLATLAND_RL_REF: ${FLATLAND_RL_REF:-}
     volumes:
       - type: volume
         source: scenarios

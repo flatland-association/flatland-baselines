@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="function")
-def _containers_fixture(environments, seed) -> Path:
+def _containers_fixture(environments, seed, baselines_ref, rl_ref) -> Path:
     newpath = tempfile.mkdtemp()
     try:
         # set env var ATTENDED to True if docker-compose.yml is already up and running
@@ -42,6 +42,8 @@ def _containers_fixture(environments, seed) -> Path:
                 f"ENVIRONMENTS={environments}\n"
                 f"DATA_DIR={newpath}\n"
                 f"FLATLAND_EVALUATION_RANDOM_SEED={seed}\n"
+                f"FLATLAND_BASELINES_REF={baselines_ref}\n"
+                f"FLATLAND_RL_REF={rl_ref}\n"
             )
         basic = DockerCompose(context=".", env_file=str(env_file), compose_file_name=str(Path(__file__).parent.resolve() / "docker-compose.yml"), wait=False, )
 
@@ -86,14 +88,16 @@ def _containers_fixture(environments, seed) -> Path:
 
 
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
-@pytest.mark.parametrize('environments', ['environments_v2'])
+@pytest.mark.parametrize('environments,seed,baselines_ref,rl_ref', [
+    ('environments_v2', "1001", "", ""),
+])
 @pytest.mark.slow
 def test_online_calibrated_against_offline_envs_v2(_containers_fixture):
     """
     Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis on envs v2 (old statefull rail generator).
     """
 
-    root_data_dir = _containers_fixture
+    root_data_dir, post_seed = _containers_fixture
     print(root_data_dir)
     print(list(root_data_dir.rglob("**/*")))
 
@@ -108,9 +112,9 @@ def test_online_calibrated_against_offline_envs_v2(_containers_fixture):
 
 
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
-@pytest.mark.parametrize('environments,seed', [
-    ('environments_v3_trunc', "1001"),
-    ('environments_v3_trunc', "NONE"),
+@pytest.mark.parametrize('environments,seed,baselines_ref,rl_ref', [
+    ('environments_v3_trunc', "1001", "", ""),
+    ('environments_v3_trunc', "NONE", "", ""),
 ])
 @pytest.mark.slow
 def test_online_calibrated_against_offline_envs_v3_trunc(_containers_fixture):
