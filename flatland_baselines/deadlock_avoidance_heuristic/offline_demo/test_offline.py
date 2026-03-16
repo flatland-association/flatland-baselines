@@ -136,7 +136,7 @@ def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean
         assert np.isclose(sum_normalized_reward, 19.32558075096354)
         assert np.isclose(mean_percentage_complete, 0.986)
         assert np.isclose(mean_normalized_reward, 0.96628)
-    elif post_seed is None:
+    elif post_seed is None or post_seed == "NONE":
         # From online evaluation, see online_demo/test_online.py
         # Mean Reward : -40.1
         # Sum Normalized Reward : 19.33360268334587 (primary score)

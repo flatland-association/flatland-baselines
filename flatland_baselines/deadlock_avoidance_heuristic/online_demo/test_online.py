@@ -15,8 +15,8 @@ from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline i
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
-def _containers_fixture(environments) -> Path:
+@pytest.fixture(scope="function")
+def _containers_fixture(environments, seed) -> Path:
     newpath = tempfile.mkdtemp()
     try:
         # set env var ATTENDED to True if docker-compose.yml is already up and running
@@ -40,9 +40,10 @@ def _containers_fixture(environments) -> Path:
         with(env_file).open("w") as f:
             f.write(
                 f"ENVIRONMENTS={environments}\n"
-                f"DATA_DIR={newpath}"
+                f"DATA_DIR={newpath}\n"
+                f"FLATLAND_EVALUATION_RANDOM_SEED={seed}\n"
             )
-        basic = DockerCompose(context=".", env_file=str(env_file), compose_file_name=str(Path(__file__).parent.resolve() / "docker-compose.yml"), wait=False)
+        basic = DockerCompose(context=".", env_file=str(env_file), compose_file_name=str(Path(__file__).parent.resolve() / "docker-compose.yml"), wait=False, )
 
         logger.info("/ start docker compose down")
         basic.stop()
@@ -55,7 +56,7 @@ def _containers_fixture(environments) -> Path:
             duration = time.time() - start_time
             logger.info(f"\\ end docker compose up. Took {duration:.2f} seconds.")
 
-            yield temp
+            yield temp, seed
 
             # TODO workaround for testcontainers not supporting streaming to logger
             start_time = time.time()
@@ -107,14 +108,17 @@ def test_online_calibrated_against_offline_envs_v2(_containers_fixture):
 
 
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
-@pytest.mark.parametrize('environments', ['environments_v3_trunc'])
+@pytest.mark.parametrize('environments,seed', [
+    ('environments_v3_trunc', "1001"),
+    ('environments_v3_trunc', "NONE"),
+])
 @pytest.mark.slow
 def test_online_calibrated_against_offline_envs_v3_trunc(_containers_fixture):
     """
     Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis on first 20 envs of v3 (new stateless rail generator).
     """
 
-    root_data_dir = _containers_fixture
+    root_data_dir, post_seed = _containers_fixture
     print(root_data_dir)
     print(list(root_data_dir.rglob("**/*")))
 
@@ -125,4 +129,4 @@ def test_online_calibrated_against_offline_envs_v3_trunc(_containers_fixture):
     mean_percentage_complete = df["percentage_complete"].mean()
     mean_reward = df['reward'].mean()
 
-    verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+    verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward, post_seed)

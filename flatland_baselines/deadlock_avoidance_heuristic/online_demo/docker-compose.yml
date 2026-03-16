@@ -93,6 +93,7 @@ services:
       AICROWD_TESTS_FOLDER: /tmp/${ENVIRONMENTS:-debug-environments}/
       redis_ip: redis
       AICROWD_DEBUG_SUBMISSION: 1
+      FLATLAND_EVALUATION_RANDOM_SEED: ${FLATLAND_EVALUATION_RANDOM_SEED:-1001}
     volumes:
       - type: volume
         source: scenarios
