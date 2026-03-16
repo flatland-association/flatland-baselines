@@ -69,10 +69,62 @@ jobs:
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests
-      - name: Run tests for online and offline evaluation
+
+  test-online-offline-evaluation-demo:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+    steps:
+      - name: Inspect disk
+        run: |
+          df -h
+          docker system df
+      # https://stackoverflow.com/questions/30604846/docker-complains-about-no-space-left-on-device-how-to-clean-up
+      - name: Prune docker system
+        run: |
+          docker system prune --all --force
+      # https://www.dzombak.com/blog/2024/09/freeing-disk-space-on-github-actions-runners/
+      - name: Free disk space
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+      - name: Inspect disk again
+        run: |
+          df -h
+          docker system df
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Download episodes
+        run: |
+          wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
+          mkdir -p episodes
+          unzip FLATLAND_BENCHMARK_EPISODES_FOLDER -d episodes
+        working-directory: ${{ github.workspace }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v4
+        with:
+          repository: flatland-association/flatland-rl
+          path: flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
+      - name: Install flatland-rl
+        working-directory: flatland-rl
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install .
+          python -m pip list
+      - name: Run tests for online evaluation
         run: |
           python -m pip install -r requirements-dev.txt
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/online_demo/
+      - name: Run tests for offline evaluation
+        run: |
+          python -m pip install -r requirements-dev.txt
+          export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
+          export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/offline_demo/
