@@ -9,7 +9,8 @@ import pandas as pd
 import pytest
 from testcontainers.compose import DockerCompose
 
-from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline import verify_online_offline_calibration_old_envs
+from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline import verify_online_offline_calibration_envs_v2, \
+    verify_online_offline_calibration_envs_v3_trunc
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +87,9 @@ def _containers_fixture(environments) -> Path:
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
 @pytest.mark.parametrize('environments', ['environments_v2'])
 @pytest.mark.slow
-def test_online_calibrated_against_offline_old_envs(_containers_fixture):
+def test_online_calibrated_against_offline_envs_v2(_containers_fixture):
     """
-    Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis.
+    Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis on envs v2 (old statefull rail generator).
     """
 
     root_data_dir = _containers_fixture
@@ -102,4 +103,26 @@ def test_online_calibrated_against_offline_old_envs(_containers_fixture):
     mean_percentage_complete = df["percentage_complete"].mean()
     mean_reward = df['reward'].mean()
 
-    verify_online_offline_calibration_old_envs(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+    verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)
+
+
+# https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
+@pytest.mark.parametrize('environments', ['environments_v3_trunc'])
+@pytest.mark.slow
+def test_online_calibrated_against_offline_envs_v3_trunc(_containers_fixture):
+    """
+    Verify online evaluation yields the same result as offline evaluation in legacy way with current code basis on first 20 envs of v3 (new stateless rail generator).
+    """
+
+    root_data_dir = _containers_fixture
+    print(root_data_dir)
+    print(list(root_data_dir.rglob("**/*")))
+
+    df = pd.read_csv(root_data_dir / "results" / "results.csv")
+
+    sum_normalized_reward = df["normalized_reward"].sum()
+    mean_normalized_reward = df["normalized_reward"].mean()
+    mean_percentage_complete = df["percentage_complete"].mean()
+    mean_reward = df['reward'].mean()
+
+    verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean_percentage_complete, mean_reward, sum_normalized_reward)

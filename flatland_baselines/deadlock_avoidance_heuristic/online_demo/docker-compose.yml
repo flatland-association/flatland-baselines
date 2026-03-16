@@ -35,7 +35,34 @@ services:
         # data stored top-level in zip
         mkdir -p scenarios/environments_v2
         unzip environments_v2.zip -d scenarios/environments_v2
-
+        
+        # download and extract environments_v3.zip to scenarios volume
+        wget https://raw.githubusercontent.com/flatland-association/flatland-scenarios/08fbff09ee8c8bfd3c79b48261ffc9978edc89e4/scenarios/environments_v3.zip -O environments_v3.zip
+        rm -fR scenarios/environments_v3
+        rm -fR scenarios/environments_v3_trunc
+        # data stored top-level in zip
+        mkdir -p scenarios/environments_v3
+        mkdir -p scenarios/environments_v3_trunc
+        unzip environments_v3.zip -d scenarios/environments_v3
+        unzip environments_v3.zip -d scenarios/environments_v3_trunc
+        # truncate to first 2 x 10 envs:
+        cat scenarios/environments_v3_trunc/metadata.csv | head -21 >  scenarios/environments_v3_trunc/metadata.csv
+        cat scenarios/environments_v3_trunc/metadata.csv
+        rm -fR scenarios/environments_v3_trunc/Test_02
+        rm -fR scenarios/environments_v3_trunc/Test_03
+        rm -fR scenarios/environments_v3_trunc/Test_04
+        rm -fR scenarios/environments_v3_trunc/Test_05
+        rm -fR scenarios/environments_v3_trunc/Test_06
+        rm -fR scenarios/environments_v3_trunc/Test_07
+        rm -fR scenarios/environments_v3_trunc/Test_08
+        rm -fR scenarios/environments_v3_trunc/Test_09
+        rm -fR scenarios/environments_v3_trunc/Test_10
+        rm -fR scenarios/environments_v3_trunc/Test_11
+        rm -fR scenarios/environments_v3_trunc/Test_12
+        rm -fR scenarios/environments_v3_trunc/Test_13
+        rm -fR scenarios/environments_v3_trunc/Test_14
+        
+        
         find /scenarios
 
         # set permissions on scenarios volume and DATA_DIR

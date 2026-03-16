@@ -22,6 +22,14 @@ services:
         mkdir -p scenarios/environments_v2
         unzip environments_v2.zip -d scenarios/environments_v2
         
+        # download and extract environments_v3.zip to scenarios volume
+        wget https://raw.githubusercontent.com/flatland-association/flatland-scenarios/08fbff09ee8c8bfd3c79b48261ffc9978edc89e4/scenarios/environments_v3.zip -O environments_v3.zip
+        rm -fR scenarios/environments_v3
+        # data stored top-level in zip
+        mkdir -p scenarios/environments_v3
+        unzip environments_v3.zip -d scenarios/environments_v3
+        cat scenarios/environments_v3/metadata.csv | head -21 >  scenarios/environments_v3/metadata_trunc.csv
+        
         find /scenarios
         
         # set permissions on scenarios volume and DATA_DIR
@@ -31,7 +39,7 @@ services:
   run-environments:
     command:
       - |
-        flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/metadata.csv --data-dir /outputs-meta
+        flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/${METADATA_CSV:-metadata.csv} --data-dir /outputs-meta
     build:
       dockerfile: ../Dockerfile
     depends_on:
