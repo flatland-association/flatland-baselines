@@ -46,7 +46,9 @@ services:
         unzip environments_v3.zip -d scenarios/environments_v3
         unzip environments_v3.zip -d scenarios/environments_v3_trunc
         # truncate to first 2 x 10 envs:
-        cat scenarios/environments_v3_trunc/metadata.csv | head -21 >  scenarios/environments_v3_trunc/metadata.csv
+        cat scenarios/environments_v3_trunc/metadata.csv
+        cat scenarios/environments_v3_trunc/metadata.csv | head -21 >  scenarios/environments_v3_trunc/metadata.csv2
+        mv scenarios/environments_v3_trunc/metadata.csv2 scenarios/environments_v3_trunc/metadata.csv
         cat scenarios/environments_v3_trunc/metadata.csv
         rm -fR scenarios/environments_v3_trunc/Test_02
         rm -fR scenarios/environments_v3_trunc/Test_03
