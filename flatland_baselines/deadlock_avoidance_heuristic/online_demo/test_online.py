@@ -90,6 +90,44 @@ def _containers_fixture(environments, seed, baselines_ref, rl_ref) -> Path:
 # https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
 @pytest.mark.parametrize('environments,seed,baselines_ref,rl_ref', [
     ('environments_v2', "1001", "", ""),
+    # -> same result as (3)
+
+    #############################################################
+    # (3) one commit after new get_k_shortest_path (https://github.com/flatland-association/flatland-baselines/pull/38/ and after last get_k_shortest_path fix https://github.com/flatland-association/flatland-rl/pull/345 and needing also https://github.com/flatland-association/flatland-rl/pull/317 because of interface changes)
+    # ('environments_v2', "1001", "b79af610cc4d1b5aa331cabc75e4812b504e18cd","3be36d8f0e0aff1a05ad6b3caacc72386f8e9b74"),
+    # Mean Reward : -3427.52
+    # Sum Normalized Reward : 43.141500749639434 (primary score)
+    # Mean Percentage Complete : 0.671 (secondary score)
+    # Mean Normalized Reward : 0.86283
+    # -> breaking change due to new get_k_shortest_path in flatland-baselines
+
+    #############################################################
+    # (2b) one commit before new get_k_shortest_path (https://github.com/flatland-association/flatland-baselines/pull/38/ and one commit before first get_k_shortest_path fix https://github.com/flatland-association/flatland-rl/pull/335)
+    # ('environments_v2', "1001", "0241520c062095823b442c2cad2f6b6386e6aec2","c3c9c9db0df804a90cb22d4d0c22c96b21f4fba8"),
+    # Mean Reward : -3545.04
+    # Sum Normalized Reward : 43.01006646037365 (primary score)
+    # Mean Percentage Complete : 0.678 (secondary score)
+    # Mean Normalized Reward : 0.8602
+    # -> same result as (2)
+
+    #############################################################
+    # (2) just after breaking change no rewards after (single) agent is done https://github.com/flatland-association/flatland-rl/pull/302/files
+    # ('environments_v2', "1001", "0241520c062095823b442c2cad2f6b6386e6aec2","db80be21a4b79c1bd4f32bcca3a0e50448f711cc"),
+    # Mean Reward : -3545.04
+    # Sum Normalized Reward : 43.01006646037365 (primary score)
+    # Mean Percentage Complete : 0.678 (secondary score)
+    # Mean Normalized Reward : 0.8602
+    # -> breaking change due to rewards fix in flatland-rl
+
+    #############################################################
+    # (1) flatland-rl just before breaking change no rewards after (single) agent is done https://github.com/flatland-association/flatland-rl/pull/302/files
+    # ('environments_v2', "1001", "0241520c062095823b442c2cad2f6b6386e6aec2","166a9f1183d86cbf8726ddb09359197dba629209"),
+    # Mean Reward : -3541.52
+    # Sum Normalized Reward : 43.08898598301832 (primary score)
+    # Mean Percentage Complete : 0.678 (secondary score)
+    # Mean Normalized Reward : 0.86178
+    # -> same result as with 4.2.1 in https://github.com/flatland-association/flatland-baselines/pull/40/changes#diff-ddbd72c00fdf2bf68dc455453bc81a1ad80be9018af263c28b367985a40dc98c
+
 ])
 @pytest.mark.slow
 def test_online_calibrated_against_offline_envs_v2(_containers_fixture):
