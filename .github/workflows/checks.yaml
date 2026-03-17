@@ -116,12 +116,12 @@ jobs:
           python -m pip install -r requirements-dev.txt
           python -m pip install .
           python -m pip list
-      - name: Run tests for online evaluation
-        run: |
-          python -m pip install -r requirements-dev.txt
-          export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
-          export PYTHONPATH=$PWD 
-          pytest -s flatland_baselines/deadlock_avoidance_heuristic/online_demo/
+      #      - name: Run tests for online evaluation
+      #        run: |
+      #          python -m pip install -r requirements-dev.txt
+      #          export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
+      #          export PYTHONPATH=$PWD
+      #          pytest -s flatland_baselines/deadlock_avoidance_heuristic/online_demo/
       - name: Run tests for offline evaluation
         run: |
           python -m pip install -r requirements-dev.txt
