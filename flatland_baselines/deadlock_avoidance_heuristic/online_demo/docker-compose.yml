@@ -129,12 +129,14 @@ services:
         volume:
           subpath: ${ENVIRONMENTS:-debug-environments}
 
-  shutdown-redis:
-    image: redis
-    entrypoint: [ "/bin/sh","-c" ]
+  # up --wait should wait for run to be completed, but must not exit(0) for testcontainers-python not to fail
+  done:
+    build:
+      dockerfile: Dockerfile_alpine_bash
+    entrypoint: [ "/bin/bash","-c" ]
     command:
       - |
-        redis-cli -h redis -p 6379 shutdown now
+        while true; do echo "Current date: $(date)"; sleep 1; done
     depends_on:
       evaluator:
         condition: service_completed_successfully

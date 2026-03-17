@@ -45,7 +45,7 @@ def _containers_fixture(environments, seed, baselines_ref, rl_ref) -> Path:
                 f"FLATLAND_BASELINES_REF={baselines_ref}\n"
                 f"FLATLAND_RL_REF={rl_ref}\n"
             )
-        basic = DockerCompose(context=".", env_file=str(env_file), compose_file_name=str(Path(__file__).parent.resolve() / "docker-compose.yml"), wait=False, )
+        basic = DockerCompose(context=".", env_file=str(env_file), compose_file_name=str(Path(__file__).parent.resolve() / "docker-compose.yml"))
 
         logger.info("/ start docker compose down")
         basic.stop()
