@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: v4.2.3
 
 on:
   workflow_dispatch:
