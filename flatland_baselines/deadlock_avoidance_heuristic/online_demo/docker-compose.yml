@@ -1,0 +1,148 @@
+services:
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  setup:
+    image: alpine
+    volumes:
+      - scenarios:/scenarios
+      - ${DATA_DIR:-./outputs}/analysis_data_dir:/tmp/analysis_data_dir/
+      - ${DATA_DIR:-./outputs}/results:/tmp/results/
+      - ${DATA_DIR:-./outputs}/actions:/tmp/actions/
+      - ${DATA_DIR:-./outputs}/episodes:/tmp/episodes/
+      - ${DATA_DIR:-./outputs}/visualizations:/tmp/visualizations
+    entrypoint: [ "/bin/sh","-c" ]
+    command:
+      - |
+        set -euxo pipefail
+        chmod a+rwx -R /scenarios
+
+        # download and extract debug-environments.zip to scenarios volume
+        wget "https://data.flatland.cloud/benchmarks/Flatland3/debug-environments.zip" -O debug-environments.zip -O debug-environments.zip
+        rm -fR /scenarios/debug-environments
+        # data stored in debug-environments folder in zip
+        unzip debug-environments.zip -o -d /scenarios/
+        
+        # download and extract environments_v2.zip to scenarios volume
+        wget https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/scenarios/environments_v2.zip -O environments_v2.zip
+        rm -fR scenarios/environments_v2
+        # data stored top-level in zip
+        mkdir -p scenarios/environments_v2
+        unzip environments_v2.zip -d scenarios/environments_v2
+        
+        # download and extract environments_v3.zip to scenarios volume
+        wget https://raw.githubusercontent.com/flatland-association/flatland-scenarios/08fbff09ee8c8bfd3c79b48261ffc9978edc89e4/scenarios/environments_v3.zip -O environments_v3.zip
+        rm -fR scenarios/environments_v3
+        rm -fR scenarios/environments_v3_trunc
+        # data stored top-level in zip
+        mkdir -p scenarios/environments_v3
+        mkdir -p scenarios/environments_v3_trunc
+        unzip environments_v3.zip -d scenarios/environments_v3
+        unzip environments_v3.zip -d scenarios/environments_v3_trunc
+        # truncate to first 2 x 10 envs:
+        cat scenarios/environments_v3_trunc/metadata.csv
+        cat scenarios/environments_v3_trunc/metadata.csv | head -21 >  scenarios/environments_v3_trunc/metadata.csv2
+        mv scenarios/environments_v3_trunc/metadata.csv2 scenarios/environments_v3_trunc/metadata.csv
+        cat scenarios/environments_v3_trunc/metadata.csv
+        rm -fR scenarios/environments_v3_trunc/Test_02
+        rm -fR scenarios/environments_v3_trunc/Test_03
+        rm -fR scenarios/environments_v3_trunc/Test_04
+        rm -fR scenarios/environments_v3_trunc/Test_05
+        rm -fR scenarios/environments_v3_trunc/Test_06
+        rm -fR scenarios/environments_v3_trunc/Test_07
+        rm -fR scenarios/environments_v3_trunc/Test_08
+        rm -fR scenarios/environments_v3_trunc/Test_09
+        rm -fR scenarios/environments_v3_trunc/Test_10
+        rm -fR scenarios/environments_v3_trunc/Test_11
+        rm -fR scenarios/environments_v3_trunc/Test_12
+        rm -fR scenarios/environments_v3_trunc/Test_13
+        rm -fR scenarios/environments_v3_trunc/Test_14
+        
+        
+        find /scenarios
+
+        # set permissions on scenarios volume and DATA_DIR
+        chmod a+rwx -R /scenarios
+        
+        mkdir -p /tmp/analysis_data_dir/
+        mkdir -p /tmp/results/
+        mkdir -p /tmp/actions/
+        mkdir -p /tmp/episodes/
+        mkdir -p /tmp/visualizations
+        
+        chmod a+rwx -R /tmp/analysis_data_dir/
+        chmod a+rwx -R /tmp/results/
+        chmod a+rwx -R /tmp/actions/
+        chmod a+rwx -R /tmp/episodes/
+        chmod a+rwx -R /tmp/visualizations
+
+  evaluator:
+    build:
+      context: evaluator
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      setup:
+        condition: service_completed_successfully
+    environment:
+      AICROWD_TESTS_FOLDER: /tmp/${ENVIRONMENTS:-debug-environments}/
+      redis_ip: redis
+      AICROWD_DEBUG_SUBMISSION: 1
+      FLATLAND_EVALUATION_RANDOM_SEED: ${FLATLAND_EVALUATION_RANDOM_SEED:-1001}
+      # clone this ref in run.sh to override the current version
+      FLATLAND_RL_REF: ${FLATLAND_RL_REF:-}
+    volumes:
+      - type: volume
+        source: scenarios
+        target: /tmp/${ENVIRONMENTS:-debug-environments}/
+        volume:
+          subpath: ${ENVIRONMENTS:-debug-environments}
+      - ${DATA_DIR:-./outputs}/analysis_data_dir:/tmp/analysis_data_dir/
+      - ${DATA_DIR:-./outputs}/results:/tmp/results/
+      - ${DATA_DIR:-./outputs}/actions:/tmp/actions/
+      - ${DATA_DIR:-./outputs}/episodes:/tmp/episodes/
+      - ${DATA_DIR:-./outputs}/visualizations:/tmp/visualizations
+  submission:
+    build:
+      context: ../../..
+      dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/Dockerfile
+    depends_on:
+      redis:
+        condition: service_started
+      setup:
+        condition: service_completed_successfully
+    environment:
+      AICROWD_TESTS_FOLDER: /tmp/${ENVIRONMENTS:-debug-environments}/
+      redis_ip: redis
+      # clone this ref in run.sh to override the current version
+      FLATLAND_BASELINES_REF: ${FLATLAND_BASELINES_REF:-}
+      FLATLAND_RL_REF: ${FLATLAND_RL_REF:-}
+    volumes:
+      - type: volume
+        source: scenarios
+        target: /tmp/${ENVIRONMENTS:-debug-environments}/
+        volume:
+          subpath: ${ENVIRONMENTS:-debug-environments}
+
+  # up --wait should wait for run to be completed, but must not exit(0) for testcontainers-python not to fail
+  done:
+    build:
+      dockerfile: Dockerfile_alpine_bash
+    entrypoint: [ "/bin/bash","-c" ]
+    command:
+      - |
+        while true; do echo "Current date: $(date)"; sleep 1; done
+    depends_on:
+      evaluator:
+        condition: service_completed_successfully
+      submission:
+        condition: service_completed_successfully
+volumes:
+  scenarios:

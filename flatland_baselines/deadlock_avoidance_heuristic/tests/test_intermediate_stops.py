@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from flatland.callbacks.generate_movie_callbacks import GenerateMovieCallbacks
-from flatland.env_generation.env_generator import env_generator
+from flatland.env_generation.env_generator import env_generator_legacy
 from flatland.envs.observations import FullEnvObservation
 from flatland.envs.rewards import DefaultRewards
 from flatland.trajectories.policy_runner import PolicyRunner
@@ -20,7 +20,7 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
                              intermediate_late_arrival_penalty_factor=33,
                              intermediate_early_departure_penalty_factor=44,
                              )
-    env, _, _ = env_generator(
+    env, _, _ = env_generator_legacy(
         n_cities=5,
         line_length=3,
         obs_builder_object=FullEnvObservation(),
