@@ -39,7 +39,7 @@ services:
   run-environments:
     command:
       - |
-        flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/${METADATA_CSV:-metadata.csv} --data-dir /outputs-meta
+        flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/${METADATA_CSV:-metadata.csv} --data-dir /outputs-meta --legacy-env-generator True
     build:
       dockerfile: ../Dockerfile
     depends_on:
