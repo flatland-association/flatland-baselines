@@ -95,8 +95,11 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                                        "v": f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}"})
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints([agent.waypoints[0][0], agent.waypoints[-1][0]], env.rail,
                                                                                                 debug_label=f"Agent {agent.handle}")
-
+        if self._set_paths[agent.handle] is None:
+            # loopy path
+            return
         if agent.position is None:
+            # not on map
             return
 
         while len(self._set_paths[agent.handle]) > 0 and self._set_paths[agent.handle][0].position != agent.position:
@@ -151,7 +154,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             if self.audit is not None:
                 self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": debug_label, "k": "audit",
                                    "v": f"[{debug_label}] Found loopy line {waypoints} with duplicates {duplicates} in path {p}"})
-            return []
+            return None
         return p
 
 
