@@ -151,7 +151,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         check = self.agent_can_move.get(handle, None)
         agent = self.rail_env.agents[handle]
-        if agent.state < TrainState.MOVING:
+        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and agent.state < TrainState.MOVING:
             # prevent entering map as default!
             act = RailEnvActions.DO_NOTHING
         else:
