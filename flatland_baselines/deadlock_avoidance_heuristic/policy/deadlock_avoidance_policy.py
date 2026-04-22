@@ -150,9 +150,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         check = self.agent_can_move.get(handle, None)
-        act = RailEnvActions.STOP_MOVING
-
         agent = self.rail_env.agents[handle]
+        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and agent.state < TrainState.MOVING:
+            # prevent entering map as default!
+            act = RailEnvActions.DO_NOTHING
+        else:
+            act = RailEnvActions.STOP_MOVING
+
         if agent.position is not None:
             self.agent_waypoints_done[handle].add(Waypoint(agent.position, agent.direction))
 
@@ -237,7 +241,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
                 if self.audit is not None:
                     self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} "})
+                                       "v": f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before) if before is not None else None}->{len(self._set_paths[handle]) if self._set_paths[agent.handle] is not None else None}:\n - {before} \n - {self._set_paths[handle]} "})
 
             else:
                 if self.verbose:
@@ -247,7 +251,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
                                        "v": f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}"})
 
-            if len(self._set_paths[handle]) == 0:
+            if self._set_paths[handle] is None or len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before
             self.init_shortest_distance_positions(agent, handle)
             self.opp_agent_map.pop(handle, None)
@@ -359,6 +363,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.full_shortest_distance_agent_map[handle].fill(0)
         self.shortest_distance_positions_agent_map[handle] = set()
         self.shortest_distance_positions_directions_agent_map[handle] = defaultdict(set)
+        if self._set_paths[agent.handle] is None:
+            return
         for wp in self._set_paths[agent.handle][1:]:
             position, direction = wp.position, wp.direction
             self.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
@@ -451,8 +457,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     else:
                         position = agent.initial_position
                         direction = agent.initial_direction
-                    # Guard against invalid initial positions:
-                    if len(self._set_paths[agent.handle]) < 2:
+                    # Guard against loopy lines and invalid initial positions:
+                    if self._set_paths[agent.handle] is None or len(self._set_paths[agent.handle]) < 2:
                         warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
                         if self.audit is not None:
                             self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
