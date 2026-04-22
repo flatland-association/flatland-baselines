@@ -111,3 +111,14 @@ jobs:
             TAG=${{ env.TAG }}
           tags: |
             ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-forever-heuristic:${{ env.TAG }}
+      - name: Build and Push Do Nothing Heuristic Container Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: flatland_baselines/do_nothing_heuristic/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          build-args: |
+            TAG=${{ env.TAG }}
+          tags: |
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-do-nothing-heuristic:${{ env.TAG }}
