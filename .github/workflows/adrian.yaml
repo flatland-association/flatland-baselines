@@ -1,0 +1,82 @@
+name: Checks
+
+env:
+  # DEPENDENCY SWITCH:
+  flatland_railway_extension-ref: fixes-for-4.2.4
+  flatland_solver_policy-ref: fixes-for-4.2.4
+  flatland-rl-ref: main
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: '30 5 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-adrian
+  cancel-in-progress: true
+
+jobs:
+  example_flatland_fast_tree_observation:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.10" ]
+    steps:
+      - name: Inspect disk
+        run: |
+          df -h
+          docker system df
+      # https://stackoverflow.com/questions/30604846/docker-complains-about-no-space-left-on-device-how-to-clean-up
+      - name: Prune docker system
+        run: |
+          docker system prune --all --force
+      # https://www.dzombak.com/blog/2024/09/freeing-disk-space-on-github-actions-runners/
+      - name: Free disk space
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+      - name: Inspect disk again
+        run: |
+          df -h
+          docker system df
+      - uses: actions/checkout@v6
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v6
+        with:
+          repository: flatland-association/flatland-rl
+          path: flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
+      - name: Clone flatland_railway_extension
+        uses: actions/checkout@v6
+        with:
+          repository: chenkins/flatland_railway_extension
+          path: flatland_railway_extension
+          ref: ${{ env.flatland_railway_extension-ref }}
+      - name: Clone flatland_solver_policy
+        uses: actions/checkout@v6
+        with:
+          repository: chenkins/flatland_solver_policy
+          path: flatland_solver_policy
+          ref: ${{ env.flatland_solver_policy-ref }}
+      - name: Run example_flatland_fast_tree_observation.py
+        run: |
+          pip install -r flatland_solver_policy/requirements_dev.txt
+          pip uninstall -y flatland-rl
+          pip uninstall -y flatland_railway_extension
+          pip uninstall -y numpy
+          pip install "numpy<2"
+          pip install graphviz
+          export PYTHONPATH=$PWD/flatland-rl:$PWD/flatland_railway_extension:$PWD/flatland_solver_policy
+          python flatland_solver_policy/example/flatland_rail_env/example_flatland_fast_tree_observation.py 
+      - uses: actions/upload-artifact@v6
+        with:
+          name: upload-profiling-results
+          path: runs
+          if-no-files-found: error
