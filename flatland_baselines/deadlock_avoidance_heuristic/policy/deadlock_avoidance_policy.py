@@ -1,4 +1,5 @@
 import copy
+import os
 import warnings
 from collections import defaultdict
 from functools import lru_cache
@@ -653,3 +654,24 @@ def _get_free_from_path(own_path: List[Waypoint], opp_path: List[Waypoint]):
             break
     free = own_path[:num + 1]
     return free
+
+
+class DeadlockAvoidanceHeuristics(DeadLockAvoidancePolicy):
+    def __init__(self,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy=2,
+                 seed: int = None,
+                 audit: bool = False,
+                 ):
+        seed = os.environ.get("DLA_SEED", seed)
+        if seed is not None:
+            seed = int(seed)
+        super().__init__(
+            count_num_opp_agents_towards_min_free_cell=False,
+            use_switches_heuristic=False,
+            use_entering_prevention=True,
+            use_alternative_at_first_intermediate_and_then_always_first_strategy=use_alternative_at_first_intermediate_and_then_always_first_strategy,
+            drop_next_threshold=20,
+            k_shortest_path_cutoff=450,
+            seed=seed,
+            audit=audit,
+        )

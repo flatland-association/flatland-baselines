@@ -89,6 +89,17 @@ jobs:
             TAG=${{ env.TAG }}
           tags: |
             ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-deadlock-avoidance-heuristic:${{ env.TAG }}
+      - name: Build and Push DLA-intermediate Container Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: flatland_baselines/deadlock_avoidance_heuristic/Dockerfile_intermediate
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          build-args: |
+            TAG=${{ env.TAG }}
+          tags: |
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-deadlock-avoidance-heuristic-intermediate:${{ env.TAG }}
       - name: Build and Push Forward-Only Heuristic Container Image
         uses: docker/build-push-action@v6
         with:
