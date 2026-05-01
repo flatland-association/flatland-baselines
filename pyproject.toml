@@ -20,7 +20,8 @@ classifiers = [
     'Programming Language :: Python :: 3.13',
 ]
 dependencies = [
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@main",
+    # DEPENDENCY SWITCH
+    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.5",
 ]
 dynamic = ["version"]
 

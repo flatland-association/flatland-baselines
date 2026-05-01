@@ -1,6 +1,6 @@
 # TODO use released version
 # https://docs.docker.com/reference/build-checks/invalid-default-arg-in-from/
-ARG TAG=latest
+ARG TAG=v4.2.5
 FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
 
 ENV POLICY=flatland_baselines.do_nothing_heuristic.do_nothing_policy.DoNothingPolicy
