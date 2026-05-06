@@ -205,14 +205,14 @@ def add_flatland_training_with_parameter_sharing_args():
     parser.add_argument(
         '--callbacks-pkg',
         type=str,
-        help="Defaults to `flatland.ml.ray.flatland_metrics_callback.FlatlandMetricsCallback`",
+        help="Defaults to `flatland_baselines.simple_rllib_ppo.callbacks.flatland_metrics_callback.FlatlandMetricsCallback`",
         required=False,
-        default="flatland.ml.ray.flatland_metrics_callback"
+        default="flatland_baselines.simple_rllib_ppo.callbacks.flatland_metrics_callback"
     )
     parser.add_argument(
         '--callbacks-cls',
         type=str,
-        help="Defaults to `flatland.ml.ray.flatland_metrics_callback.FlatlandMetricsCallback`",
+        help="Defaults to `flatland_baselines.simple_rllib_ppo.callbacks.flatland_metrics_callback.FlatlandMetricsCallback`",
         required=False,
         default="FlatlandMetricsCallback"
     )
