@@ -71,9 +71,6 @@ jobs:
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD 
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests
-      - name: Run solution with debug environments
-        run: docker compose up --force-recreate --build
-        working-directory: demo
 
   test-online-offline-evaluation-demo:
     runs-on: ubuntu-22.04
