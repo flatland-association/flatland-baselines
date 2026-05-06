@@ -53,7 +53,7 @@ def get_simple_ppo_config(
             # which should allow you to set breakpoints anywhere in the RLlib code and
             # have the execution stop there for inspection and debugging
         ]),
-        callbacks_pkg="flatland.ml.ray.flatland_metrics_callback",
+        callbacks_pkg="flatland_baselines.simple_rllib_ppo.callbacks.flatland_metrics_callback",
         callbacks_cls="FlatlandMetricsCallback",
         train_batch_size_per_learner=1024,
         obs_builder_class=registry_get_input(obs_builder_class),
