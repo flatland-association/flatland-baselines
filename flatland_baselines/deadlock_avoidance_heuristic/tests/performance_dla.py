@@ -1,5 +1,6 @@
 import os
 import pstats
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -99,7 +100,7 @@ FLATLAND_RL_VERSIONS = [
     #     "name": "v4.2.5"
     # },
     {
-        "sha": "f5943d7e23f706742f335ec260b54d4588b3ab88",
+        "sha": "1e90404bd50d66a7e9ab74131a1cd73e823e42c2",
         "date": "Fri May 16 16:57:14 2025 +0200",
         "name": "pr-430-click"
     },
@@ -202,26 +203,28 @@ def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: st
 
 
 def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
-    scenarios_volume_mountpath = os.getenv("SCENARIOS_VOLUME_MOUNTPATH", None)
+    scenarios_volume_mountpath = os.getenv("SCENARIOS_VOLUME_MOUNTPATH")
+    if scenarios_volume_mountpath is None:
+        raise ValueError("Environment variable SCENARIOS_VOLUME_MOUNTPATH must be set")
 
     scenario_id = env_path.replace("/", "_")
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        os.system(f"git clone https://github.com/flatland-association/flatland-rl.git {tmpdirname}/flatland-rl")
-        os.system(f"cd {tmpdirname}/flatland-rl && git clean -f && git reset --hard")
+        subprocess.run(f"git clone https://github.com/flatland-association/flatland-rl.git {tmpdirname}/flatland-rl", check=True, shell=True)
+        subprocess.run(f"cd {tmpdirname}/flatland-rl && git clean -f && git reset --hard", check=True, shell=True)
 
-        os.system(f"git clone https://github.com/flatland-association/flatland-baselines.git {tmpdirname}/flatland-baselines")
-        os.system(f"cd {tmpdirname}flatland-baselines && git clean -f && git reset --hard")
+        subprocess.run(f"git clone https://github.com/flatland-association/flatland-baselines.git {tmpdirname}/flatland-baselines", check=True, shell=True)
+        subprocess.run(f"cd {tmpdirname}/flatland-baselines && git clean -f && git reset --hard", check=True, shell=True)
         labels = []
         example = "flatland_performance_profiling.py"
         for l_flatland in FLATLAND_RL_VERSIONS:
-            os.system(f"cd {tmpdirname}/flatland-rl && git checkout {l_flatland["sha"]} && git log -1")
+            subprocess.run(f"cd {tmpdirname}/flatland-rl && git checkout {l_flatland['sha']} && git log -1", check=True, shell=True)
             for l_baselines in FLATLAND_BASELINES_VERSIONS:
-                os.system(f"cd {tmpdirname}/flatland-baselines && git checkout {l_baselines["sha"]} && git log -1")
-                label = f"{l_flatland["name"]}_{l_baselines["name"]}"
+                subprocess.run(f"cd {tmpdirname}/flatland-baselines && git checkout {l_baselines['sha']} && git log -1", check=True, shell=True)
+                label = f"{l_flatland['name']}_{l_baselines['name']}"
                 labels.append((label, l_flatland, l_baselines))
                 for i in range(num_runs):
-                    data_dir = f"/{tmpdirname}/{uuid.uuid4()}"
+                    data_dir = f"{tmpdirname}/{uuid.uuid4()}"
                     Path(data_dir).mkdir()
                     args = ["--data-dir", data_dir,
                             "--ep-id", scenario_id,
@@ -237,8 +240,9 @@ def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
                     python_path = ':'.join(python_path)
                     if python_path != '':
                         python_path = f"PYTHONPATH={python_path}"
-                    os.system(
-                        f"cd {tmpdirname}/flatland-rl && {python_path} python -m cProfile -o {tmpdirname}/{example}_{label}_{i}.prof -m flatland.trajectories.policy_runner {" ".join(args)}")
+                    subprocess.run(
+                        f"cd {tmpdirname}/flatland-rl && {python_path} python -m cProfile -o {tmpdirname}/{example}_{label}_{i}.prof -m flatland.trajectories.policy_runner {' '.join(args)}",
+                        check=True, shell=True)
         df_flatland_performance_profiling = aggregate(Path(tmpdirname), labels, example, num_runs)
         print(df_flatland_performance_profiling)
 
