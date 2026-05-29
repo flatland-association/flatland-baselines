@@ -13,97 +13,25 @@ from matplotlib import pyplot as plt
 from pandas import DataFrame
 
 FLATLAND_RL_VERSIONS = [
-    # {
-    #     "sha": "f37c7f7947d823317651521994aaaf464e6e8dfa",
-    #     "date": "Sat Nov 19 17:55:28 2022 +0000",
-    #     "message": "introduce find_swaps2 - faster version of find_swaps",
-    #     "name": "before lru"
-    # },
-    # {
-    #     "sha": "45768358",
-    #     "date": "Fri Oct 27 15:19:24 2023 +0200",
-    #     "name": "v4.0.0",
-    #     "message": "Release version 4.0.0"
-    # },
-    # {
-    #     "sha": "5a97ccb6aec2e7c6227aba8a3b33de54f567ee3a",
-    #     "date": "Tue Apr 23 15:17:36 2024 +0200",
-    #     "name": "v4.0.2"
-    # },
-    # {
-    #     "sha": "9115580bf7c602ca3c524ad392489bd712f355da",
-    #     "date": "Tue Feb 18 17:03:18 2025 +0100",
-    #     "name": "v4.0.4"
-    # },
-    # {
-    #     "sha": "01d4c7ae8179c7a716059552eb31865772e5a549",
-    #     "date": "Tue Feb 18 17:11:28 2025 +0100",
-    #     "name": "118-fix-lru-cache-in-env-loading"
-    # },
-    # {
-    #     "sha": "3f905a2bc37a0cd69047513d43df1576e7ba7634",
-    #     "date": "Mon Mar 31 11:22:49 2025 +0200",
-    #     "name": "179-simplify-step"
-    # },
-    # {
-    #     "sha": "4fecd60e49dfb144b452f100ce916af2ed2a58fd",
-    #     "date": "Mon Mar 31 18:16:23 2025 +0200",
-    #     "name": "v4.1.0"
-    # },
-    # {
-    #     "sha": "04911f88f50e30188b7d671291e0c2bbe1ee5ad1",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.1.1"
-    # },
-    # {
-    #     "sha": "8f607149e29590a5baa5211d0efd32d1858091a3",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.0"
-    # },
-    # {
-    #     "sha": "79c1031f4cb80e671fc6e58e9a590fd78865a4af",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.1"
-    # },
-    # {
-    #     "sha": "d6a69ca00bde635f78b6b45032bdcfe6d2e480aa",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.2"
-    # },
-    # {
-    #     "sha": "189c259a8fe19266329a6826a137e1db29a12996",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.3"
-    # },
-    # {
-    #     "sha": "dfcea58bfed32c9b549fba04a86e57a532280dc2",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.4"
-    # },
-    # {
-    #     "sha": "172f9f4f7e3ee1df5ab52bf38e8e88d32d85af33",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "pr-400"
-    # },
-    # {
-    #     "sha": "3c22c4c16946afa3625af78b67cf7076c299b014",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "pr-401"
-    # },
-    # {
-    #     "sha": "2156f46ffd8c707c8737fe00da89376f9cc5c4e4",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "pr-402"
-    # },
-    # {
-    #     "sha": "6de179e336d6d7fe40a385a90ca9d1ac328fc786",
-    #     "date": "Fri May 16 16:57:14 2025 +0200",
-    #     "name": "v4.2.5"
-    # },
     {
         "sha": "1e90404bd50d66a7e9ab74131a1cd73e823e42c2",
         "date": "Fri May 16 16:57:14 2025 +0200",
         "name": "pr-430-click"
+    },
+    {
+        "sha": "ac36ea87d7fbce3d6fa22e603c58b67d1bfeac8d",
+        "date": "Fri May 16 16:57:14 2025 +0200",
+        "name": "pr-427-cache-fraction-comparisons"
+    },
+    {
+        "sha": "3fb0fdc013079d626d182edec6a6700556f5aaab",
+        "date": "Fri May 16 16:57:14 2025 +0200",
+        "name": "pr-428-cache-fraction-speed-counter-rewards"
+    },
+    {
+        "sha": "203d90ad8ad7616785370918bf9088a5348a7eb6",
+        "date": "Fri May 16 16:57:14 2025 +0200",
+        "name": "pr-426-waypoint-use-cache-hash"
     },
     # {
     #     "sha": "LOCAL",
@@ -116,7 +44,12 @@ FLATLAND_BASELINES_VERSIONS = [
         "sha": "9bf2f693456daabb8b99bc6dd0cd246c52590343",
         "date": "Fri May 1 15:35:13 2026 +0200",
         "name": "v4.2.5"
-    }
+    },
+    # {
+    #     "sha": "LOCAL",
+    #     "date": "--",
+    #     "name": "LOCAL"
+    # }
 ]
 
 
@@ -171,7 +104,7 @@ def aggregate(output_dir: Path, labels: List[str], example: str, num_runs: int):
     return df
 
 
-def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: str, output_dir):
+def _plot_figures(df_flatland_performance_profiling: DataFrame, output_dir):
     plt.figure(figsize=(15, 8))
     ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
         ("step", "rail_env.py"),
@@ -211,7 +144,7 @@ _DEFAULT_AGG = {
 
 @click.command()
 @click.option("--env-path", default="level_0/level_0_scenario_1.pkl", help="Relative path to the scenario pkl file, e.g. level_0/level_0_scenario_1.pkl", )
-@click.option("--num-runs", default=2, show_default=True, type=int, help="Number of profiling runs per version combination")
+@click.option("--num-runs", default=5, show_default=True, type=int, help="Number of profiling runs per version combination")
 @click.option("--output-dir", default=".", show_default=True, type=click.Path(path_type=Path), help="Directory to write plot PNGs into")
 def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optional[dict] = None):
     if agg is None:
@@ -264,7 +197,7 @@ def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optiona
 
         print(df_flatland_performance_profiling)
         print(analyse_df(df_flatland_performance_profiling, "create_from_policy", "policy_runner.py", agg))
-        _plot_figures(agg, df_flatland_performance_profiling, example, output_dir)
+        _plot_figures(df_flatland_performance_profiling, output_dir)
 
 
 if __name__ == '__main__':
