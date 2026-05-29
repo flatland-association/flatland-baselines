@@ -8,6 +8,7 @@ from typing import List
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
+from pandas import DataFrame
 
 FLATLAND_RL_VERSIONS = [
     # {
@@ -150,10 +151,10 @@ def analyse_df(df, fn, file, agg, sort_by="cumtime"):
     return df_
 
 
-def aggregate(output_dir: Path, labels: List[str], example: str, NUM_RUNS: int):
+def aggregate(output_dir: Path, labels: List[str], example: str, num_runs: int):
     dfs = []
     for label, l_flatland, l_baselines in labels:
-        for i in range(NUM_RUNS):
+        for i in range(num_runs):
             fn = f'{example}_{label}_{i}.prof'
             ps = pstats.Stats(str(output_dir / fn))
             df = prof_to_df(ps)
@@ -168,8 +169,40 @@ def aggregate(output_dir: Path, labels: List[str], example: str, NUM_RUNS: int):
     return df
 
 
-def main(env_path, num_runs, agg, output_dir):
-    SCENARIOS_VOLUME_MOUNTPATH = os.getenv("SCENARIOS_VOLUME_MOUNTPATH", None)
+def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: str, output_dir):
+    plt.figure(figsize=(15, 8))
+    ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
+        ("step", "rail_env.py"),
+        ("get_k_shortest_paths", "rail_env_shortest_paths.py"),
+        ("create_from_policy", "policy_runner.py")
+    ]), x="name", y="cumtime", hue="fn", legend=True, estimator="median")
+    ax.bar_label(ax.containers[0], fontsize=10)
+    ax.bar_label(ax.containers[1], fontsize=10)
+    ax.bar_label(ax.containers[2], fontsize=10)
+    plt.savefig(output_dir / "performance_overall.png")
+
+    analyse_df(df_flatland_performance_profiling, "run_simulation", example, agg)
+
+    plt.figure(figsize=(15, 8))
+    sns.barplot(filter_df(df_flatland_performance_profiling, [
+        ("step", "rail_env.py"),
+        ("a_star", "star"),
+        ("addAgent", "agent_chains.py"),
+        ("find_conflicts", "agent_chains.py"),
+        ("check_motion", "agent_chains.py"),
+    ]), x="name", y="cumtime", hue="fn", legend=True, estimator="mean")
+    plt.savefig(output_dir / "performance_a_star_motion_check.png")
+    plt.figure(figsize=(15, 8))
+    ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
+        ("is_dead_end", "map"),
+        ("get_transition", "map"),
+    ]), x="name", y="cumtime", hue="fn", legend=True, estimator="median")
+    ax.bar_label(ax.containers[0], fontsize=10)
+    plt.savefig(output_dir / "performance_lru.png")
+
+
+def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
+    scenarios_volume_mountpath = os.getenv("SCENARIOS_VOLUME_MOUNTPATH", None)
 
     scenario_id = env_path.replace("/", "_")
 
@@ -188,11 +221,11 @@ def main(env_path, num_runs, agg, output_dir):
                 label = f"{l_flatland["name"]}_{l_baselines["name"]}"
                 labels.append((label, l_flatland, l_baselines))
                 for i in range(num_runs):
-                    data_dir = f"/tmp/{uuid.uuid4()}"
+                    data_dir = f"/{tmpdirname}/{uuid.uuid4()}"
                     Path(data_dir).mkdir()
                     args = ["--data-dir", data_dir,
                             "--ep-id", scenario_id,
-                            "--env-path", f"{SCENARIOS_VOLUME_MOUNTPATH}/{env_path}",
+                            "--env-path", f"{scenarios_volume_mountpath}/{env_path}",
                             "--policy", "flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy.DeadlockAvoidanceHeuristics",
                             "--obs-builder", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation.FullEnvObservation",
                             "--snapshot-interval", "0", ]
@@ -209,35 +242,7 @@ def main(env_path, num_runs, agg, output_dir):
         df_flatland_performance_profiling = aggregate(Path(tmpdirname), labels, example, num_runs)
         print(df_flatland_performance_profiling)
 
-        plt.figure(figsize=(15, 8))
-        ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
-            ("step", "rail_env.py"),
-            ("get_k_shortest_paths", "rail_env_shortest_paths.py"),
-            ("create_from_policy", "policy_runner.py")
-        ]), x="name", y="cumtime", hue="fn", legend=True, estimator="median")
-        ax.bar_label(ax.containers[0], fontsize=10);
-        ax.bar_label(ax.containers[1], fontsize=10);
-        ax.bar_label(ax.containers[2], fontsize=10);
-        plt.savefig(output_dir / "performance_overall.png")
-
-        analyse_df(df_flatland_performance_profiling, "run_simulation", example, agg)
-
-        plt.figure(figsize=(15, 8))
-        ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
-            ("step", "rail_env.py"),
-            ("a_star", "star"),
-            ("addAgent", "agent_chains.py"),
-            ("find_conflicts", "agent_chains.py"),
-            ("check_motion", "agent_chains.py"),
-        ]), x="name", y="cumtime", hue="fn", legend=True, estimator="mean")
-        plt.savefig(output_dir / "performance_a_star_motion_check.png")
-        plt.figure(figsize=(15, 8))
-        ax = sns.barplot(filter_df(df_flatland_performance_profiling, [
-            ("is_dead_end", "map"),
-            ("get_transition", "map"),
-        ]), x="name", y="cumtime", hue="fn", legend=True, estimator="median")
-        ax.bar_label(ax.containers[0], fontsize=10);
-        plt.savefig(output_dir / "performance_lru.png")
+        _plot_figures(agg, df_flatland_performance_profiling, example, output_dir)
 
 
 if __name__ == '__main__':
