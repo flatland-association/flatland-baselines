@@ -143,15 +143,18 @@ _DEFAULT_AGG = {
 
 
 @click.command()
-@click.option("--env-path", default="level_0/level_0_scenario_1.pkl", help="Relative path to the scenario pkl file, e.g. level_0/level_0_scenario_1.pkl", )
+@click.option("--env-path", default="level_0_scenario_1.pkl", help="Relative path to the scenario pkl file, e.g. level_0/level_0_scenario_1.pkl", )
 @click.option("--num-runs", default=5, show_default=True, type=int, help="Number of profiling runs per version combination")
 @click.option("--output-dir", default=".", show_default=True, type=click.Path(path_type=Path), help="Directory to write plot PNGs into")
-def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optional[dict] = None):
+@click.option("--scenarios-dir", required=False, type=click.Path(path_type=Path),
+              help="Base dir for scenarios. If not set, env var SCENARIOS_DIR needs to be set.")
+def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optional[dict] = None, scenarios_dir: Path = None):
     if agg is None:
         agg = _DEFAULT_AGG
-    scenarios_volume_mountpath = os.getenv("SCENARIOS_VOLUME_MOUNTPATH")
-    if scenarios_volume_mountpath is None:
-        raise ValueError("Environment variable SCENARIOS_VOLUME_MOUNTPATH must be set")
+    if scenarios_dir is None:
+        scenarios_dir = os.getenv("SCENARIOS_DIR")
+    if scenarios_dir is None:
+        raise ValueError("Environment variable SCENARIOS_DIR must be set or --scenarios-dir <DIR> must be passed")
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         subprocess.run(f"git clone https://github.com/flatland-association/flatland-rl.git {tmpdirname}/flatland-rl", check=True, shell=True)
@@ -173,7 +176,7 @@ def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optiona
                     Path(data_dir).mkdir()
                     args = ["--data-dir", data_dir,
                             "--ep-id", scenario_id,
-                            "--env-path", f"{scenarios_volume_mountpath}/{env_path}",
+                            "--env-path", f"{scenarios_dir}/{env_path}",
                             "--policy", "flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy.DeadlockAvoidanceHeuristics",
                             "--obs-builder", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation.FullEnvObservation",
                             "--snapshot-interval", "0"]
