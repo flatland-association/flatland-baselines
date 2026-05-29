@@ -182,7 +182,7 @@ def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: st
     ax.bar_label(ax.containers[2], fontsize=10)
     plt.savefig(output_dir / "performance_overall.png")
 
-    analyse_df(df_flatland_performance_profiling, "run_simulation", example, agg)
+
 
     plt.figure(figsize=(15, 8))
     sns.barplot(filter_df(df_flatland_performance_profiling, [
@@ -207,8 +207,6 @@ def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
     if scenarios_volume_mountpath is None:
         raise ValueError("Environment variable SCENARIOS_VOLUME_MOUNTPATH must be set")
 
-    scenario_id = env_path.replace("/", "_")
-
     with tempfile.TemporaryDirectory() as tmpdirname:
         subprocess.run(f"git clone https://github.com/flatland-association/flatland-rl.git {tmpdirname}/flatland-rl", check=True, shell=True)
         subprocess.run(f"cd {tmpdirname}/flatland-rl && git clean -f && git reset --hard", check=True, shell=True)
@@ -216,7 +214,7 @@ def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
         subprocess.run(f"git clone https://github.com/flatland-association/flatland-baselines.git {tmpdirname}/flatland-baselines", check=True, shell=True)
         subprocess.run(f"cd {tmpdirname}/flatland-baselines && git clean -f && git reset --hard", check=True, shell=True)
         labels = []
-        example = "flatland_performance_profiling.py"
+        example = "performance_dla.py"
         for l_flatland in FLATLAND_RL_VERSIONS:
             subprocess.run(f"cd {tmpdirname}/flatland-rl && git checkout {l_flatland['sha']} && git log -1", check=True, shell=True)
             for l_baselines in FLATLAND_BASELINES_VERSIONS:
@@ -224,28 +222,35 @@ def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
                 label = f"{l_flatland['name']}_{l_baselines['name']}"
                 labels.append((label, l_flatland, l_baselines))
                 for i in range(num_runs):
-                    data_dir = f"{tmpdirname}/{uuid.uuid4()}"
+                    scenario_id = str(uuid.uuid4())
+                    data_dir = f"{tmpdirname}/{scenario_id}"
                     Path(data_dir).mkdir()
                     args = ["--data-dir", data_dir,
                             "--ep-id", scenario_id,
                             "--env-path", f"{scenarios_volume_mountpath}/{env_path}",
                             "--policy", "flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy.DeadlockAvoidanceHeuristics",
                             "--obs-builder", "flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation.FullEnvObservation",
-                            "--snapshot-interval", "0", ]
-                    python_path = []
+                            "--snapshot-interval", "0"]
+                    pythonpath_dirs = []
                     if l_flatland["name"] != 'LOCAL':
-                        python_path.append(f"{tmpdirname}/flatland-rl")
+                        pythonpath_dirs.append(f"{tmpdirname}/flatland-rl")
                     if l_baselines["name"] != 'LOCAL':
-                        python_path.append(f"{tmpdirname}/flatland-baselines")
-                    python_path = ':'.join(python_path)
-                    if python_path != '':
-                        python_path = f"PYTHONPATH={python_path}"
+                        pythonpath_dirs.append(f"{tmpdirname}/flatland-baselines")
+                    env = {**os.environ}
+                    if pythonpath_dirs:
+                        env["PYTHONPATH"] = ':'.join(pythonpath_dirs)
                     subprocess.run(
-                        f"cd {tmpdirname}/flatland-rl && {python_path} python -m cProfile -o {tmpdirname}/{example}_{label}_{i}.prof -m flatland.trajectories.policy_runner {' '.join(args)}",
-                        check=True, shell=True)
+                        ["python", "-m", "cProfile",
+                         "-o", f"{tmpdirname}/{example}_{label}_{i}.prof",
+                         "-m", "flatland.trajectories.policy_runner"] + args,
+                        check=True,
+                        cwd=f"{tmpdirname}/flatland-rl",
+                        env=env,
+                    )
         df_flatland_performance_profiling = aggregate(Path(tmpdirname), labels, example, num_runs)
-        print(df_flatland_performance_profiling)
 
+        print(df_flatland_performance_profiling)
+        print(analyse_df(df_flatland_performance_profiling, "create_from_policy", example, agg))
         _plot_figures(agg, df_flatland_performance_profiling, example, output_dir)
 
 
