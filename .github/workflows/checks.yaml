@@ -125,5 +125,66 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
-          export PYTHONPATH=$PWD 
+          export PYTHONPATH=$PWD
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/offline_demo/
+
+  performance-dla:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Inspect disk
+        run: |
+          df -h
+          docker system df
+      # https://stackoverflow.com/questions/30604846/docker-complains-about-no-space-left-on-device-how-to-clean-up
+      - name: Prune docker system
+        run: |
+          docker system prune --all --force
+      # https://www.dzombak.com/blog/2024/09/freeing-disk-space-on-github-actions-runners/
+      - name: Free disk space
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+      - name: Inspect disk again
+        run: |
+          df -h
+          docker system df
+      - uses: actions/checkout@v6
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Clone flatland-scenarios
+        uses: actions/checkout@v6
+        with:
+          repository: flatland-association/flatland-scenarios
+          path: flatland-scenarios
+          ref: main
+        working-directory: ${{ github.workspace }}
+      - name: Clone flatland-rl
+        uses: actions/checkout@v6
+        with:
+          repository: flatland-association/flatland-rl
+          path: flatland-rl
+          ref: ${{ env.flatland-rl-ref }}
+      - name: Install flatland-rl
+        working-directory: flatland-rl
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install .
+          python -m pip list
+      - name: Install performance script dependencies
+        run: |
+          python -m pip install click pandas seaborn matplotlib
+      - name: Run performance profiling
+        run: |
+          mkdir -p perf-output
+          PYTHONPATH=$PWD python -m flatland_baselines.deadlock_avoidance_heuristic.tests.performance_dla \
+            --scenarios-dir ${{ github.workspace }}/flatland-scenarios/competitions/competition_2026 \
+            --env-path level_0/level_0_scenario_1.pkl \
+            --num-runs 10 \
+            --output-dir perf-output
+      - name: Upload profiling plots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-plots
+          path: perf-output/*.png
