@@ -4,8 +4,9 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
+import click
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -182,8 +183,6 @@ def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: st
     ax.bar_label(ax.containers[2], fontsize=10)
     plt.savefig(output_dir / "performance_overall.png")
 
-
-
     plt.figure(figsize=(15, 8))
     sns.barplot(filter_df(df_flatland_performance_profiling, [
         ("step", "rail_env.py"),
@@ -202,7 +201,21 @@ def _plot_figures(agg, df_flatland_performance_profiling: DataFrame, example: st
     plt.savefig(output_dir / "performance_lru.png")
 
 
-def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
+_DEFAULT_AGG = {
+    "fn": ["first"],
+    "sha": ["first"],
+    "cumtime": ["mean", "median", "min", "max", "std"],
+    "tottime": ["mean", "median", "min", "max", "std"],
+}
+
+
+@click.command()
+@click.option("--env-path", default="level_0/level_0_scenario_1.pkl", help="Relative path to the scenario pkl file, e.g. level_0/level_0_scenario_1.pkl", )
+@click.option("--num-runs", default=2, show_default=True, type=int, help="Number of profiling runs per version combination")
+@click.option("--output-dir", default=".", show_default=True, type=click.Path(path_type=Path), help="Directory to write plot PNGs into")
+def performance_dla(env_path: str, num_runs: int, output_dir: Path, agg: Optional[dict] = None):
+    if agg is None:
+        agg = _DEFAULT_AGG
     scenarios_volume_mountpath = os.getenv("SCENARIOS_VOLUME_MOUNTPATH")
     if scenarios_volume_mountpath is None:
         raise ValueError("Environment variable SCENARIOS_VOLUME_MOUNTPATH must be set")
@@ -250,16 +263,9 @@ def main(env_path: str, num_runs: int, agg: dict, output_dir: Path):
         df_flatland_performance_profiling = aggregate(Path(tmpdirname), labels, example, num_runs)
 
         print(df_flatland_performance_profiling)
-        print(analyse_df(df_flatland_performance_profiling, "create_from_policy", example, agg))
+        print(analyse_df(df_flatland_performance_profiling, "create_from_policy", "policy_runner.py", agg))
         _plot_figures(agg, df_flatland_performance_profiling, example, output_dir)
 
 
 if __name__ == '__main__':
-    level = 0
-    scenario = 1
-    main(
-        env_path=f"level_{level}/level_{level}_scenario_{scenario}.pkl",
-        num_runs=2,
-        agg={"fn": ["first"], "sha": ["first"], "cumtime": ['mean', 'median', 'min', 'max', 'std'], "tottime": ['mean', 'median', 'min', 'max', 'std']},
-        output_dir=Path(".")
-    )
+    performance_dla()
