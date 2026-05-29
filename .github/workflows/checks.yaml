@@ -158,7 +158,6 @@ jobs:
           repository: flatland-association/flatland-scenarios
           path: flatland-scenarios
           ref: main
-        working-directory: ${{ github.workspace }}
       - name: Clone flatland-rl
         uses: actions/checkout@v6
         with:
