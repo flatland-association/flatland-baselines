@@ -1,12 +1,27 @@
 services:
   redis:
-    image: redis
+    image: redis:7.4.9
     ports:
       - 6379:6379
     logging:
       options:
         max-size: "20m"
         max-file: "5"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+  redis-monitor:
+    image: redis:7.4.9
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: [ "/bin/bash","-c" ]
+    command:
+      - |
+        set -euxo pipefail
+        redis-cli -h redis monitor
 
   setup:
     image: alpine
@@ -81,6 +96,8 @@ services:
         chmod a+rwx -R /tmp/actions/
         chmod a+rwx -R /tmp/episodes/
         chmod a+rwx -R /tmp/visualizations
+        
+        date
 
   evaluator:
     build:
@@ -88,7 +105,7 @@ services:
       dockerfile: Dockerfile
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       setup:
         condition: service_completed_successfully
     environment:
@@ -115,7 +132,7 @@ services:
       dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/Dockerfile
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       setup:
         condition: service_completed_successfully
     environment:

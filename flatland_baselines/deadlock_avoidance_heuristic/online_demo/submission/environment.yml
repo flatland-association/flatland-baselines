@@ -4,4 +4,6 @@ dependencies:
   - pip:
       # DEPENDENCY SWITCH:
       - flatland-rl==4.2.5
+      # drop once we have https://github.com/flatland-association/flatland-rl/pull/431
+      - redis<8
 #      - git+https://github.com/flatland-association/flatland-rl.git@main
