@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:6
+    image: redis:7.4.9
     ports:
       - 6379:6379
     logging:
@@ -12,6 +12,16 @@ services:
       interval: 1s
       timeout: 3s
       retries: 5
+  redis-monitor:
+    image: redis:7.4.9
+    depends_on:
+      redis:
+        condition: service_healthy
+    entrypoint: [ "/bin/bash","-c" ]
+    command:
+      - |
+        set -euxo pipefail
+        redis-cli -h redis monitor
 
   setup:
     image: alpine
