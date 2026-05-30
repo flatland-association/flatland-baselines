@@ -7,6 +7,8 @@ services:
       options:
         max-size: "20m"
         max-file: "5"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
 
   setup:
     image: alpine
@@ -88,7 +90,7 @@ services:
       dockerfile: Dockerfile
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       setup:
         condition: service_completed_successfully
     environment:
@@ -115,7 +117,7 @@ services:
       dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/Dockerfile
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       setup:
         condition: service_completed_successfully
     environment:
