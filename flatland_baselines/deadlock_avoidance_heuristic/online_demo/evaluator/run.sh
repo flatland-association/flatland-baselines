@@ -1,6 +1,6 @@
 #!/bin/bash
 set -x
-echo "/ start evaluator/run.sh"
+echo "/ start evaluator/run.sh at ${date}"
 set -e
 find /tmp
 source /home/conda/.bashrc
@@ -22,4 +22,4 @@ fi
 printenv
 python -c 'from flatland.envs import rail_env; print(rail_env.__file__)'
 python evaluator.py
-echo "\\ end evaluator/run.sh"
+echo "\\ end evaluator/run.sh at ${date}"

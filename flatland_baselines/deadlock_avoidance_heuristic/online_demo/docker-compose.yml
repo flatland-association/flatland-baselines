@@ -86,6 +86,8 @@ services:
         chmod a+rwx -R /tmp/actions/
         chmod a+rwx -R /tmp/episodes/
         chmod a+rwx -R /tmp/visualizations
+        
+        date
 
   evaluator:
     build:
