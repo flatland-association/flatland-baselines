@@ -28,6 +28,6 @@ fi
 printenv
 python -c 'from flatland_baselines.deadlock_avoidance_heuristic.policy import deadlock_avoidance_policy; print(deadlock_avoidance_policy.__file__)'
 python -c 'from flatland.envs import rail_env; print(rail_env.__file__)'
-sleep 5
+sleep 15
 python run_solution.py
 echo "\\ end submission_template/run.sh"
