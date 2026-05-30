@@ -82,9 +82,9 @@ def _containers_fixture(environments, seed, baselines_ref, rl_ref) -> Path:
             stdout, stderr = basic.get_logs()
             print("-- An exception occurred during running docker compose stdo:")
             print(stdout)
-            print("-- An exception occurred during running docker compose stdo:")
+            print("-- An exception occurred during running docker compose stderr:")
             print(stderr)
-            print("-- An exception occurred during running docker compose reaise.")
+            print("-- An exception occurred during running docker compose reraise.")
             raise e
     finally:
         shutil.rmtree(newpath, ignore_errors=True)
