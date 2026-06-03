@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
     # DEPENDENCY SWITCH
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.5",
+    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.6",
 ]
 dynamic = ["version"]
 

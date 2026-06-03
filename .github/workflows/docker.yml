@@ -26,7 +26,7 @@ jobs:
         # - head ref on pull_request (must be valid tag!)
         # - "latest"
         run: |
-          echo "TAG=${{ github.event.inputs.tag || github.head_ref || 'latest' }}" >> $GITHUB_ENV
+          echo "TAG=${{ github.event.inputs.tag || github.head_ref || 'latest' }}" | tr '/' '-' >> $GITHUB_ENV
       - uses: actions/checkout@v6
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
