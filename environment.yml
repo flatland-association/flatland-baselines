@@ -5,4 +5,4 @@ dependencies:
       - pytest
       # DEPENDENCY SWITCH:
       # - git+https://github.com/flatland-association/flatland-rl.git@main
-      - flatland-rl[ml]==4.2.5
+      - flatland-rl[ml]==4.2.6
