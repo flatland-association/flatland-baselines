@@ -65,7 +65,7 @@ class FlatlandMetricsCallback(RLlibCallback):
         )
         metrics_logger.log_value(
             "total_reward",
-            normalized_reward,
+            total_reward,
         )
 
         percentage_complete = float(episode_done_agents) / num_agents

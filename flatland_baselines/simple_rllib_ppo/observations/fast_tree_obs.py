@@ -10,8 +10,13 @@ LinkedIn: https://www.linkedin.com/in/adrian-egli-733a9544/
 ResearchGate: https://www.researchgate.net/profile/Adrian_Egli2
 """
 
-from flatland.core.env_observation_builder import ObservationBuilder
+import gymnasium as gym
+import numpy as np
 
+from flatland.core.env_observation_builder import ObservationBuilder
+from flatland.core.grid.grid4_utils import get_new_position
+from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
+from flatland.envs.step_utils.states import TrainState
 from flatland.ml.observations.gym_observation_builder import GymObservationBuilderWrapper
 
 

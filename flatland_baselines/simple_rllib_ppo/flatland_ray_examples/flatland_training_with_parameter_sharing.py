@@ -16,14 +16,13 @@ from ray.rllib.algorithms import AlgorithmConfig
 from ray.rllib.core.rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec, RLModule
 from ray.rllib.examples.utils import add_rllib_example_script_args, run_rllib_example_script_experiment
-from ray.rllib.utils.replay_buffers import StorageUnit
-
 from ray.rllib.utils.typing import ResultDict
 from ray.tune.registry import get_trainable_cls
 from ray.tune.registry import register_env, registry_get_input
 
 from flatland.ml.observations.gym_observation_builder import GymObservationBuilder
 from flatland.ml.ray.wrappers import ray_env_generator
+
 
 # TODO backport to flatland-rl
 def train_with_parameter_sharing(
@@ -256,7 +255,7 @@ def train_with_parameter_sharing_cli(args: Optional[argparse.Namespace] = None) 
 
     model_config = None
     if args.model_config is not None:
-        model_config = dict(map(lambda s: s.split('='), model_config))
+        model_config = dict(map(lambda s: s.split('='), args.model_config))
 
     return train_with_parameter_sharing(
         module_class=registry_get_input(args.module_class) if args.module_class is not None else None,

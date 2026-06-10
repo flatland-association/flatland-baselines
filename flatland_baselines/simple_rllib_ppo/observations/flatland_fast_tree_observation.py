@@ -7,7 +7,6 @@ from typing import Optional, List, Union
 from flatland.core.env_observation_builder import ObservationBuilder
 from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.fast_methods import fast_position_equal
-
 from flatland.envs.rail_env import RailEnv
 from flatland.ml.observations.gym_observation_builder import GymObservationBuilderWrapper
 from flatland_baselines.simple_rllib_ppo.observations.shortest_distance_walker import ShortestDistanceWalker
@@ -85,7 +84,7 @@ class WalkToNextDecisionPoint(ShortestDistanceWalker):
         if fast_count_nonzero(possible_transitions) > 1:
             return False
 
-        possible_transitions_opp_dir = self.env.rail.get_transitions((position, (direction + 2 % 4)))
+        possible_transitions_opp_dir = self.env.rail.get_transitions((position, (direction + 2) % 4))
         if fast_count_nonzero(possible_transitions_opp_dir) > 1:
             return False
 
@@ -214,9 +213,7 @@ class FlatlandFastTreeObservation(ObservationBuilder):
 
 
 import numpy as np
-from flatland.core.env_observation_builder import ObservationBuilder
 from flatland.core.grid.grid4_utils import get_new_position
-from flatland.envs.step_utils.states import TrainState
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 
 
