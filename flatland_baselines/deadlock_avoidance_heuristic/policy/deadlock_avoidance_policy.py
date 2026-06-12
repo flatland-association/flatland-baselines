@@ -117,7 +117,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             use_entering_prevention=use_entering_prevention,
             show_debug_plot=show_debug_plot,
             verbose=verbose,
-            audit=self.audit,
+            audit=audit,
         )
         self.step_state: Optional[StepState] = None
 

@@ -41,7 +41,7 @@ class StartStepService:
             use_entering_prevention: bool,
             show_debug_plot: bool,
             verbose: bool,
-            audit: Optional[List],
+            audit: bool
     ):
         self.min_free_cell = min_free_cell
         self.count_num_opp_agents_towards_min_free_cell = count_num_opp_agents_towards_min_free_cell
@@ -49,7 +49,9 @@ class StartStepService:
         self.use_entering_prevention = use_entering_prevention
         self.show_debug_plot = show_debug_plot
         self.verbose = verbose
-        self.audit = audit
+        self.audit = None
+        if audit:
+            self.audit = []
 
         self._rail_env: Optional[RailEnv] = None
         self._set_paths: Optional[Dict] = None
