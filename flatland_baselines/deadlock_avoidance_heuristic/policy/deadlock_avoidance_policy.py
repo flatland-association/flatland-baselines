@@ -13,7 +13,7 @@ from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths
-from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import StartStepService, StepState
+from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import StartStepService, StepStateExternal
 
 # LRU cache infrastructure kept for backwards compatibility (no functions registered here after refactoring)
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -119,7 +119,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             verbose=verbose,
             audit=audit,
         )
-        self.step_state: Optional[StepState] = None
+        self.step_state: Optional[StepStateExternal] = None
 
     def _init_env(self, env: RailEnv):
         self.start_step_service.init_env(

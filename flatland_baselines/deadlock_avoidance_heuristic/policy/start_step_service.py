@@ -15,7 +15,7 @@ from flatland.envs.step_utils.states import TrainState
 
 
 @dataclass
-class StepState:
+class StepStateInternal:
     # start_step (1): -1 if no agent, agent handle otherwise
     agent_positions: np.ndarray
     # start_step (2.2): 1 if current shortest path (without current cell!), 0 otherwise
@@ -29,6 +29,14 @@ class StepState:
     # start_step (2.3.3): 1 if current shortest path (without current cell!) before first oncoming train, 0 else.
     shortest_distance_agent_map: np.ndarray
     # start_step (2.3.2): set of oncoming agents
+    opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
+
+
+@dataclass
+class StepStateExternal:
+    full_shortest_distance_agent_map: np.ndarray
+    shortest_distance_agent_len: Dict[AgentHandle, int]
+    shortest_distance_agent_map: np.ndarray
     opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
 
 
@@ -54,10 +62,11 @@ class StartStepService:
             self.audit = []
 
         self._rail_env: Optional[RailEnv] = None
+        # N.B. shared state between service and policy
         self._set_paths: Optional[Dict] = None
         self._update_agent: Optional[Callable] = None
         self._switches: Optional[np.ndarray] = None
-        self._state: Optional[StepState] = None
+        self._state: Optional[StepStateInternal] = None
 
     def init_env(self, rail_env: RailEnv, set_paths: Dict, update_agent_fn: Callable) -> None:
         self._rail_env = rail_env
@@ -73,7 +82,7 @@ class StartStepService:
                         self._switches[(r, c)] = 1
 
         num_agents = rail_env.get_num_agents()
-        self._state = StepState(
+        self._state = StepStateInternal(
             agent_positions=np.zeros((rail_env.height, rail_env.width), dtype=int) - 1,
             full_shortest_distance_agent_map=np.zeros((num_agents, rail_env.height, rail_env.width), dtype=int),
             shortest_distance_positions_agent_map=defaultdict(set),
@@ -83,12 +92,20 @@ class StartStepService:
             opp_agent_map=defaultdict(set),
         )
 
-    def start_step(self) -> StepState:
+    def start_step(self) -> StepStateExternal:
         # (1)
         self._build_agent_position_map()
         # (2)
         self._update_shortest_distance_maps_and_opp_agent_map()
-        return self._state
+        return self._to_external()
+
+    def _to_external(self) -> StepStateExternal:
+        return StepStateExternal(
+            full_shortest_distance_agent_map=self._state.full_shortest_distance_agent_map,
+            shortest_distance_agent_len=self._state.shortest_distance_agent_len,
+            shortest_distance_agent_map=self._state.shortest_distance_agent_map,
+            opp_agent_map=self._state.opp_agent_map,
+        )
 
     def init_shortest_distance_positions(self, agent: EnvAgent, handle: AgentHandle) -> None:
         """
