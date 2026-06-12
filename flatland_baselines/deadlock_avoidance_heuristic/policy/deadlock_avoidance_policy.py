@@ -124,6 +124,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _init_env(self, env: RailEnv):
         self.start_step_service.init_env(
             rail_env=self.rail_env,
+            # N.B. state coupling!
             set_paths=self._set_paths,
             update_agent_fn=super()._update_agent,
         )
