@@ -34,10 +34,10 @@ class StepStateInternal:
 
 @dataclass
 class StepStateExternal:
-    full_shortest_distance_agent_map: np.ndarray
-    shortest_distance_agent_len: np.ndarray
-    shortest_distance_agent_map: np.ndarray
-    opp_agent_map: np.ndarray
+    full_shortest_distance_agent_map: np.ndarray  # type=int, dim=(num_agents, height, width)
+    shortest_distance_agent_len: np.ndarray  # type=int, dim=(num_agents,)
+    shortest_distance_agent_map: np.ndarray  # type=int, dim=(num_agents, height, width)
+    opp_agent_map: np.ndarray  # type=bool, dim=(num_agents, num_agents)
 
 
 class StartStepService:
