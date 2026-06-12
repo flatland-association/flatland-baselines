@@ -1,8 +1,8 @@
+from flatland.ml.ray.examples.flatland_rollout import do_rollout
+from flatland.ml.ray.flatland_metrics_and_trajectory_callback import FlatlandMetricsAndTrajectoryCallback
 from ray.rllib.algorithms import AlgorithmConfig, Algorithm
 
-from flatland.ml.ray.examples.flatland_rollout import do_rollout
 from flatland.ml.ray.examples.flatland_training_with_parameter_sharing import _get_algo_config_parameter_sharing
-from flatland.ml.ray.flatland_metrics_and_trajectory_callback import FlatlandMetricsAndTrajectoryCallback
 from flatland.ml.ray.wrappers import ray_policy_wrapper_from_rllib_checkpoint
 from flatland_baselines.simple_rllib_ppo.simple_ppo_common import get_simple_ppo_config
 from flatland_baselines.simple_rllib_ppo.simple_ppo_training import register_flatland_ray_cli_observation_builders
@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     num_agents = 1
     evaluate_only = False
-    d = get_simple_ppo_config(num_agents=num_agents)
+    d = get_simple_ppo_config(num_agents=num_agents, obs_builder_class=obs_builder_class)
 
     algo_config: AlgorithmConfig = _get_algo_config_parameter_sharing(**d)
     algo = algo_config.build_algo()

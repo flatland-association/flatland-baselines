@@ -32,8 +32,8 @@ def register_flatland_ray_cli_observation_builders():
 
 
 def get_simple_ppo_config(
-        num_agents:int,
-        obs_builder_class:str
+        num_agents: int,
+        obs_builder_class: str
 ) -> dict:
     parser = add_rllib_example_script_args()
     d = dict(
