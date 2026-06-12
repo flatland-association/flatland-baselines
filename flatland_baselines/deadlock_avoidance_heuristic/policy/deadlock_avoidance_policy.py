@@ -174,7 +174,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 if self.start_step_service._check_agent_can_move(
                         self.step_state.shortest_distance_agent_map[handle],
                         self.step_state.shortest_distance_agent_len[handle],
-                        self.step_state.opp_agent_map.get(handle, set()),
+                        self.step_state.opp_agent_map[handle],
                         self.step_state.full_shortest_distance_agent_map,
                         agent.handle,
                         self.start_step_service._switches,
@@ -302,7 +302,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if self._set_paths[handle] is None or len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before
             self.start_step_service.init_shortest_distance_positions(agent, handle)
-            self.step_state.opp_agent_map.pop(handle, None)
+            self.step_state.opp_agent_map[handle] = False
 
     def _get_remaining_flexible_waypoints(self, agent):
         remaining_flexible_waypoints: List[List[Waypoint]] = copy.deepcopy(agent.waypoints)

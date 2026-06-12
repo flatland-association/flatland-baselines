@@ -35,9 +35,9 @@ class StepStateInternal:
 @dataclass
 class StepStateExternal:
     full_shortest_distance_agent_map: np.ndarray
-    shortest_distance_agent_len: Dict[AgentHandle, int]
+    shortest_distance_agent_len: np.ndarray
     shortest_distance_agent_map: np.ndarray
-    opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
+    opp_agent_map: np.ndarray
 
 
 class StartStepService:
@@ -100,11 +100,19 @@ class StartStepService:
         return self._to_external()
 
     def _to_external(self) -> StepStateExternal:
+        num_agents = self._rail_env.get_num_agents()
+        opp_agent_map = np.zeros((num_agents, num_agents), dtype=bool)
+        for h, opp_set in self._state.opp_agent_map.items():
+            for opp_a in opp_set:
+                opp_agent_map[h, opp_a] = True
         return StepStateExternal(
             full_shortest_distance_agent_map=self._state.full_shortest_distance_agent_map,
-            shortest_distance_agent_len=self._state.shortest_distance_agent_len,
+            shortest_distance_agent_len=np.array(
+                [self._state.shortest_distance_agent_len[h] for h in range(num_agents)],
+                dtype=int,
+            ),
             shortest_distance_agent_map=self._state.shortest_distance_agent_map,
-            opp_agent_map=self._state.opp_agent_map,
+            opp_agent_map=opp_agent_map,
         )
 
     def init_shortest_distance_positions(self, agent: EnvAgent, handle: AgentHandle) -> None:
@@ -234,7 +242,7 @@ class StartStepService:
             self,
             my_shortest_walking_path: np.ndarray,
             my_shortest_walking_path_len: int,
-            opp_agents: Set,
+            opp_agents: np.ndarray,
             full_shortest_distance_agent_map: np.ndarray,
             handle: AgentHandle,
             switches: Optional[np.ndarray] = None,
@@ -263,7 +271,7 @@ class StartStepService:
         - switches: if switches is given, then switches do not count towards free cells
         - count_num_opp_agents_towards_min_free_cell: the number of opposing agents is added to `min_free_cell`
         """
-        len_opp_agents = len(opp_agents)
+        len_opp_agents = int(np.sum(opp_agents))
         if len_opp_agents == 0:
             return True
 
@@ -275,7 +283,7 @@ class StartStepService:
         if count_num_opp_agents_towards_min_free_cell:
             min_free_cell += len_opp_agents
 
-        for opp_a in opp_agents:
+        for opp_a in np.nonzero(opp_agents)[0]:
             opp = full_shortest_distance_agent_map[opp_a]
             if switches is None:
                 free_cells = np.count_nonzero((my_shortest_walking_path - opp) > 0)
