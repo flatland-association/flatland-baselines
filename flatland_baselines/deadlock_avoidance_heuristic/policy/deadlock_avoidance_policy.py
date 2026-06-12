@@ -110,18 +110,19 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
 
-        self.start_step_service = StartStepService(
-            min_free_cell=min_free_cell,
-            count_num_opp_agents_towards_min_free_cell=count_num_opp_agents_towards_min_free_cell,
-            use_switches_heuristic=use_switches_heuristic,
-            use_entering_prevention=use_entering_prevention,
-            show_debug_plot=show_debug_plot,
-            verbose=verbose,
-            audit=audit,
-        )
+        self.start_step_service: Optional[StartStepService] = None
         self.step_state: Optional[StepStateExternal] = None
 
     def _init_env(self, env: RailEnv):
+        self.start_step_service = StartStepService(
+            min_free_cell=self.min_free_cell,
+            count_num_opp_agents_towards_min_free_cell=self.count_num_opp_agents_towards_min_free_cell,
+            use_switches_heuristic=self.use_switches_heuristic,
+            use_entering_prevention=self.use_entering_prevention,
+            show_debug_plot=self.show_debug_plot,
+            verbose=self.verbose,
+            audit=self.audit is not None,
+        )
         self.start_step_service.init_env(
             rail_env=self.rail_env,
             # N.B. state coupling!
