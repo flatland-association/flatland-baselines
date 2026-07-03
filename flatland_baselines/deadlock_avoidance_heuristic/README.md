@@ -36,7 +36,7 @@ train B holds resource Y and asks for resource X;
 due to the the circular resource allocation request,
 Train A and train B will wait for each other forever.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/dead_lock_AB_XY.png)
+![](./img/dead_lock_AB_XY.png)
 
 Deadlock can occur in many situations where trains densly interacts on limited resource capacity, in particular if their path is predefined and fix.
 To resolve deadlock at least one train has to travel backwards. But trains can only travel backwards in very limited situations.
@@ -87,7 +87,7 @@ forward path it has still passed through.
 Therefore the method has to test all sub-paths starting at "current position". This leads in an iteration over all
 subpath. This can be quite cost intensive search.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/dead_lock_schema.png)
+![](./img/dead_lock_schema.png)
 
 ##### Deadlock avoidance extension for parallel action update
 
@@ -98,7 +98,7 @@ And flatland only checks whether the cell is free before agents move.
 So it can happen that some agents take a step which would not be allowed. And deadlocks can occur. The agent doesn't have the
 awareness of the potential conflict, because it did not watch the other agent. Both where hidden for the detection.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/dead_lock_paralell_actions.png)
+![](./img/dead_lock_paralell_actions.png)
 
 Thus, the deadlock avoidance method must watch one step into the future. Only this ensures that the system is still deadlock free after a
 action step (agent switch) is executed. So the method calculates possible deadlock one step in advance by propagating the agent's path and
@@ -131,7 +131,7 @@ which allows train passing as far as the can. Just stop a train a latest crossin
 simulation. Thus, in this example C the red train can pass the first two switches and has to wait for the crossing
 green train just before the 3rd switch.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/dead_lock_ABC.png)
+![](./img/dead_lock_ABC.png)
 
 #### Limits
 
@@ -144,12 +144,12 @@ to wait at a given location cannot fit into the crossing section (the capacity i
 length of the jam might becomes to large, thus
 trains no longer pass. And the whole methods fails. See the graphics below.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/dead_lock_jam.png)
+![](./img/dead_lock_jam.png)
 
 *Known weakness* in the current implementation, travel direction change at dead-end can cause deadlock situations.
 This is not yet detectable by the proposed method.
 
-![](https://gitlab.aicrowd.com/adrian_egli/flatland-challenge-starter-kit/-/raw/master/image/weekness_dead_end.png )
+![](./img/weekness_dead_end.png )
 
 ##### Real world application
 
