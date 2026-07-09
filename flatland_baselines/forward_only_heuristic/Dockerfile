@@ -1,6 +1,9 @@
 # https://docs.docker.com/reference/build-checks/invalid-default-arg-in-from/
-ARG TAG=v4.2.6
-FROM ghcr.io/flatland-association/flatland-baselines:${TAG}
+ARG TAG=latest-py3.12
+FROM ghcr.io/flatland-association/flatland-rl:${TAG}
+
+COPY ./ ./
+RUN pip install -e .
 
 ENV POLICY=flatland_baselines.forward_only_heuristic.forward_only_policy.ForwardOnlyPolicy
 ENV OBS_BUILDER=flatland.core.env_observation_builder.DummyObservationBuilder
@@ -10,6 +13,6 @@ RUN echo "from flatland.utils.cli_utils import resolve_type" > test.py && \
   echo "assert resolve_type('${POLICY}') is not None" >> test.py && \
   echo "assert resolve_type('${OBS_BUILDER}') is not None" >> test.py
 
-RUN bash entrypoint_generic.sh python test.py
+RUN python test.py
 
 
