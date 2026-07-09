@@ -1,4 +1,4 @@
-name: Build FAB Flatland Baselines Docker Image and upload to ghcr.io
+name: Build Flatland Baselines Docker Image and upload to ghcr.io
 
 on:
   push:
