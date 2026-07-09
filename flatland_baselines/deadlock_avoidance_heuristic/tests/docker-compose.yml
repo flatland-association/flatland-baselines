@@ -37,8 +37,10 @@ services:
         chmod a+rwx -R /outputs-meta
 
   run-environments:
+    entrypoint: [ "bash", "-c" ]
     command:
       - |
+        set -euxo pipefail
         flatland-trajectory-generate-from-metadata --metadata-csv /inputs/${ENVIRONMENTS:-debug-environments}/${METADATA_CSV:-metadata.csv} --data-dir /outputs-meta --legacy-env-generator True
     build:
       context: ../../..
