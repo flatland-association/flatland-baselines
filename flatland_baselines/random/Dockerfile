@@ -13,6 +13,7 @@ RUN echo "from flatland.utils.cli_utils import resolve_type" > test.py && \
   echo "assert resolve_type('${POLICY}') is not None" >> test.py && \
   echo "assert resolve_type('${OBS_BUILDER}') is not None" >> test.py
 
+RUN pip install pytest
 RUN python test.py
 
 
