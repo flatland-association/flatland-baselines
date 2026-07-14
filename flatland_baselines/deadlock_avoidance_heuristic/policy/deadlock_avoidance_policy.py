@@ -658,7 +658,7 @@ def _get_free_from_path(own_path: List[Waypoint], opp_path: List[Waypoint]):
 
 class DeadlockAvoidanceHeuristics(DeadLockAvoidancePolicy):
     def __init__(self,
-                 use_alternative_at_first_intermediate_and_then_always_first_strategy=2,
+                 use_alternative_at_first_intermediate_and_then_always_first_strategy=None,
                  seed: int = None,
                  audit: bool = False,
                  ):
