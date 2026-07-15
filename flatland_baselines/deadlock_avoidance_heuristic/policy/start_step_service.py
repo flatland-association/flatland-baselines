@@ -32,15 +32,12 @@ class StepStateInternal:
     opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
 
 
-@dataclass
-class StepStateExternal:
-    full_shortest_distance_agent_map: np.ndarray  # type=int, dim=(num_agents, height, width)
-    shortest_distance_agent_len: np.ndarray  # type=int, dim=(num_agents,)
-    shortest_distance_agent_map: np.ndarray  # type=int, dim=(num_agents, height, width)
-    opp_agent_map: np.ndarray  # type=bool, dim=(num_agents, num_agents)
-
-
 class StartStepService:
+    """
+    Computes/updates, per step, each agent's shortest-path bitmap and oncoming-agent (opposition) state, and decides whether an agent may move without risking a deadlock.
+    Separates concerns for observation building
+    """
+
     def __init__(
             self,
             min_free_cell: int,
@@ -92,28 +89,11 @@ class StartStepService:
             opp_agent_map=defaultdict(set),
         )
 
-    def start_step(self) -> StepStateExternal:
+    def start_step(self) -> None:
         # (1)
         self._build_agent_position_map()
         # (2)
         self._update_shortest_distance_maps_and_opp_agent_map()
-        return self._to_external()
-
-    def _to_external(self) -> StepStateExternal:
-        num_agents = self._rail_env.get_num_agents()
-        opp_agent_map = np.zeros((num_agents, num_agents), dtype=bool)
-        for h, opp_set in self._state.opp_agent_map.items():
-            for opp_a in opp_set:
-                opp_agent_map[h, opp_a] = True
-        return StepStateExternal(
-            full_shortest_distance_agent_map=self._state.full_shortest_distance_agent_map,
-            shortest_distance_agent_len=np.array(
-                [self._state.shortest_distance_agent_len[h] for h in range(num_agents)],
-                dtype=int,
-            ),
-            shortest_distance_agent_map=self._state.shortest_distance_agent_map,
-            opp_agent_map=opp_agent_map,
-        )
 
     def init_shortest_distance_positions(self, agent: EnvAgent, handle: AgentHandle) -> None:
         """

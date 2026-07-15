@@ -12,8 +12,9 @@ from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
+from flatland_baselines.deadlock_avoidance_heuristic.observation.start_step_observation import StartStepObservationBuilder, StepStateObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths
-from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import StartStepService, StepStateExternal
+from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import StartStepService
 
 # LRU cache infrastructure kept for backwards compatibility (no functions registered here after refactoring)
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -111,7 +112,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
 
         self.start_step_service: Optional[StartStepService] = None
-        self.step_state: Optional[StepStateExternal] = None
+        self.start_step_observation_builder: Optional[StartStepObservationBuilder] = None
+        self.step_state: Optional[StepStateObservation] = None
 
     def _init_env(self, env: RailEnv):
         self.start_step_service = StartStepService(
@@ -129,13 +131,15 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             set_paths=self._set_paths,
             update_agent_fn=super()._update_agent,
         )
+        self.start_step_observation_builder = StartStepObservationBuilder(self.start_step_service)
 
     def act_many(self, handles: List[int], observations: List[Any], **kwargs) -> Dict[int, RailEnvActions]:
         assert isinstance(observations[0], RailEnv)
         if self.rail_env is None:
             self.rail_env = observations[0]
             self._init_env(self.rail_env)
-        self.step_state = self.start_step_service.start_step()
+        self.start_step_service.start_step()
+        self.step_state = self.start_step_observation_builder._to_external()
         self._extract_agent_can_move()
         return {handle: self._act(handle, observations[handle]) for handle in handles}
 
