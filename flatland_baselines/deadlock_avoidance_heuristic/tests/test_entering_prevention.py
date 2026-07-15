@@ -1,10 +1,9 @@
 from typing import Dict, Optional, Tuple
 
-import numpy as np
 import pytest
 
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
-from flatland.envs.grid.rail_env_grid import RailEnvTransitions, RailEnvTransitionsEnum
+from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.line_generators import LineGenerator
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import rail_from_grid_transition_map
@@ -14,6 +13,7 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
+from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail
 
 # A single row of track, 7 cells wide, with an unused dead end at each far end (column 0 and column
 # 6) so that A and B themselves are plain straight cells (not dead ends), each with a straight
@@ -42,8 +42,8 @@ def _make_single_track_rail(length: int) -> RailGridTransitionMap:
     dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
     dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
     horizontal_straight = RailEnvTransitionsEnum.horizontal_straight
-    rail_map = np.array([[dead_end_from_east] + [horizontal_straight] * (length - 2) + [dead_end_from_west]], dtype=np.uint16)
-    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
+    row = [dead_end_from_east] + [horizontal_straight] * (length - 2) + [dead_end_from_west]
+    return build_rail([row])
 
 
 def _opposing_agents_line_generator(a: Tuple[int, int], b: Tuple[int, int], direction_a: int, direction_b: int) -> LineGenerator:

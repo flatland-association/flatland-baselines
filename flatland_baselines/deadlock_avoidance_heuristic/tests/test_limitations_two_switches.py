@@ -1,9 +1,7 @@
 from typing import Dict, Tuple
 
-import numpy as np
-
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
-from flatland.envs.grid.rail_env_grid import RailEnvTransitions, RailEnvTransitionsEnum
+from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env_action import RailEnvActions
 from flatland.envs.rail_generators import rail_from_grid_transition_map
@@ -14,6 +12,7 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
+from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail
 
 
 def _run_n_steps(env: RailEnv, policy: DeadLockAvoidancePolicy, num_steps: int) -> Tuple[Dict[int, RailEnvActions], Dict[object, bool]]:
@@ -57,8 +56,7 @@ def _make_two_switches_rail() -> RailGridTransitionMap:
 
     row0 = [0, dead_end_from_south, 0, 0, 0, dead_end_from_south, 0]
     row1 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(TRUNK) + [simple_switch_east_left, dead_end_from_west]
-    rail_map = np.array([row0, row1], dtype=np.uint16)
-    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
+    return build_rail([row0, row1])
 
 
 def _facing_agents_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
@@ -165,8 +163,7 @@ def _make_two_switches_with_queue_rail() -> RailGridTransitionMap:
     row2 = [0, 0, 0, 0, 0, vertical_straight, 0]
     row3 = [0, dead_end_from_south, 0, 0, 0, vertical_straight, 0]
     row4 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(Q_TRUNK) + [simple_switch_east_left, dead_end_from_west]
-    rail_map = np.array([row0, row1, row2, row3, row4], dtype=np.uint16)
-    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
+    return build_rail([row0, row1, row2, row3, row4])
 
 
 def _facing_agents_with_queue_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
@@ -278,8 +275,7 @@ def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
     row2 = [0, dead_end_from_south, 0, 0, 0, vertical_straight, 0]
     row3 = [dead_end_from_east, simple_switch_north_left, 0, 0, 0, vertical_straight, 0]
     row4 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(AA_TRUNK) + [simple_switch_east_left, dead_end_from_west]
-    rail_map = np.array([row0, row1, row2, row3, row4], dtype=np.uint16)
-    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
+    return build_rail([row0, row1, row2, row3, row4])
 
 
 def _agents_with_aa_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
