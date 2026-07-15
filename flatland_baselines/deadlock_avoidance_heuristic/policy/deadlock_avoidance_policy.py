@@ -223,22 +223,21 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             plt.show(block=False)
             plt.pause(0.01)
 
+    def _log(self, agent_handle: AgentHandle, message: str) -> None:
+        """Prints `message` if verbose, and records it to the audit trail if auditing is enabled."""
+        if self.verbose:
+            print(message)
+        if self.audit is not None:
+            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent_handle, "k": "audit", "v": message})
+
     def _find_alternative(self, agent: EnvAgent):
         handle = agent.handle
-        if self.verbose:
-            print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
-        if self.audit is not None:
-            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                               "v": f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}"})
+        self._log(handle, f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
 
         # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go. No priority for now
         remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
         if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
-            if self.verbose:
-                print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
-            if self.audit is not None:
-                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                   "v": f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}"})
+            self._log(handle, f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
             remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
 
         if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy is not None and \
@@ -247,11 +246,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             before = self._set_paths[handle]
 
             if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(agent.position, agent.direction):
-                if self.verbose:
-                    print(f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}"})
+                self._log(handle, f"need to re-compute for agent {handle} at {agent.position, agent.direction} at {self.rail_env._elapsed_steps}")
 
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
@@ -278,27 +273,15 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     alternative = alt
             self.closed[handle].append(alternative)
 
-            if self.verbose:
-                print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
-            if self.audit is not None:
-                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                   "v": f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}"})
+            self._log(handle, f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
 
+            before_len = len(before) if before is not None else None
+            after_len = len(self._set_paths[handle]) if self._set_paths[handle] is not None else None
             if before == self._set_paths[handle]:
-                if self.verbose:
-                    print(
-                        f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before) if before is not None else None}->{len(self._set_paths[handle]) if self._set_paths[agent.handle] is not None else None}:\n - {before} \n - {self._set_paths[handle]} "})
-
+                self._log(handle,
+                          f"not changed {handle} at {self.rail_env._elapsed_steps} {before_len}->{after_len}:\n - {before} \n - {self._set_paths[handle]}")
             else:
-                if self.verbose:
-                    print(
-                        f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}"})
+                self._log(handle, f"changed {handle} at {self.rail_env._elapsed_steps} {before_len}->{after_len}:\n - {before} \n - {self._set_paths[handle]}")
 
             if self._set_paths[handle] is None or len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before

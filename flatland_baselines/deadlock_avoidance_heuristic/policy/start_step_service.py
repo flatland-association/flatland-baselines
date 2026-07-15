@@ -300,44 +300,55 @@ class StartStepService:
                     self.audit.append({"env_time": self._rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
                                        "v": f" *** {self._rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}"})
                 if debug:
-                    cells_1 = [wp.position for wp in self._set_paths[handle]]
-                    cells_2 = [wp.position for wp in self._set_paths[opp_a]]
-                    if self.verbose:
-                        print(f"cells_1 = {cells_1}; cells_2={cells_2}")
-                    im1 = np.zeros((self._rail_env.height, self._rail_env.width))
-                    for cell in cells_1:
-                        im1[cell] = 1
-                    ax = plt.subplot(1, 2, 1)
-                    ax.set_title(f"Agent {handle} set path ({len(cells_1)})")
-                    plt.imshow(im1)
-
-                    im2 = np.zeros((self._rail_env.height, self._rail_env.width))
-                    for cell in cells_2:
-                        im2[cell] = 1
-                    ax = plt.subplot(1, 2, 2)
-                    ax.set_title(f"Agent {opp_a} set path ({len(cells_2)})")
-                    plt.imshow(im2)
-                    plt.show()
-
-                    ax = plt.subplot(4, 1, 1)
-                    ax.set_title(f"Agent {handle} full path ({np.count_nonzero(full_shortest_distance_agent_map[handle])})")
-                    plt.imshow(full_shortest_distance_agent_map[handle])
-
-                    ax = plt.subplot(4, 1, 2)
-                    ax.set_title(f"Agent {handle} my_shortest_walking_path ({np.count_nonzero(my_shortest_walking_path)})")
-                    plt.imshow(my_shortest_walking_path)
-
-                    ax = plt.subplot(4, 1, 3)
-                    ax.set_title(f"Agent {opp_a} full path ({np.count_nonzero(opp)})")
-                    plt.imshow(opp)
-
-                    ax = plt.subplot(4, 1, 4)
-                    ax.set_title(f"Agent {handle} - agent free_cells  {opp_a} ({free_cells})")
-                    plt.imshow(my_shortest_walking_path - opp)
-                    plt.show()
+                    self._plot_debug(handle, opp_a, my_shortest_walking_path, full_shortest_distance_agent_map, opp, free_cells)
 
                 return False
         return True
+
+    def _plot_debug(
+            self,
+            handle: AgentHandle,
+            opp_a: AgentHandle,
+            my_shortest_walking_path: np.ndarray,
+            full_shortest_distance_agent_map: np.ndarray,
+            opp: np.ndarray,
+            free_cells: int,
+    ) -> None:
+        cells_1 = [wp.position for wp in self._set_paths[handle]]
+        cells_2 = [wp.position for wp in self._set_paths[opp_a]]
+        if self.verbose:
+            print(f"cells_1 = {cells_1}; cells_2={cells_2}")
+        im1 = np.zeros((self._rail_env.height, self._rail_env.width))
+        for cell in cells_1:
+            im1[cell] = 1
+        ax = plt.subplot(1, 2, 1)
+        ax.set_title(f"Agent {handle} set path ({len(cells_1)})")
+        plt.imshow(im1)
+
+        im2 = np.zeros((self._rail_env.height, self._rail_env.width))
+        for cell in cells_2:
+            im2[cell] = 1
+        ax = plt.subplot(1, 2, 2)
+        ax.set_title(f"Agent {opp_a} set path ({len(cells_2)})")
+        plt.imshow(im2)
+        plt.show()
+
+        ax = plt.subplot(4, 1, 1)
+        ax.set_title(f"Agent {handle} full path ({np.count_nonzero(full_shortest_distance_agent_map[handle])})")
+        plt.imshow(full_shortest_distance_agent_map[handle])
+
+        ax = plt.subplot(4, 1, 2)
+        ax.set_title(f"Agent {handle} my_shortest_walking_path ({np.count_nonzero(my_shortest_walking_path)})")
+        plt.imshow(my_shortest_walking_path)
+
+        ax = plt.subplot(4, 1, 3)
+        ax.set_title(f"Agent {opp_a} full path ({np.count_nonzero(opp)})")
+        plt.imshow(opp)
+
+        ax = plt.subplot(4, 1, 4)
+        ax.set_title(f"Agent {handle} - agent free_cells  {opp_a} ({free_cells})")
+        plt.imshow(my_shortest_walking_path - opp)
+        plt.show()
 
     def _get_free(self, handle: AgentHandle, opp_a: AgentHandle):
         """
