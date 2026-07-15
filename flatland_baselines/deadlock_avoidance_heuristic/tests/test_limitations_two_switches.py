@@ -35,12 +35,10 @@ EAST_OF_B = (1, 6)
 
 def _make_two_switches_rail() -> RailGridTransitionMap:
     transitions = RailEnvTransitions()
-    cells = transitions.transition_list
-    dead_end_from_south = cells[7]
-    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
-    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
-    vertical_straight = cells[1]
-    horizontal_straight = transitions.rotate_transition(vertical_straight, 90)
+    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
+    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
+    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
+    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
     simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
     simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
 
@@ -144,12 +142,11 @@ Q_THIRD = (1, 5)
 
 def _make_two_switches_with_queue_rail() -> RailGridTransitionMap:
     transitions = RailEnvTransitions()
-    cells = transitions.transition_list
-    dead_end_from_south = cells[7]
-    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
-    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
-    vertical_straight = cells[1]
-    horizontal_straight = transitions.rotate_transition(vertical_straight, 90)
+    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
+    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
+    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
+    vertical_straight = int(RailEnvTransitionsEnum.vertical_straight)
+    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
     simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
     simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
 
@@ -264,12 +261,11 @@ AA_Q_THIRD = (1, 5)
 
 def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
     transitions = RailEnvTransitions()
-    cells = transitions.transition_list
-    dead_end_from_south = cells[7]
-    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
-    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
-    vertical_straight = cells[1]
-    horizontal_straight = transitions.rotate_transition(vertical_straight, 90)
+    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
+    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
+    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
+    vertical_straight = int(RailEnvTransitionsEnum.vertical_straight)
+    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
     simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
     simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
     simple_switch_north_left = int(RailEnvTransitionsEnum.simple_switch_north_left)

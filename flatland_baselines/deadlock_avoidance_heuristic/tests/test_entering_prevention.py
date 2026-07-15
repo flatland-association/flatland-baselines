@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
-from flatland.envs.grid.rail_env_grid import RailEnvTransitions
+from flatland.envs.grid.rail_env_grid import RailEnvTransitions, RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
@@ -37,12 +37,9 @@ DEAD_END_B = (0, DEAD_END_TRACK_LENGTH - 1)
 
 def _make_single_track_rail(length: int) -> RailGridTransitionMap:
     transitions = RailEnvTransitions()
-    cells = transitions.transition_list
-    dead_end_from_south = cells[7]
-    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
-    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
-    vertical_straight = cells[1]
-    horizontal_straight = transitions.rotate_transition(vertical_straight, 90)
+    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
+    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
+    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
     rail_map = np.array([[dead_end_from_east] + [horizontal_straight] * (length - 2) + [dead_end_from_west]], dtype=np.uint16)
     rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
     rail.grid = rail_map

@@ -30,10 +30,9 @@ EAST_ARM = (1, 2)
 
 def _make_switch_rail() -> RailGridTransitionMap:
     transitions = RailEnvTransitions()
-    cells = transitions.transition_list
-    dead_end_from_south = cells[7]
-    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
-    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
+    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
+    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
+    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
     simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
     rail_map = np.array([
         [0, dead_end_from_south, 0],
