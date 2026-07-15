@@ -34,23 +34,20 @@ EAST_OF_B = (1, 6)
 
 
 def _make_two_switches_rail() -> RailGridTransitionMap:
-    transitions = RailEnvTransitions()
-    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
-    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
-    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
-    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
-    simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
-    simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
+    dead_end_from_south = RailEnvTransitionsEnum.dead_end_from_south
+    dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
+    dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
+    horizontal_straight = RailEnvTransitionsEnum.horizontal_straight
+    simple_switch_west_right = RailEnvTransitionsEnum.simple_switch_west_right
+    simple_switch_east_left = RailEnvTransitionsEnum.simple_switch_east_left
 
     row0 = [0, dead_end_from_south, 0, 0, 0, dead_end_from_south, 0]
     row1 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(TRUNK) + [simple_switch_east_left, dead_end_from_west]
     rail_map = np.array([row0, row1], dtype=np.uint16)
-    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
-    rail.grid = rail_map
-    return rail
+    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
 
 
-def _facing_agents_line_generator(rail, num_agents, hints, num_resets, np_random):
+def _facing_agents_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 enters via switch A from the north and targets beyond switch B (east);
     # agent 1 enters via switch B from the north and targets beyond switch A (west).
     return Line(
@@ -141,14 +138,13 @@ Q_THIRD = (1, 5)
 
 
 def _make_two_switches_with_queue_rail() -> RailGridTransitionMap:
-    transitions = RailEnvTransitions()
-    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
-    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
-    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
-    vertical_straight = int(RailEnvTransitionsEnum.vertical_straight)
-    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
-    simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
-    simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
+    dead_end_from_south = RailEnvTransitionsEnum.dead_end_from_south
+    dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
+    dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
+    vertical_straight = RailEnvTransitionsEnum.vertical_straight
+    horizontal_straight = RailEnvTransitionsEnum.horizontal_straight
+    simple_switch_west_right = RailEnvTransitionsEnum.simple_switch_west_right
+    simple_switch_east_left = RailEnvTransitionsEnum.simple_switch_east_left
 
     row0 = [0, 0, 0, 0, 0, dead_end_from_south, 0]
     row1 = [0, 0, 0, 0, 0, vertical_straight, 0]
@@ -156,12 +152,10 @@ def _make_two_switches_with_queue_rail() -> RailGridTransitionMap:
     row3 = [0, dead_end_from_south, 0, 0, 0, vertical_straight, 0]
     row4 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(Q_TRUNK) + [simple_switch_east_left, dead_end_from_west]
     rail_map = np.array([row0, row1, row2, row3, row4], dtype=np.uint16)
-    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
-    rail.grid = rail_map
-    return rail
+    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
 
 
-def _facing_agents_with_queue_line_generator(rail, num_agents, hints, num_resets, np_random):
+def _facing_agents_with_queue_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 enters via switch A from the north and targets beyond switch B (east), same as before.
     # agents 1, 2 and 3 queue up north of switch B, all sharing agent 1's route: via switch B, the
     # trunk and switch A, to beyond switch A (west).
@@ -260,15 +254,14 @@ AA_Q_THIRD = (1, 5)
 
 
 def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
-    transitions = RailEnvTransitions()
-    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
-    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
-    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
-    vertical_straight = int(RailEnvTransitionsEnum.vertical_straight)
-    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
-    simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
-    simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
-    simple_switch_north_left = int(RailEnvTransitionsEnum.simple_switch_north_left)
+    dead_end_from_south = RailEnvTransitionsEnum.dead_end_from_south
+    dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
+    dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
+    vertical_straight = RailEnvTransitionsEnum.vertical_straight
+    horizontal_straight = RailEnvTransitionsEnum.horizontal_straight
+    simple_switch_west_right = RailEnvTransitionsEnum.simple_switch_west_right
+    simple_switch_east_left = RailEnvTransitionsEnum.simple_switch_east_left
+    simple_switch_north_left = RailEnvTransitionsEnum.simple_switch_north_left
 
     row0 = [0, 0, 0, 0, 0, dead_end_from_south, 0]
     row1 = [0, 0, 0, 0, 0, vertical_straight, 0]
@@ -276,12 +269,10 @@ def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
     row3 = [dead_end_from_east, simple_switch_north_left, 0, 0, 0, vertical_straight, 0]
     row4 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(AA_TRUNK) + [simple_switch_east_left, dead_end_from_west]
     rail_map = np.array([row0, row1, row2, row3, row4], dtype=np.uint16)
-    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
-    rail.grid = rail_map
-    return rail
+    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
 
 
-def _agents_with_aa_line_generator(rail, num_agents, hints, num_resets, np_random):
+def _agents_with_aa_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     return Line(
         agent_waypoints={
             0: [[Waypoint(AA_N_OF_AA, int(Grid4TransitionsEnum.NORTH))], [Waypoint(AA_EAST_OF_B, None)]],

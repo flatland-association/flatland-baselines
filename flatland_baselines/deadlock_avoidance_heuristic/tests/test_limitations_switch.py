@@ -29,21 +29,18 @@ EAST_ARM = (1, 2)
 
 
 def _make_switch_rail() -> RailGridTransitionMap:
-    transitions = RailEnvTransitions()
-    dead_end_from_south = int(RailEnvTransitionsEnum.dead_end_from_south)
-    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
-    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
-    simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
+    dead_end_from_south = RailEnvTransitionsEnum.dead_end_from_south
+    dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
+    dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
+    simple_switch_east_left = RailEnvTransitionsEnum.simple_switch_east_left
     rail_map = np.array([
         [0, dead_end_from_south, 0],
         [dead_end_from_east, simple_switch_east_left, dead_end_from_west],
     ], dtype=np.uint16)
-    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
-    rail.grid = rail_map
-    return rail
+    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
 
 
-def _converging_agents_line_generator(rail, num_agents, hints, num_resets, np_random):
+def _converging_agents_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 approaches the switch from the north arm, agent 1 from the east arm; both merge onto
     # the same west arm through the switch cell.
     return Line(
@@ -87,9 +84,13 @@ def test_two_agents_at_switch_non_facing():
     observations = env._get_observations()
 
     # run until both agents have entered and are sitting one cell ahead of the switch.
-    while not (env.agents[0].position == NORTH_ARM and env.agents[1].position == EAST_ARM):
+    for _ in range(10):
+        if env.agents[0].position == NORTH_ARM and env.agents[1].position == EAST_ARM:
+            break
         action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
         observations, _, _, _ = env.step(action_dict)
+    else:
+        raise AssertionError("expected both agents to reach their starting positions ahead of the switch within 10 steps")
 
     # the tick where both agents attempt to move into the switch cell at the same time.
     action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))

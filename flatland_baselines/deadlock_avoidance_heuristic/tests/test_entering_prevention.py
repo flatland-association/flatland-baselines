@@ -1,8 +1,11 @@
+from typing import Dict, Optional, Tuple
+
 import numpy as np
 import pytest
 
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitions, RailEnvTransitionsEnum
+from flatland.envs.line_generators import LineGenerator
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
@@ -36,19 +39,16 @@ DEAD_END_B = (0, DEAD_END_TRACK_LENGTH - 1)
 
 
 def _make_single_track_rail(length: int) -> RailGridTransitionMap:
-    transitions = RailEnvTransitions()
-    dead_end_from_west = int(RailEnvTransitionsEnum.dead_end_from_west)
-    dead_end_from_east = int(RailEnvTransitionsEnum.dead_end_from_east)
-    horizontal_straight = int(RailEnvTransitionsEnum.horizontal_straight)
+    dead_end_from_west = RailEnvTransitionsEnum.dead_end_from_west
+    dead_end_from_east = RailEnvTransitionsEnum.dead_end_from_east
+    horizontal_straight = RailEnvTransitionsEnum.horizontal_straight
     rail_map = np.array([[dead_end_from_east] + [horizontal_straight] * (length - 2) + [dead_end_from_west]], dtype=np.uint16)
-    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
-    rail.grid = rail_map
-    return rail
+    return RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=RailEnvTransitions(), grid=rail_map)
 
 
-def _opposing_agents_line_generator(a, b, direction_a, direction_b):
+def _opposing_agents_line_generator(a: Tuple[int, int], b: Tuple[int, int], direction_a: int, direction_b: int) -> LineGenerator:
     # agent 0 travels a -> b, agent 1 travels b -> a on the same single track.
-    def generate(rail, num_agents, hints, num_resets, np_random):
+    def generate(_rail, _num_agents, _hints, _num_resets, _np_random):
         return Line(
             agent_waypoints={
                 0: [[Waypoint(a, int(direction_a))], [Waypoint(b, None)]],
@@ -60,7 +60,7 @@ def _opposing_agents_line_generator(a, b, direction_a, direction_b):
     return generate
 
 
-def _build_env(length, a, b, direction_a, direction_b) -> RailEnv:
+def _build_env(length: int, a: Tuple[int, int], b: Tuple[int, int], direction_a: int, direction_b: int) -> RailEnv:
     rail = _make_single_track_rail(length)
     env = RailEnv(
         width=rail.width,
@@ -76,7 +76,7 @@ def _build_env(length, a, b, direction_a, direction_b) -> RailEnv:
     return env
 
 
-def _run(env: RailEnv, policy: DeadLockAvoidancePolicy, max_steps: int):
+def _run(env: RailEnv, policy: DeadLockAvoidancePolicy, max_steps: int) -> Tuple[Dict[int, Optional[int]], Dict[int, Optional[int]], bool]:
     """Runs the policy on the env and records, per agent, the step it entered the map and the step it left it (arrived)."""
     observations = env._get_observations()
     entered_at = {0: None, 1: None}
@@ -135,7 +135,7 @@ def test_with_entering_prevention_only_one_agent_enters_until_the_other_has_left
 
 
 @pytest.mark.xfail(strict=True, reason="""
-    Known limitation: use_entering_prevention only serializes entry correctly when A and B are dead-ends. 
+    Known limitation: use_entering_prevention only serializes entry correctly when A and B are dead-ends.
     In this case, the held-back agent still enters one
     tick after the other and the two permanently deadlock. See the docstring below for the exact
     mechanism, spelled out at t=0 and t=1.
