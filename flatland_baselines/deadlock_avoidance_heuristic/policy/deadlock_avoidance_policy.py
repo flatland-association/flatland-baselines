@@ -286,7 +286,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if self._set_paths[handle] is None or len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before
             self.start_step_service.init_shortest_distance_positions(agent, handle)
-            self.step_state.opp_agent_map[handle] = False
+            self.start_step_service.invalidate_opposition(handle)
 
     def _get_remaining_flexible_waypoints(self, agent):
         remaining_flexible_waypoints: List[List[Waypoint]] = copy.deepcopy(agent.waypoints)

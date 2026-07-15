@@ -48,3 +48,42 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
                 print(a.waypoints)
                 for env_time in range(1, env._elapsed_steps + 1):
                     print(trajectory.position_lookup(env_time, agent_id))
+
+
+def test_intermediate_service_audit_trail_records_blocked_conflict():
+    """
+    Confirms the DLA collision-avoidance decisions themselves are correct after the `StartStepService`
+    extraction: "agent X blocked by Y" entries are appended inside `StartStepService._check_agent_can_move`,
+    so they land in `policy.start_step_service.audit`, not `policy.audit` -- `DeadLockAvoidancePolicy` and
+    `StartStepService` intentionally keep independent audit lists (see
+    `test_start_step_service.test_policy_and_service_keep_independent_audit_lists`).
+
+    With the exact same deterministic scenario and seed used here, agent 2 is genuinely oncoming to agent
+    4 starting at env_time 14 and must be recorded as blocked.
+    """
+    rewards = DefaultRewards(intermediate_not_served_penalty=0.77,
+                             cancellation_factor=22,
+                             intermediate_late_arrival_penalty_factor=33,
+                             intermediate_early_departure_penalty_factor=44,
+                             )
+    env, _, _ = env_generator_legacy(
+        n_cities=5,
+        line_length=3,
+        obs_builder_object=FullEnvObservation(),
+        seed=982374,
+        rewards=rewards
+    )
+    policy = DeadLockAvoidancePolicy(use_alternative_at_first_intermediate_and_then_always_first_strategy=3, audit=True, seed=42)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # policy.start_step_service.audit is a plain list, independent of `trajectory.trains_arrived`'s pandas dtypes.
+        PolicyRunner.create_from_policy(
+            policy=policy,
+            data_dir=Path(tmpdirname),
+            env=env,
+            snapshot_interval=0,
+            ep_id=str(uuid.uuid4()),
+        )
+        assert any(
+            entry["env_time"] == 14 and entry["agent_id"] == 2 and "blocked by 4" in entry["v"]
+            for entry in policy.start_step_service.audit
+        ), "expected agent 2 to be recorded as blocked by agent 4 at env_time 14"

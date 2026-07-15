@@ -49,7 +49,7 @@ class StartStepService:
             use_entering_prevention: bool,
             show_debug_plot: bool,
             verbose: bool,
-            audit: bool
+            audit: bool,
     ):
         self.min_free_cell = min_free_cell
         self.count_num_opp_agents_towards_min_free_cell = count_num_opp_agents_towards_min_free_cell
@@ -134,6 +134,11 @@ class StartStepService:
             self._state.full_shortest_distance_agent_map[(handle, position[0], position[1])] = 1
             self._state.shortest_distance_positions_agent_map[handle].add(position)
             self._state.shortest_distance_positions_directions_agent_map[handle][position].add(direction)
+
+    def invalidate_opposition(self, handle: AgentHandle) -> None:
+        """Clears cached opposition tracking for `handle`, forcing it to be recomputed from scratch on the
+        next `start_step()` (e.g. after the agent's path changed via rerouting)."""
+        self._state.opp_agent_map[handle] = set()
 
     def _build_agent_position_map(self):
         """
