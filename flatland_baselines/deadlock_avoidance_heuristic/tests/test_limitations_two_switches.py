@@ -228,3 +228,127 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
         "expected agents 2 and 3 to be stopped one cell short of where they started, never having caught up to the queue"
     assert states == [TrainState.STOPPED] * 4, "expected all four agents to be permanently stopped"
     assert not dones["__all__"], "expected the agents to deadlock and never all arrive"
+
+
+# Same infrastructure as above, but with an extra switch AA north of switch A, and targets chosen so
+# that only agent 0 and agent 1 share the conflicting segment north of A, while agents 2 and 3's own
+# paths stop short of it (at switch A itself):
+#
+#                    AA_N_OF_AA                                                     AA_Q_THIRD  (agent 3)
+#                       |                                                              |
+#  AA_WEST_OF_AA -- [AA: simple_switch_north_left]                                AA_Q_SECOND (agent 2)
+#                       |                                                              |
+#                       |                                                        AA_Q_FIRST  (agent 1)
+#                       v                                                              v
+#      AA_WEST_OF_A -- [A: simple_switch_west_right] -- trunk (3 cells) -- [B: simple_switch_east_left] -- AA_EAST_OF_B
+#
+# Agent 0 starts at AA_N_OF_AA and targets AA_EAST_OF_B (unchanged end-to-end route): AA_N_OF_AA -> AA
+# (forced south) -> A (forced east, entering from the north) -> trunk -> B -> AA_EAST_OF_B.
+# Agent 1 starts at AA_Q_FIRST and targets AA_WEST_OF_AA: AA_Q_FIRST -> B (forced west) -> trunk -> A
+# (branches north, since its target lies beyond AA) -> AA (branches west) -> AA_WEST_OF_AA. Its path
+# therefore shares the entire AA<->A<->trunk<->B segment with agent 0, in the opposite direction.
+# Agents 2 and 3 start further back in the same queue and target AA_WEST_OF_A: their path also goes
+# via B and the trunk, but branches west already at switch A, so it never reaches AA at all.
+AA_N_OF_AA = (2, 1)
+AA_AA = (3, 1)
+AA_WEST_OF_AA = (3, 0)
+AA_SWITCH_A = (4, 1)
+AA_WEST_OF_A = (4, 0)
+AA_TRUNK = [(4, 2), (4, 3), (4, 4)]
+AA_SWITCH_B = (4, 5)
+AA_EAST_OF_B = (4, 6)
+AA_Q_FIRST = (3, 5)
+AA_Q_SECOND = (2, 5)
+AA_Q_THIRD = (1, 5)
+
+
+def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
+    transitions = RailEnvTransitions()
+    cells = transitions.transition_list
+    dead_end_from_south = cells[7]
+    dead_end_from_west = transitions.rotate_transition(dead_end_from_south, 90)
+    dead_end_from_east = transitions.rotate_transition(dead_end_from_south, 270)
+    vertical_straight = cells[1]
+    horizontal_straight = transitions.rotate_transition(vertical_straight, 90)
+    simple_switch_west_right = int(RailEnvTransitionsEnum.simple_switch_west_right)
+    simple_switch_east_left = int(RailEnvTransitionsEnum.simple_switch_east_left)
+    simple_switch_north_left = int(RailEnvTransitionsEnum.simple_switch_north_left)
+
+    row0 = [0, 0, 0, 0, 0, dead_end_from_south, 0]
+    row1 = [0, 0, 0, 0, 0, vertical_straight, 0]
+    row2 = [0, dead_end_from_south, 0, 0, 0, vertical_straight, 0]
+    row3 = [dead_end_from_east, simple_switch_north_left, 0, 0, 0, vertical_straight, 0]
+    row4 = [dead_end_from_east, simple_switch_west_right] + [horizontal_straight] * len(AA_TRUNK) + [simple_switch_east_left, dead_end_from_west]
+    rail_map = np.array([row0, row1, row2, row3, row4], dtype=np.uint16)
+    rail = RailGridTransitionMap(width=rail_map.shape[1], height=rail_map.shape[0], transitions=transitions)
+    rail.grid = rail_map
+    return rail
+
+
+def _agents_with_aa_line_generator(rail, num_agents, hints, num_resets, np_random):
+    return Line(
+        agent_waypoints={
+            0: [[Waypoint(AA_N_OF_AA, int(Grid4TransitionsEnum.NORTH))], [Waypoint(AA_EAST_OF_B, None)]],
+            1: [[Waypoint(AA_Q_FIRST, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_AA, None)]],
+            2: [[Waypoint(AA_Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_A, None)]],
+            3: [[Waypoint(AA_Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_A, None)]],
+        },
+        agent_speeds=[1.0, 1.0, 1.0, 1.0],
+    )
+
+
+def _build_env_with_aa() -> RailEnv:
+    rail = _make_two_switches_with_aa_rail()
+    env = RailEnv(
+        width=rail.width,
+        height=rail.height,
+        rail_generator=rail_from_grid_transition_map(rail),
+        line_generator=_agents_with_aa_line_generator,
+        # all agents have earliest departure 0, so they enter and reach their switch/queue as early as possible.
+        timetable_generator=ttgen_flatland2,
+        number_of_agents=4,
+        obs_builder_object=FullEnvObservation(),
+    )
+    env.reset()
+    return env
+
+
+def test_agents_short_of_the_conflict_keep_receiving_move_forward():
+    """
+    Same queuing setup as above, but this time only agent 0 and agent 1 actually share the
+    conflicting segment: agent 0's route now goes via a second switch AA (north of switch A) before
+    reaching switch A itself, and agent 1's target is moved out beyond AA too (`AA_WEST_OF_AA`), so
+    its path also extends through switch A and AA -- the same segment agent 0 travels, in the
+    opposite direction. Agents 2 and 3, in contrast, still target `AA_WEST_OF_A` (short of AA): their
+    own path only reaches switch A and never includes the segment north of it.
+
+    Expected: once agent 0 reaches switch AA, it becomes visible (an oncoming train on its own path)
+    to agent 1 -- which is the only agent whose path extends that far -- and DeadLockAvoidancePolicy
+    stops agent 0 and agent 1 directly. Agents 2 and 3 never see agent 0 on their path (it is beyond
+    where their own route ever goes) and keep receiving MOVE_FORWARD from DeadLockAvoidancePolicy
+    indefinitely; it is only the environment's own motion check that keeps them from advancing, since
+    each is blocked by the (stationary) agent immediately ahead of it in the queue.
+    """
+    env = _build_env_with_aa()
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
+    observations = env._get_observations()
+
+    action_dict = None
+    for _ in range(20):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, dones, _ = env.step(action_dict)
+
+    assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
+    assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
+    assert action_dict[2] == RailEnvActions.MOVE_FORWARD, \
+        "expected agent 2 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+    assert action_dict[3] == RailEnvActions.MOVE_FORWARD, \
+        "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+
+    positions = [agent.position for agent in env.agents]
+    states = [agent.state for agent in env.agents]
+    assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], \
+        "expected agents 2 and 3 to be physically queued one cell behind where they started"
+    assert states == [TrainState.STOPPED] * 4, \
+        "expected agents 2 and 3 to be stopped by the environment's motion check despite DLA issuing MOVE_FORWARD"
+    assert not dones["__all__"], "expected the agents to deadlock and never all arrive"
