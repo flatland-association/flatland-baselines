@@ -1,3 +1,5 @@
+from typing import Dict, Tuple
+
 import numpy as np
 
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
@@ -12,6 +14,18 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
+
+
+def _run_n_steps(env: RailEnv, policy: DeadLockAvoidancePolicy, num_steps: int) -> Tuple[Dict[int, RailEnvActions], Dict[object, bool]]:
+    """Runs the policy on the env for a fixed number of steps and returns the final action_dict and dones."""
+    observations = env._get_observations()
+    action_dict: Dict[int, RailEnvActions] = {}
+    dones: Dict[object, bool] = {}
+    for _ in range(num_steps):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, dones, _ = env.step(action_dict)
+    return action_dict, dones
+
 
 # Two switches A and B connected by a single-track trunk, each with its own north arm and an outward
 # arm on the far side:
@@ -203,12 +217,8 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
     """
     env = _build_env_with_queue()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
-    observations = env._get_observations()
 
-    action_dict = None
-    for _ in range(20):
-        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
-        observations, _, dones, _ = env.step(action_dict)
+    action_dict, dones = _run_n_steps(env, policy, num_steps=20)
 
     assert all(action == RailEnvActions.STOP_MOVING for action in action_dict.values()), \
         "expected DeadLockAvoidancePolicy to stop all four agents directly, not just the two facing each other"
@@ -318,12 +328,8 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     """
     env = _build_env_with_aa()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
-    observations = env._get_observations()
 
-    action_dict = None
-    for _ in range(20):
-        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
-        observations, _, dones, _ = env.step(action_dict)
+    action_dict, dones = _run_n_steps(env, policy, num_steps=20)
 
     assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
     assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
