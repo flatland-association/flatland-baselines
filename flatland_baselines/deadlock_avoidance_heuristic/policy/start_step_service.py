@@ -15,7 +15,7 @@ from flatland.envs.step_utils.states import TrainState
 
 
 @dataclass
-class StepStateInternal:
+class DeadlockAvoidanceInternalObservationBuilderState:
     # start_step (1): -1 if no agent, agent handle otherwise
     agent_positions: np.ndarray
     # start_step (2.2): 1 if current shortest path (without current cell!), 0 otherwise
@@ -32,7 +32,7 @@ class StepStateInternal:
     opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
 
 
-class StartStepService:
+class DeadlockAvoidanceStatefulObservationBuilder:
     """
     Computes/updates, per step, each agent's shortest-path bitmap and oncoming-agent (opposition) state, and decides whether an agent may move without risking a deadlock.
     Separates concerns for observation building
@@ -63,7 +63,7 @@ class StartStepService:
         self._set_paths: Optional[Dict[AgentHandle, Tuple[Waypoint]]] = None
         self._update_agent: Optional[Callable[[EnvAgent, RailEnv], None]] = None
         self._switches: Optional[np.ndarray] = None
-        self._state: Optional[StepStateInternal] = None
+        self._state: Optional[DeadlockAvoidanceInternalObservationBuilderState] = None
 
     def init_env(self, rail_env: RailEnv, set_paths: Dict[AgentHandle, Tuple[Waypoint]], update_agent_fn: Callable[[EnvAgent, RailEnv], None]) -> None:
         self._rail_env = rail_env
@@ -79,7 +79,7 @@ class StartStepService:
                         self._switches[(r, c)] = 1
 
         num_agents = rail_env.get_num_agents()
-        self._state = StepStateInternal(
+        self._state = DeadlockAvoidanceInternalObservationBuilderState(
             agent_positions=np.zeros((rail_env.height, rail_env.width), dtype=int) - 1,
             full_shortest_distance_agent_map=np.zeros((num_agents, rail_env.height, rail_env.width), dtype=int),
             shortest_distance_positions_agent_map=defaultdict(set),
