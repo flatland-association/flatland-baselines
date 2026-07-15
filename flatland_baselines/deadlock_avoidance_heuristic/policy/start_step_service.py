@@ -63,12 +63,12 @@ class StartStepService:
 
         self._rail_env: Optional[RailEnv] = None
         # N.B. shared state between service and policy
-        self._set_paths: Optional[Dict] = None
-        self._update_agent: Optional[Callable] = None
+        self._set_paths: Optional[Dict[AgentHandle, Tuple[Waypoint]]] = None
+        self._update_agent: Optional[Callable[[EnvAgent, RailEnv], None]] = None
         self._switches: Optional[np.ndarray] = None
         self._state: Optional[StepStateInternal] = None
 
-    def init_env(self, rail_env: RailEnv, set_paths: Dict, update_agent_fn: Callable) -> None:
+    def init_env(self, rail_env: RailEnv, set_paths: Dict[AgentHandle, Tuple[Waypoint]], update_agent_fn: Callable[[EnvAgent, RailEnv], None]) -> None:
         self._rail_env = rail_env
         self._set_paths = set_paths
         self._update_agent = update_agent_fn
