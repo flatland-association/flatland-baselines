@@ -12,9 +12,10 @@ from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.observation.start_step_observation import DeadlockAvoidanceObservationBuilder, DeadlockAvoidanceObservation
+from flatland_baselines.deadlock_avoidance_heuristic.observation.deadlock_avoidance_observations import DeadlockAvoidanceObservationBuilder, \
+    DeadlockAvoidanceObservation
+from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_observation_builder_service import DeadlockAvoidanceObservationBuilderService
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths
-from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import DeadlockAvoidanceStatefulObservationBuilder
 
 
 class DeadLockAvoidancePolicy(SetPathPolicy):
@@ -92,12 +93,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
 
-        self.start_step_service: Optional[DeadlockAvoidanceStatefulObservationBuilder] = None
+        self.start_step_service: Optional[DeadlockAvoidanceObservationBuilderService] = None
         self.start_step_observation_builder: Optional[DeadlockAvoidanceObservationBuilder] = None
         self.step_state: Optional[DeadlockAvoidanceObservation] = None
 
     def _init_env(self, env: RailEnv):
-        self.start_step_service = DeadlockAvoidanceStatefulObservationBuilder(
+        self.start_step_service = DeadlockAvoidanceObservationBuilderService(
             min_free_cell=self.min_free_cell,
             count_num_opp_agents_towards_min_free_cell=self.count_num_opp_agents_towards_min_free_cell,
             use_switches_heuristic=self.use_switches_heuristic,

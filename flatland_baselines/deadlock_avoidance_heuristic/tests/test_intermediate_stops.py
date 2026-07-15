@@ -52,10 +52,10 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
 
 def test_intermediate_service_audit_trail_records_blocked_conflict():
     """
-    Confirms the DLA collision-avoidance decisions themselves are correct after the `DeadlockAvoidanceStatefulObservationBuilder`
-    extraction: "agent X blocked by Y" entries are appended inside `DeadlockAvoidanceStatefulObservationBuilder._check_agent_can_move`,
+    Confirms the DLA collision-avoidance decisions themselves are correct after the `DeadlockAvoidanceObservationBuilderService`
+    extraction: "agent X blocked by Y" entries are appended inside `DeadlockAvoidanceObservationBuilderService._check_agent_can_move`,
     so they land in `policy.start_step_service.audit`, not `policy.audit` -- `DeadLockAvoidancePolicy` and
-    `DeadlockAvoidanceStatefulObservationBuilder` intentionally keep independent audit lists (see
+    `DeadlockAvoidanceObservationBuilderService` intentionally keep independent audit lists (see
     `test_start_step_service.test_policy_and_service_keep_independent_audit_lists`).
 
     With the exact same deterministic scenario and seed used here, agent 2 is genuinely oncoming to agent

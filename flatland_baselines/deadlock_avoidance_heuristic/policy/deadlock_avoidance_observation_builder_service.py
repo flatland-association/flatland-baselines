@@ -32,7 +32,7 @@ class DeadlockAvoidanceInternalObservationBuilderState:
     opp_agent_map: Dict[AgentHandle, Set[AgentHandle]]
 
 
-class DeadlockAvoidanceStatefulObservationBuilder:
+class DeadlockAvoidanceObservationBuilderService:
     """
     Computes/updates, per step, each agent's shortest-path bitmap and oncoming-agent (opposition) state, and decides whether an agent may move without risking a deadlock.
     Separates concerns for observation building

@@ -5,7 +5,7 @@ import numpy as np
 
 from flatland.core.env_observation_builder import AgentHandle, ObservationBuilder
 from flatland.envs.rail_env import RailEnv
-from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import DeadlockAvoidanceStatefulObservationBuilder
+from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_observation_builder_service import DeadlockAvoidanceObservationBuilderService
 
 
 @dataclass
@@ -21,10 +21,10 @@ class DeadlockAvoidanceObservation:
 
 class DeadlockAvoidanceObservationBuilder(ObservationBuilder[RailEnv, DeadlockAvoidanceObservation]):
     """
-    Flatland `ObservationBuilder` returning the same `DeadlockAvoidanceObservation` observation for all agents, using `DeadlockAvoidanceStatefulObservationBuilder`'s per-step state computation internally.
+    Flatland `ObservationBuilder` returning the same `DeadlockAvoidanceObservation` observation for all agents, using `DeadlockAvoidanceObservationBuilderService`'s per-step state computation internally.
     """
 
-    def __init__(self, start_step_service: DeadlockAvoidanceStatefulObservationBuilder):
+    def __init__(self, start_step_service: DeadlockAvoidanceObservationBuilderService):
         self.start_step_service = start_step_service
         self._step_state: Optional[DeadlockAvoidanceObservation] = None
 

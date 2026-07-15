@@ -4,13 +4,13 @@ import numpy as np
 
 from flatland.env_generation.env_generator import env_generator_legacy
 from flatland.envs.observations import FullEnvObservation
-from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
-from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import DeadlockAvoidanceStatefulObservationBuilder, \
+from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_observation_builder_service import DeadlockAvoidanceObservationBuilderService, \
     DeadlockAvoidanceInternalObservationBuilderState
+from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
 
 
-def _make_service_with_state(num_agents: int, audit: bool = False) -> DeadlockAvoidanceStatefulObservationBuilder:
-    service = DeadlockAvoidanceStatefulObservationBuilder(
+def _make_service_with_state(num_agents: int, audit: bool = False) -> DeadlockAvoidanceObservationBuilderService:
+    service = DeadlockAvoidanceObservationBuilderService(
         min_free_cell=1,
         count_num_opp_agents_towards_min_free_cell=False,
         use_switches_heuristic=False,
@@ -33,10 +33,10 @@ def _make_service_with_state(num_agents: int, audit: bool = False) -> DeadlockAv
 
 def test_policy_and_service_keep_independent_audit_lists():
     """
-    `DeadLockAvoidancePolicy` and its `DeadlockAvoidanceStatefulObservationBuilder` intentionally keep separate audit lists:
+    `DeadLockAvoidancePolicy` and its `DeadlockAvoidanceObservationBuilderService` intentionally keep separate audit lists:
     `DeadLockAvoidancePolicy._init_env` only passes a bool (`audit=self.audit is not None`) to
-    `DeadlockAvoidanceStatefulObservationBuilder`, which then creates its own private `[]`. Entries appended inside
-    `DeadlockAvoidanceStatefulObservationBuilder` (e.g. "agent X blocked by Y" from `_check_agent_can_move`) land in
+    `DeadlockAvoidanceObservationBuilderService`, which then creates its own private `[]`. Entries appended inside
+    `DeadlockAvoidanceObservationBuilderService` (e.g. "agent X blocked by Y" from `_check_agent_can_move`) land in
     `policy.start_step_service.audit`, not in `policy.audit` -- the two are distinct list objects by
     design, not accidentally.
     """
