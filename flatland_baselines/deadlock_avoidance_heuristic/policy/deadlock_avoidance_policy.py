@@ -16,25 +16,6 @@ from flatland_baselines.deadlock_avoidance_heuristic.observation.start_step_obse
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths
 from flatland_baselines.deadlock_avoidance_heuristic.policy.start_step_service import StartStepService
 
-# LRU cache infrastructure kept for backwards compatibility (no functions registered here after refactoring)
-flatland_deadlock_avoidance_policy_lru_cache_functions = []
-
-
-def _enable_flatland_deadlock_avoidance_policy_lru_cache(*args, **kwargs):
-    from functools import lru_cache
-
-    def decorator(func):
-        func = lru_cache(*args, **kwargs)(func)
-        flatland_deadlock_avoidance_policy_lru_cache_functions.append(func)
-        return func
-
-    return decorator
-
-
-def _send_flatland_deadlock_avoidance_policy_data_change_signal_to_reset_lru_cache():
-    for func in flatland_deadlock_avoidance_policy_lru_cache_functions:
-        func.cache_clear()
-
 
 class DeadLockAvoidancePolicy(SetPathPolicy):
     def __init__(self,
