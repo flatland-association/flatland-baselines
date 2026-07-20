@@ -12,11 +12,11 @@ Shortest Path Deadlock Avoidance Heuristic
 #### Algorithm
 
 > [!NOTE]  
->  Do not enter/move if there is no free space between my path and any oncoming train's path. (A train is oncoming if it is on my path and running towards me).
+> Do not enter/move if there is no free space between my path and any oncoming train's path. (A train is oncoming if it is on my path and running towards me).
 
 #### Guarantee
 
-Pairwise deadlock-free: each pair of trains does not block each other, i.e. they can avoid each other if there were no other trains blocking them.
+As long as (i) trains “see” each other and (ii) there are no further trains blocking them, there is at least one non-overlapping segment between two trains where they can evade each other.
 
 #### Correctness
 
@@ -135,9 +135,8 @@ green train just before the 3rd switch.
 
 #### Limits
 
-##### Known weakness
+##### Known weakness: jamming
 
-*Known weakness* in the current implementation, traffic jam can cause a deadlock situation.
 The method does not propagate the required capacity a long the train's route. Thus, the train might no get the
 required "space" to avoid a deadlock. Thus, if the railway system is very densely used and all the trains which have
 to wait at a given location cannot fit into the crossing section (the capacity is not big enough for holding all trains in). Then they cause a jam and the
@@ -146,10 +145,38 @@ trains no longer pass. And the whole methods fails. See the graphics below.
 
 ![](./img/dead_lock_jam.png)
 
+##### Known weakness: dead ends
+
 *Known weakness* in the current implementation, travel direction change at dead-end can cause deadlock situations.
 This is not yet detectable by the proposed method.
 
-![](./img/weekness_dead_end.png )
+![](./img/weakness_dead_end.png )
+
+##### Known weakness: blind spots
+
+A genuine merge conflict at a switch is not detected ahead of
+time. If two agents approach the same switch from different arms and are both about to move into the switch
+cell in the same time step, neither currently occupies that (still empty) cell, so the opposition check finds no
+conflict for either of them and issues MOVE_FORWARD for both. It is the environment's own motion check, not this
+method, that then admits only one of them into the cell for that step; the other is simply stopped in place. See
+`tests/test_limitations_switch.py`.
+
+Similarly, two agents approaching each other through switches at both ends
+of a single-track segment with no passing loop and no alternative route between them will permanently deadlock
+at their own switch cell -- one step short of ever entering the shared segment between the switches. Since their
+paths are exact mirror images of one another over that entire segment, there is no free cell for either of them
+to wait on inside it, so the pairwise-deadlock-free guarantee degrades to both agents blocking each other forever
+right at the entrance. This is an instance of the "Require alternative path" problem class described above, which
+this method cannot resolve on its own -- it only avoids the collision, it does not free the trains. See
+`tests/test_limitations_two_switches.py`.
+
+##### Known weakness: entering at the same time
+
+Use `entering_prevention=True` to check for agents entering at the same time leading to a deadlock.
+
+##### Known weakness: loopy paths
+
+Loopy paths are not supported.
 
 ##### Real world application
 
