@@ -16,7 +16,7 @@ Shortest Path Deadlock Avoidance Heuristic
 
 #### Guarantee
 
-As long as trains “see” each other, they can avoid each other if there were no other trains blocking them.
+As long as (i) trains “see” each other and (ii) there are no further trains blocking them, there is at least one non-overlapping segment between two trains where they can evade each other.
 
 #### Correctness
 
@@ -135,7 +135,7 @@ green train just before the 3rd switch.
 
 #### Limits
 
-##### Known weaknesses: jamming
+##### Known weakness: jamming
 
 The method does not propagate the required capacity a long the train's route. Thus, the train might no get the
 required "space" to avoid a deadlock. Thus, if the railway system is very densely used and all the trains which have
@@ -173,6 +173,10 @@ this method cannot resolve on its own -- it only avoids the collision, it does n
 ##### Known weakness: entering at the same time
 
 Use `entering_prevention=True` to check for agents entering at the same time leading to a deadlock.
+
+##### Known weakness: loopy paths
+
+Loopy paths are not supported.
 
 ##### Real world application
 
