@@ -3,9 +3,6 @@ set -x
 echo "/ start submission_template/run.sh at $(date)"
 set -e
 find /tmp
-source /home/conda/.bashrc
-source activate base
-conda activate flatland-rl
 python -m pip list
 if [ ! -z "$FLATLAND_BASELINES_REF" ]; then
   rm -fR /tmp/flatland-baselines

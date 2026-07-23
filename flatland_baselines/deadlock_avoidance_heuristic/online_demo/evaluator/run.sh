@@ -3,9 +3,6 @@ set -x
 echo "/ start evaluator/run.sh at $(date)"
 set -e
 find /tmp
-source /home/conda/.bashrc
-source activate base
-conda activate flatland-rl
 python -m pip list
 whoami
 pwd
