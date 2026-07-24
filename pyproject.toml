@@ -21,7 +21,12 @@ classifiers = [
 ]
 dependencies = [
     # DEPENDENCY SWITCH
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.6",
+    # N.B. pypi Can't have direct dependency: flatland-rl @
+    #           git+https://github.com/flatland-association/flatland-rl.git@v4.2.6. See
+    #           https://packaging.python.org/specifications/core-metadata for more
+    #           information.
+    #"flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.6",
+    "flatland-rl==4.2.6",
 ]
 dynamic = ["version"]
 
