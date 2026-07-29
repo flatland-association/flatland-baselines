@@ -12,7 +12,7 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
-from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail
+from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail, target_waypoints
 
 
 def _run_n_steps(env: RailEnv, policy: DeadLockAvoidancePolicy, num_steps: int) -> Tuple[Dict[int, RailEnvActions], Dict[object, bool]]:
@@ -59,13 +59,13 @@ def _make_two_switches_rail() -> RailGridTransitionMap:
     return build_rail([row0, row1])
 
 
-def _facing_agents_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+def _facing_agents_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 enters via switch A from the north and targets beyond switch B (east);
     # agent 1 enters via switch B from the north and targets beyond switch A (west).
     return Line(
         agent_waypoints={
-            0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], [Waypoint(EAST_OF_B, None)]],
-            1: [[Waypoint(N_OF_B, int(Grid4TransitionsEnum.NORTH))], [Waypoint(WEST_OF_A, None)]],
+            0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, EAST_OF_B)],
+            1: [[Waypoint(N_OF_B, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, WEST_OF_A)],
         },
         agent_speeds=[1.0, 1.0],
     )
@@ -166,16 +166,16 @@ def _make_two_switches_with_queue_rail() -> RailGridTransitionMap:
     return build_rail([row0, row1, row2, row3, row4])
 
 
-def _facing_agents_with_queue_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+def _facing_agents_with_queue_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 enters via switch A from the north and targets beyond switch B (east), same as before.
     # agents 1, 2 and 3 queue up north of switch B, all sharing agent 1's route: via switch B, the
     # trunk and switch A, to beyond switch A (west).
     return Line(
         agent_waypoints={
-            0: [[Waypoint(Q_N_OF_A, int(Grid4TransitionsEnum.NORTH))], [Waypoint(Q_EAST_OF_B, None)]],
-            1: [[Waypoint(Q_FIRST, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(Q_WEST_OF_A, None)]],
-            2: [[Waypoint(Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(Q_WEST_OF_A, None)]],
-            3: [[Waypoint(Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(Q_WEST_OF_A, None)]],
+            0: [[Waypoint(Q_N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, Q_EAST_OF_B)],
+            1: [[Waypoint(Q_FIRST, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, Q_WEST_OF_A)],
+            2: [[Waypoint(Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, Q_WEST_OF_A)],
+            3: [[Waypoint(Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, Q_WEST_OF_A)],
         },
         agent_speeds=[1.0, 1.0, 1.0, 1.0],
     )
@@ -278,13 +278,13 @@ def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
     return build_rail([row0, row1, row2, row3, row4])
 
 
-def _agents_with_aa_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+def _agents_with_aa_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     return Line(
         agent_waypoints={
-            0: [[Waypoint(AA_N_OF_AA, int(Grid4TransitionsEnum.NORTH))], [Waypoint(AA_EAST_OF_B, None)]],
-            1: [[Waypoint(AA_Q_FIRST, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_AA, None)]],
-            2: [[Waypoint(AA_Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_A, None)]],
-            3: [[Waypoint(AA_Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], [Waypoint(AA_WEST_OF_A, None)]],
+            0: [[Waypoint(AA_N_OF_AA, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, AA_EAST_OF_B)],
+            1: [[Waypoint(AA_Q_FIRST, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, AA_WEST_OF_AA)],
+            2: [[Waypoint(AA_Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, AA_WEST_OF_A)],
+            3: [[Waypoint(AA_Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, AA_WEST_OF_A)],
         },
         agent_speeds=[1.0, 1.0, 1.0, 1.0],
     )

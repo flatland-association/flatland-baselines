@@ -13,7 +13,7 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
-from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail
+from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail, target_waypoints
 
 # A single row of track, 7 cells wide, with an unused dead end at each far end (column 0 and column
 # 6) so that A and B themselves are plain straight cells (not dead ends), each with a straight
@@ -48,11 +48,11 @@ def _make_single_track_rail(length: int) -> RailGridTransitionMap:
 
 def _opposing_agents_line_generator(a: Tuple[int, int], b: Tuple[int, int], direction_a: int, direction_b: int) -> LineGenerator:
     # agent 0 travels a -> b, agent 1 travels b -> a on the same single track.
-    def generate(_rail, _num_agents, _hints, _num_resets, _np_random):
+    def generate(rail, _num_agents, _hints, _num_resets, _np_random):
         return Line(
             agent_waypoints={
-                0: [[Waypoint(a, int(direction_a))], [Waypoint(b, None)]],
-                1: [[Waypoint(b, int(direction_b))], [Waypoint(a, None)]],
+                0: [[Waypoint(a, int(direction_a))], target_waypoints(rail, b)],
+                1: [[Waypoint(b, int(direction_b))], target_waypoints(rail, a)],
             },
             agent_speeds=[1.0, 1.0],
         )

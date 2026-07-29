@@ -10,7 +10,7 @@ from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
-from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail
+from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail, target_waypoints
 
 # A simple switch (T-junction) merging a north arm and an east arm onto a single west arm:
 #
@@ -38,13 +38,13 @@ def _make_switch_rail() -> RailGridTransitionMap:
     ])
 
 
-def _converging_agents_line_generator(_rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+def _converging_agents_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 approaches the switch from the north arm, agent 1 from the east arm; both merge onto
     # the same west arm through the switch cell.
     return Line(
         agent_waypoints={
-            0: [[Waypoint(NORTH_ARM, int(Grid4TransitionsEnum.NORTH))], [Waypoint(WEST_ARM, None)]],
-            1: [[Waypoint(EAST_ARM, int(Grid4TransitionsEnum.EAST))], [Waypoint(WEST_ARM, None)]],
+            0: [[Waypoint(NORTH_ARM, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, WEST_ARM)],
+            1: [[Waypoint(EAST_ARM, int(Grid4TransitionsEnum.EAST))], target_waypoints(rail, WEST_ARM)],
         },
         agent_speeds=[1.0, 1.0],
     )
