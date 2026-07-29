@@ -45,6 +45,9 @@ services:
     build:
       context: ../../..
       dockerfile: flatland_baselines/deadlock_avoidance_heuristic/Dockerfile
+      args:
+        # DEPENDENCY SWITCH:
+        FLATLAND_RL_PIP_URL: ${FLATLAND_RL_PIP_URL:-}
     depends_on:
       setup:
         condition: service_completed_successfully

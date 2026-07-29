@@ -103,6 +103,9 @@ services:
     build:
       context: evaluator
       dockerfile: Dockerfile
+      args:
+        # DEPENDENCY SWITCH:
+        FLATLAND_RL_PIP_URL: ${FLATLAND_RL_PIP_URL:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -130,6 +133,9 @@ services:
     build:
       context: ../../..
       dockerfile: flatland_baselines/deadlock_avoidance_heuristic/online_demo/submission/Dockerfile
+      args:
+        # DEPENDENCY SWITCH:
+        FLATLAND_RL_PIP_URL: ${FLATLAND_RL_PIP_URL:-}
     depends_on:
       redis:
         condition: service_healthy
