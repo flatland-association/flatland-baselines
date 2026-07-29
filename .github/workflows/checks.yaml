@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: v4.2.6
+  flatland-rl-ref: 437-drop-set-env-hack-in-obs-builder-interface
 
 on:
   workflow_dispatch:
