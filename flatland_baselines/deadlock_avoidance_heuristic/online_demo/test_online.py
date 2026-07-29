@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
+from subprocess import CalledProcessError
 
 import pandas as pd
 import pytest
@@ -11,6 +12,7 @@ from testcontainers.compose import DockerCompose
 
 from flatland_baselines.deadlock_avoidance_heuristic.offline_demo.test_offline import verify_online_offline_calibration_envs_v2, \
     verify_online_offline_calibration_envs_v3_trunc
+from flatland_baselines.deadlock_avoidance_heuristic.utils.docker_compose_helpers import _dump_compose_logs, _print_output
 
 logger = logging.getLogger(__name__)
 
@@ -76,15 +78,14 @@ def _containers_fixture(environments, seed, baselines_ref, rl_ref) -> Path:
             basic.stop()
             duration = time.time() - start_time
             logger.info(f"\\ end docker down. Took {duration:.2f} seconds.")
+        except CalledProcessError as e:
+            print(f"Failure: {e}")
+            _print_output(e.stdout.decode(errors="ignore"), e.stderr.decode(errors="ignore"))
+            _dump_compose_logs(basic)
+            raise e
         except BaseException as e:
-            print("An exception occurred during running docker compose:")
-            print(e)
-            stdout, stderr = basic.get_logs()
-            print("-- An exception occurred during running docker compose stdo:")
-            print(stdout)
-            print("-- An exception occurred during running docker compose stderr:")
-            print(stderr)
-            print("-- An exception occurred during running docker compose reraise.")
+            print(f"An exception occurred during running docker compose: {e}")
+            _dump_compose_logs(basic)
             raise e
     finally:
         shutil.rmtree(newpath, ignore_errors=True)
