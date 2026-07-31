@@ -13,8 +13,5 @@ class FullEnvObservation(ObservationBuilder[RailEnv, RailEnv]):
     def get(self, handle: AgentHandle = 0) -> ObservationType:
         return self.env
 
-    def reset(self):
-        pass
-
-    def set_env(self, env):
+    def reset(self, env):
         self.env = env
