@@ -79,7 +79,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
         if agent.handle not in self._set_paths:
             if self.use_alternative_at_first_intermediate_and_then_always_first_strategy is not None and self.use_alternative_at_first_intermediate_and_then_always_first_strategy > 0:
-                always_first_waypoint = _as_non_flexible_waypoint_groups(agent.waypoints)
+                always_first_waypoint = _always_first_waypoint_from_flexible_groups(agent.waypoints)
                 if self.verbose:
                     print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
                 if self.audit is not None:
@@ -94,7 +94,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                     self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
                                        "v": f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}"})
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(
-                    _as_non_flexible_waypoint_groups([agent.waypoints[0], agent.waypoints[-1]]), env.rail,
+                    _always_first_waypoint_from_flexible_groups([agent.waypoints[0], agent.waypoints[-1]]), env.rail,
                     debug_label=f"Agent {agent.handle}")
         if self._set_paths[agent.handle] is None:
             # loopy path
@@ -170,14 +170,12 @@ def _get_k_shortest_paths(*args, **kwargs):
     return get_k_shortest_paths(*args, **kwargs)
 
 
-def _as_non_flexible_waypoint_groups(waypoint_groups: List[List[Waypoint]]) -> List[List[Waypoint]]:
+def _always_first_waypoint_from_flexible_groups(waypoint_groups: List[List[Waypoint]]) -> List[List[Waypoint]]:
     """
     Reduces a list of waypoint-alternatives groups to a single, non-flexible path plan for
     `_shortest_path_from_non_flexible_waypoints`: every intermediate group is narrowed to its first
-    alternative (arbitrary but stable - flatland-rl's line generators only ever produce genuine
-    multi-direction alternatives at the final/target stop), while the *final* group is passed through in
-    full, since it may legitimately hold several direction alternatives at the same position and any of
-    them is an acceptable arrival - not just the first.
+    alternative (arbitrary but stable), while the *final* group is passed through in
+    full.
     """
     if len(waypoint_groups) == 0:
         return []

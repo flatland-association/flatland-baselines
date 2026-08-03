@@ -14,7 +14,7 @@ from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
 from flatland.envs.step_utils.states import TrainState
-from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths, _as_non_flexible_waypoint_groups
+from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths, _always_first_waypoint_from_flexible_groups
 
 # activate LRU caching
 flatland_deadlock_avoidance_policy_lru_cache_functions = []
@@ -207,7 +207,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
-                    then_always_first_intermediates = [[first_intermediate]] + _as_non_flexible_waypoint_groups(remaining_flexible_waypoints[1:])
+                    then_always_first_intermediates = [[first_intermediate]] + _always_first_waypoint_from_flexible_groups(remaining_flexible_waypoints[1:])
                     prefixes = _get_k_shortest_paths(None, agent.position, agent.direction, first_intermediate.position,
                                                      target_direction=first_intermediate.direction,
                                                      rail=self.rail_env.rail,
