@@ -110,19 +110,17 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
     def _shortest_path_from_non_flexible_waypoints(self, waypoint_groups: List[List[Waypoint]], rail: RailGridTransitionMap, debug_segments: bool = False,
                                                    debug_label: str = ""):
         """
-        Computes the shortest path to path built by routing the shortest path between waypoint groups.
+        Computes the shortest path to path built by routing the shortest path between non-flexible waypoints; only target may have flexibility.
         """
         p: List[Waypoint] = []
         for g1, g2 in zip(waypoint_groups, waypoint_groups[1:]):
+            # non-target
+            assert len(g1) == 1
             p1 = g1[0]
             if len(p) > 0:
                 assert p[-1] == p1, (p[-1], p1)
 
             arrival_directions = {wp.direction for wp in g2}
-            # a single, concrete arrival direction can still be passed down to the shortest-path search so
-            # it can terminate as soon as that direction is reached; multiple alternatives (or a legacy
-            # `None` "any direction" waypoint) must leave the search direction-unconstrained and be checked
-            # post-hoc instead.
             target_direction = next(iter(arrival_directions)) if len(arrival_directions) == 1 else None
 
             path_segment_candidates: List[Tuple[Waypoint]] = _get_k_shortest_paths(None, p1.position, p1.direction, g2[0].position, rail=rail,
