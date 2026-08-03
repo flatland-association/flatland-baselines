@@ -46,7 +46,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         self.verbose = verbose
 
     def _act(self, env: RailEnv, agent: EnvAgent):
-        if agent.position is None:
+        if agent.current_configuration is None:
             return RailEnvActions.MOVE_FORWARD
 
         if len(self._set_paths[agent.handle]) == 0:
@@ -54,7 +54,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
 
         for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
             new_cell_valid, (new_position, new_direction), transition_valid, preprocessed_action = env.rail.check_action_on_agent(
-                RailEnvActions.from_value(a), (agent.position, agent.direction)
+                RailEnvActions.from_value(a), agent.current_configuration
             )
             if new_cell_valid and transition_valid and (
                     new_position == self._set_paths[agent.handle][1].position and new_direction == self._set_paths[agent.handle][1].direction):
@@ -99,13 +99,14 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if self._set_paths[agent.handle] is None:
             # loopy path
             return
-        if agent.position is None:
+        if agent.current_configuration is None:
             # not on map
             return
 
-        while len(self._set_paths[agent.handle]) > 0 and self._set_paths[agent.handle][0].position != agent.position:
+        position = agent.current_configuration[0]
+        while len(self._set_paths[agent.handle]) > 0 and self._set_paths[agent.handle][0].position != position:
             self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
-        assert self._set_paths[agent.handle][0].position == agent.position
+        assert self._set_paths[agent.handle][0].position == position
 
     def _shortest_path_from_non_flexible_waypoints(self, waypoint_groups: List[List[Waypoint]], rail: RailGridTransitionMap, debug_segments: bool = False,
                                                    debug_label: str = ""):

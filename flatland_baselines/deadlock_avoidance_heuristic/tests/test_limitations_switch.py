@@ -82,8 +82,11 @@ def test_two_agents_at_switch_non_facing():
     observations = env._get_observations()
 
     # run until both agents have entered and are sitting one cell ahead of the switch.
+    def _position(agent):
+        return agent.current_configuration[0] if agent.current_configuration is not None else None
+
     for _ in range(10):
-        if env.agents[0].position == NORTH_ARM and env.agents[1].position == EAST_ARM:
+        if _position(env.agents[0]) == NORTH_ARM and _position(env.agents[1]) == EAST_ARM:
             break
         action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
         observations, _, _, _ = env.step(action_dict)
@@ -97,7 +100,7 @@ def test_two_agents_at_switch_non_facing():
 
     env.step(action_dict)
 
-    positions = [agent.position for agent in env.agents]
+    positions = [_position(agent) for agent in env.agents]
     states = [agent.state for agent in env.agents]
 
     assert positions.count(SWITCH) == 1, "expected exactly one agent to have moved into the switch cell"

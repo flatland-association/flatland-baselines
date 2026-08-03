@@ -86,7 +86,7 @@ def _run(env: RailEnv, policy: DeadLockAvoidancePolicy, max_steps: int) -> Tuple
         action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
         observations, _, dones, _ = env.step(action_dict)
         for handle, agent in enumerate(env.agents):
-            if entered_at[handle] is None and agent.position is not None:
+            if entered_at[handle] is None and agent.current_configuration is not None:
                 entered_at[handle] = step
             if left_at[handle] is None and entered_at[handle] is not None and dones[handle]:
                 left_at[handle] = step
