@@ -17,8 +17,6 @@ def build_rail(rows: Sequence[Sequence[Union[int, RailEnvTransitionsEnum]]]) -> 
 def target_waypoints(rail: RailGridTransitionMap, position: Tuple[int, int]) -> List[Waypoint]:
     """
     Builds the final waypoint group for a target `position`: one `Waypoint` per direction of arrival
-    that is a valid configuration on `rail` (mirrors how `SparseLineGen` expands a target position, see
-    flatland-association/flatland-rl#479 - a bare `Waypoint(position, None)` is no longer expanded
-    downstream).
+    that is a valid configuration on `rail` - a bare `Waypoint(position, None)` is deprecated now.
     """
     return [Waypoint(position, d) for d in Grid4TransitionsEnum if rail.is_valid_configuration((position, d))]
