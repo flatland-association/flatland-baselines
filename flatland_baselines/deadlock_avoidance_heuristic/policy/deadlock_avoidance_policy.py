@@ -209,7 +209,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
                     then_always_first_intermediates = [[first_intermediate]] + _always_first_waypoint_from_flexible_groups(remaining_flexible_waypoints[1:])
-                    prefixes = _get_k_shortest_paths(None, agent.current_configuration[0], agent.direction, first_intermediate.position,
+                    prefixes = _get_k_shortest_paths(None, agent.current_configuration[0], agent.current_configuration[1], first_intermediate.position,
                                                      target_direction=first_intermediate.direction,
                                                      rail=self.rail_env.rail,
                                                      k=self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy,
@@ -354,7 +354,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # the initial position is never added to shortest_distance_positions_agent_map
             # N.B. We must remove each direction separately, as there can be "loopy" paths going through same cell twice but with different direction!
             if old_position is not None:
-                self.shortest_distance_positions_directions_agent_map[handle][position].remove(int(agent.direction))
+                self.shortest_distance_positions_directions_agent_map[handle][position].remove(int(agent.current_configuration[1]))
 
     def init_shortest_distance_positions(self, agent, handle):
         """
@@ -406,7 +406,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             position, direction = wp.position, wp.direction
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
-                if self.rail_env.agents[opp_a].direction != direction:
+                if self.rail_env.agents[opp_a].current_configuration[1] != direction:
                     num_opp_agents += 1
                     break
             if num_opp_agents == 0:
@@ -426,7 +426,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 directions = self.shortest_distance_positions_directions_agent_map[handle][position]
                 assert len(directions) > 0, f"Inconsistency for agent {handle} at {self.rail_env._elapsed_steps}: no directions for position {position}"
                 for direction in directions:
-                    if self.rail_env.agents[opp_a].direction != direction:
+                    if self.rail_env.agents[opp_a].current_configuration[1] != direction:
                         self.opp_agent_map[handle].add(opp_a)
 
     def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
@@ -457,10 +457,10 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 ):
                     if agent.current_configuration is not None:
                         position = agent.current_configuration[0]
-                        direction = agent.direction
+                        direction = agent.current_configuration[1]
                     else:
                         position = agent.initial_configuration[0]
-                        direction = agent.initial_direction
+                        direction = agent.initial_configuration[1]
                     # Guard against loopy lines and invalid initial positions:
                     if self._set_paths[agent.handle] is None or len(self._set_paths[agent.handle]) < 2:
                         warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
