@@ -48,10 +48,19 @@ Some tests need extra setup:
 - `test_episodes_deadlock_avoidance.py` replays recorded episodes and requires `BENCHMARK_EPISODES_FOLDER` to point
   at an extracted copy of `FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip` (see `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`,
   which ships as part of flatland-rl, not this repo).
+- `test_policy_grid_runner_evaluator.py` needs no extra setup — it drives `generate_trajectories_from_metadata`/
+  `evaluate_trajectories_from_metadata` against `env_data/tests/service_test` fixtures that ship inside flatland-rl
+  itself (packaged and pip-installed alongside `flatland`, not this repo).
 - Tests marked `@pytest.mark.slow` (e.g. `test_regression_deadlock_avoidancy.py`, `online_demo/test_online.py`) spin
   up docker-compose stacks via `testcontainers` and are skipped with `-m "not slow"`. `checks.yaml`'s CI runs do
   *not* pass that filter, so these run in CI but are usually worth excluding locally unless you're specifically
   working on the Docker-based integration tests (see below) — they build images and can take minutes.
+
+`tests/regen_benchmarks.py` is a maintenance script, not a pytest test (no `test_` prefix, so it isn't collected) —
+it regenerates the same `BENCHMARK_EPISODES_FOLDER` trajectory fixtures `test_episodes_deadlock_avoidance.py`
+replays, by re-running `DeadLockAvoidancePolicy` and diffing positions for conflicts. Edit the hardcoded relative
+paths in its `__main__` block to point at a local `flatland-scenarios` checkout before running it directly
+(`python flatland_baselines/deadlock_avoidance_heuristic/tests/regen_benchmarks.py`).
 
 There is no lint/format tooling configured in this repo (no ruff/flake8/pre-commit config).
 
@@ -152,6 +161,13 @@ agent positions/directions/timing can be asserted on:
 - Bound every step-loop with a fixed iteration count (`for _ in range(N)`, with an `else: raise AssertionError(...)`
   if waiting for a specific state before proceeding) rather than an unbounded `while` — an unbounded wait loop
   hangs the whole test suite if a future regression stops agents short of the expected state.
+
+Two tests take a different approach entirely — no hand-built `RailEnv`, just the CLI entry points end-to-end:
+`test_policy_grid_runner_evaluator.py` drives `generate_trajectories_from_metadata`/`evaluate_trajectories_from_metadata`
+over `env_data` fixtures, and `test_policy_runner.py` drives `generate_trajectory_from_policy` against a persisted
+env pkl, both asserting on the resulting reward/trajectory output files. Both moved here from flatland-rl (which
+kept the generic, non-DLA-specific test coverage of those same CLI mechanisms) because the specific
+policy/obs-builder under test is `DeadLockAvoidancePolicy`/`FullEnvObservation`.
 
 ### Docker-based integration tests
 
