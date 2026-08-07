@@ -4,5 +4,5 @@ dependencies:
   - pip:
       - pytest
       # DEPENDENCY SWITCH:
-      - git+https://github.com/flatland-association/flatland-rl.git@feature/deprecate-agent-position
+      - git+https://github.com/flatland-association/flatland-rl.git@main
       #- flatland-rl[ml]==4.2.6
