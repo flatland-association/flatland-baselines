@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: main
+  flatland-rl-ref: v4.3.0
 
 on:
   workflow_dispatch:
@@ -68,7 +68,6 @@ jobs:
           python -m pip install -r requirements-dev.txt
           export BENCHMARK_EPISODES_FOLDER=$PWD/episodes
           export PYTHONPATH=$PWD
-          # DEPENDENCY SWITCH: picked up by docker-compose.yml's FLATLAND_RL_PIP_URL build arg.
           export FLATLAND_RL_PIP_URL="git+https://github.com/flatland-association/flatland-rl.git@${{ env.flatland-rl-ref }}"
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests
 
@@ -122,7 +121,6 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           export PYTHONPATH=$PWD
-          # DEPENDENCY SWITCH: picked up by docker-compose.yml's FLATLAND_RL_PIP_URL build arg.
           export FLATLAND_RL_PIP_URL="git+https://github.com/flatland-association/flatland-rl.git@${{ env.flatland-rl-ref }}"
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/online_demo/
       - name: Run tests for offline evaluation

@@ -69,12 +69,29 @@ There is no lint/format tooling configured in this repo (no ruff/flake8/pre-comm
 `flatland-rl` is a separate, fast-moving upstream package. The exact pinned ref/version is duplicated in three
 places — all three must be bumped together (each has a `# DEPENDENCY SWITCH` comment marking it):
 
-- `pyproject.toml` — `flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@v4.2.6`
-- `environment.yml` — `flatland-rl[ml]==4.2.6`
-- `.github/workflows/checks.yaml` — `env.flatland-rl-ref` (this may point at an unreleased branch rather than a
-  release tag when this repo is being developed in tandem with an in-flight flatland-rl PR — check the current
-  value rather than assuming it matches the other two files, which stay on the last released version since pip
-  can't depend directly on a git ref for a published package)
+- `pyproject.toml` — currently `flatland-rl==4.3.0` (pip package), with `flatland-rl @
+  git+https://github.com/flatland-association/flatland-rl.git@v4.3.0` present but commented out
+- `environment.yml` — currently `flatland-rl[ml]==4.3.0` (pip package), with the equivalent `git+https://...`
+  form commented out
+- `.github/workflows/checks.yaml` — `env.flatland-rl-ref`, currently `v4.3.0`
+
+`pyproject.toml`/`environment.yml` each carry two alternative forms and exactly one must be active (the other
+commented out) at any time — which one depends on whether the pin targets a released version or an unreleased
+branch:
+
+- **Released version** (a real `vX.Y.Z` tag, the common case): use the plain pip package form
+  (`flatland-rl==X.Y.Z` / `flatland-rl[ml]==X.Y.Z`), not `git+https://...`. A published PyPI package can't itself
+  declare a direct `git+https://...` dependency (see the `pyproject.toml` comment,
+  https://packaging.python.org/specifications/core-metadata), so the git form would block `flatland-baselines`
+  from being published to PyPI. Set `env.flatland-rl-ref` to the matching `vX.Y.Z` tag.
+- **Unreleased/in-flight branch** (developing this repo in tandem with an in-flight flatland-rl PR, no release
+  tag yet): switch to the `git+https://github.com/flatland-association/flatland-rl.git@<branch>` form in both
+  files instead, and point `env.flatland-rl-ref` at that same branch name.
+
+Because of this, `env.flatland-rl-ref` can legitimately point at a branch while the other two files stay on the
+last released version (pip can't install a git ref for a published package) — check its current value rather
+than assuming it matches the other two files. Use the `/update-deps-flatland-rl` skill to bump all three in sync
+and keep the release-vs-branch form consistent.
 
 Behavior can differ between this pin and whatever `flatland-rl` happens to be installed in an ambient environment
 (e.g. a dev/pre-release build) — see `CLAUDE.local.md` for how to verify against the exact pinned version. This
