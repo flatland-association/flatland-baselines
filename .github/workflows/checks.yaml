@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: v4.3.0
+  flatland-rl-ref: 178-agents-living-on-the-edge-3
   # Public ECML 2026 example scenario, same URL as flatland-rl's checks.yml.
   ecml2026-pkl: "https://github.com/flatland-association/ecml2026-starterkit/raw/refs/heads/main/reinforcement_learning/sampling/level_0_scenario_1.pkl"
 
