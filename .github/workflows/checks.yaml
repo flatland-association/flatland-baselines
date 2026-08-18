@@ -2,7 +2,7 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: v4.3.0
+  flatland-rl-ref: 178-agents-living-on-the-edge-3
 
 on:
   workflow_dispatch:
