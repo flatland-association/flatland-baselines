@@ -83,7 +83,7 @@ def test_two_agents_at_switch_non_facing():
 
     # run until both agents have entered and are sitting one cell ahead of the switch.
     def _position(agent):
-        return agent.current_configuration[0] if agent.current_configuration is not None else None
+        return agent.current_entry_point[0] if agent.current_entry_point is not None else None
 
     for _ in range(10):
         if _position(env.agents[0]) == NORTH_ARM and _position(env.agents[1]) == EAST_ARM:

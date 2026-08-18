@@ -159,8 +159,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         else:
             act = RailEnvActions.STOP_MOVING
 
-        if agent.current_configuration is not None:
-            self.agent_waypoints_done[handle].add(Waypoint(*agent.current_configuration))
+        if agent.current_entry_point is not None:
+            self.agent_waypoints_done[handle].add(Waypoint(*agent.current_entry_point))
 
         if check is not None:
             act = check[3]
@@ -199,17 +199,17 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 len(remaining_flexible_waypoints[0]) > 0:
             before = self._set_paths[handle]
 
-            if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(*agent.current_configuration):
+            if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(*agent.current_entry_point):
                 if self.verbose:
-                    print(f"need to re-compute for agent {handle} at {agent.current_configuration} at {self.rail_env._elapsed_steps}")
+                    print(f"need to re-compute for agent {handle} at {agent.current_entry_point} at {self.rail_env._elapsed_steps}")
                 if self.audit is not None:
                     self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"need to re-compute for agent {handle} at {agent.current_configuration} at {self.rail_env._elapsed_steps}"})
+                                       "v": f"need to re-compute for agent {handle} at {agent.current_entry_point} at {self.rail_env._elapsed_steps}"})
 
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
                     then_always_first_intermediates = [[first_intermediate]] + _always_first_waypoint_from_flexible_groups(remaining_flexible_waypoints[1:])
-                    prefixes = _get_k_shortest_paths(None, agent.current_configuration[0], agent.current_configuration[1], first_intermediate.position,
+                    prefixes = _get_k_shortest_paths(None, agent.current_entry_point[0], agent.current_entry_point[1], first_intermediate.position,
                                                      target_direction=first_intermediate.direction,
                                                      rail=self.rail_env.rail,
                                                      k=self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy,
@@ -288,8 +288,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
             if agent.state in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
-                if agent.current_configuration is not None:
-                    self.agent_positions[agent.current_configuration[0]] = handle
+                if agent.current_entry_point is not None:
+                    self.agent_positions[agent.current_entry_point[0]] = handle
 
     def _update_shortest_distance_maps_and_opp_agent_map(self):
         """
@@ -326,7 +326,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         """
         all_agent_positions = set()
         for agent in self.rail_env.agents:
-            all_agent_positions.add(agent.current_configuration[0] if agent.current_configuration is not None else None)
+            all_agent_positions.add(agent.current_entry_point[0] if agent.current_entry_point is not None else None)
         return all_agent_positions
 
     def _build_full_shortest_distance_agent_map(self, agent, handle):
@@ -342,8 +342,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         if self.rail_env._elapsed_steps == 1:
             self.init_shortest_distance_positions(agent, handle)
         # (2.2.2)
-        position = agent.current_configuration[0] if agent.current_configuration is not None else None
-        old_position = agent.old_configuration[0] if agent.old_configuration is not None else None
+        position = agent.current_entry_point[0] if agent.current_entry_point is not None else None
+        old_position = agent.old_entry_point[0] if agent.old_entry_point is not None else None
         if position is not None and position != old_position:
             assert position == self._set_paths[agent.handle][0].position
             if position not in {wp.position for wp in self._set_paths[agent.handle][1:]}:
@@ -354,7 +354,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # the initial position is never added to shortest_distance_positions_agent_map
             # N.B. We must remove each direction separately, as there can be "loopy" paths going through same cell twice but with different direction!
             if old_position is not None:
-                self.shortest_distance_positions_directions_agent_map[handle][position].remove(int(agent.current_configuration[1]))
+                self.shortest_distance_positions_directions_agent_map[handle][position].remove(int(agent.current_entry_point[1]))
 
     def init_shortest_distance_positions(self, agent, handle):
         """
@@ -406,7 +406,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             position, direction = wp.position, wp.direction
             opp_a = self.agent_positions[position]
             if opp_a != -1 and opp_a != handle:
-                if self.rail_env.agents[opp_a].current_configuration[1] != direction:
+                if self.rail_env.agents[opp_a].current_entry_point[1] != direction:
                     num_opp_agents += 1
                     break
             if num_opp_agents == 0:
@@ -426,13 +426,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 directions = self.shortest_distance_positions_directions_agent_map[handle][position]
                 assert len(directions) > 0, f"Inconsistency for agent {handle} at {self.rail_env._elapsed_steps}: no directions for position {position}"
                 for direction in directions:
-                    if self.rail_env.agents[opp_a].current_configuration[1] != direction:
+                    if self.rail_env.agents[opp_a].current_entry_point[1] != direction:
                         self.opp_agent_map[handle].add(opp_a)
 
-    def _get_action(self, configuration: Tuple[Tuple[int, int], int], next_configuration: Tuple[Tuple[int, int], int]):
+    def _get_action(self, entry_point: Tuple[Tuple[int, int], int], next_entry_point: Tuple[Tuple[int, int], int]):
         for action in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
-            new_cell_valid, new_configuration, transition_valid, preprocessed_action, _ = self.rail_env.rail._check_action_on_agent(action, configuration)
-            if new_configuration == next_configuration:
+            new_cell_valid, new_entry_point, transition_valid, preprocessed_action, _ = self.rail_env.rail._check_action_on_agent(action, entry_point)
+            if new_entry_point == next_entry_point:
                 return preprocessed_action
         raise
 
@@ -455,12 +455,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         self.switches,
                         self.count_num_opp_agents_towards_min_free_cell,
                 ):
-                    if agent.current_configuration is not None:
-                        position = agent.current_configuration[0]
-                        direction = agent.current_configuration[1]
+                    if agent.current_entry_point is not None:
+                        position = agent.current_entry_point[0]
+                        direction = agent.current_entry_point[1]
                     else:
-                        position = agent.initial_configuration[0]
-                        direction = agent.initial_configuration[1]
+                        position = agent.initial_entry_point[0]
+                        direction = agent.initial_entry_point[1]
                     # Guard against loopy lines and invalid initial positions:
                     if self._set_paths[agent.handle] is None or len(self._set_paths[agent.handle]) < 2:
                         warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
@@ -468,9 +468,30 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                             self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
                                                "v": f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}"})
                         continue
-                    next_position = self._set_paths[agent.handle][1].position
-                    next_direction = self._set_paths[agent.handle][1].direction
-                    action = self._get_action((position, direction), (next_position, next_direction))
+                    # design: actions applied at cell entry -- once agent.next_entry_point holds a
+                    # genuinely pending target (decided one cell ago), this step's action no longer
+                    # decides that transition (already settled) but the look-ahead beyond it, so it
+                    # must be computed from next_entry_point against the set-path waypoint after it,
+                    # not from current_entry_point against the immediate next waypoint.
+                    has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
+                    if has_pending_target:
+                        lookahead_position, lookahead_direction = agent.next_entry_point
+                        target_index = 2
+                    else:
+                        lookahead_position, lookahead_direction = position, direction
+                        target_index = 1
+                    if target_index >= len(self._set_paths[agent.handle]):
+                        # design: actions applied at cell entry -- has_pending_target with nothing
+                        # left to look ahead into (the pending target IS the final set-path
+                        # waypoint): permission to continue toward it must still be granted here
+                        # (that's a separate concern from computing a look-ahead); any action is
+                        # safe since the pending target's own validity doesn't depend on it.
+                        next_position, next_direction = agent.next_entry_point if has_pending_target else (position, direction)
+                        action = RailEnvActions.MOVE_FORWARD
+                    else:
+                        next_position = self._set_paths[agent.handle][target_index].position
+                        next_direction = self._set_paths[agent.handle][target_index].direction
+                        action = self._get_action((lookahead_position, lookahead_direction), (next_position, next_direction))
 
                     self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
         if self.use_entering_prevention:

@@ -46,18 +46,32 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         self.verbose = verbose
 
     def _act(self, env: RailEnv, agent: EnvAgent):
-        if agent.current_configuration is None:
+        if agent.current_entry_point is None:
             return RailEnvActions.MOVE_FORWARD
 
         if len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
+        # design: actions applied at cell entry -- once agent.next_entry_point holds a genuinely
+        # pending target (decided one cell ago), this step's action no longer decides that
+        # transition (already settled) but the look-ahead beyond it, so it must be evaluated from
+        # next_entry_point against the set-path waypoint after it, not from current_entry_point
+        # against the immediate next waypoint.
+        has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
+        lookahead_from = agent.next_entry_point if has_pending_target else agent.current_entry_point
+        target_index = 2 if has_pending_target else 1
+        if target_index >= len(self._set_paths[agent.handle]):
+            # nothing left to look ahead into; the pending target is already the final waypoint,
+            # so permission to continue toward it doesn't depend on this step's action.
+            return RailEnvActions.MOVE_FORWARD
+
         for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
             new_cell_valid, (new_position, new_direction), transition_valid, preprocessed_action = env.rail.check_action_on_agent(
-                RailEnvActions.from_value(a), agent.current_configuration
+                RailEnvActions.from_value(a), lookahead_from
             )
             if new_cell_valid and transition_valid and (
-                    new_position == self._set_paths[agent.handle][1].position and new_direction == self._set_paths[agent.handle][1].direction):
+                    new_position == self._set_paths[agent.handle][target_index].position
+                    and new_direction == self._set_paths[agent.handle][target_index].direction):
                 return a
         raise Exception("Invalid state")
 
@@ -99,11 +113,11 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if self._set_paths[agent.handle] is None:
             # loopy path
             return
-        if agent.current_configuration is None:
+        if agent.current_entry_point is None:
             # not on map
             return
 
-        position = agent.current_configuration[0]
+        position = agent.current_entry_point[0]
         while len(self._set_paths[agent.handle]) > 0 and self._set_paths[agent.handle][0].position != position:
             self._set_paths[agent.handle] = self._set_paths[agent.handle][1:]
         assert self._set_paths[agent.handle][0].position == position
