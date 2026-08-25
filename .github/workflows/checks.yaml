@@ -3,6 +3,7 @@ name: Checks
 env:
   # DEPENDENCY SWITCH:
   flatland-rl-ref: 178-agents-living-on-the-edge-3
+  flatland-benchmarks-episodes-url: "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/178-agents-living-on-the-edge-3/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v6.zip"
   # Public ECML 2026 example scenario, same URL as flatland-rl's checks.yml.
   ecml2026-pkl: "https://github.com/flatland-association/ecml2026-starterkit/raw/refs/heads/main/reinforcement_learning/sampling/level_0_scenario_1.pkl"
 
@@ -49,7 +50,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Download episodes
         run: |
-          wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
+          wget "${{ env.flatland-benchmarks-episodes-url }}" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
           mkdir -p episodes
           unzip FLATLAND_BENCHMARK_EPISODES_FOLDER -d episodes
         working-directory: ${{ github.workspace }}
@@ -103,7 +104,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Download episodes
         run: |
-          wget "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/main/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
+          wget "${{ env.flatland-benchmarks-episodes-url }}" -O FLATLAND_BENCHMARK_EPISODES_FOLDER.zip
           mkdir -p episodes
           unzip FLATLAND_BENCHMARK_EPISODES_FOLDER -d episodes
         working-directory: ${{ github.workspace }}
