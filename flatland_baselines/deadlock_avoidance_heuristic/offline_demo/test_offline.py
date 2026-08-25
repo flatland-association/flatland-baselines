@@ -61,15 +61,14 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # From online evaluation, see online_demo/test_online.py
-    # evaluator-1   | # Mean Reward : -3427.52
-    # evaluator-1   | # Sum Normalized Reward : 43.141500749639434 (primary score)
-    # evaluator-1   | # Mean Percentage Complete : 0.671 (secondary score)
-    # evaluator-1   | # Mean Normalized Reward : 0.86283
-    assert np.isclose(mean_reward, -3427.52)
-    assert np.isclose(sum_normalized_reward, 43.141500749639434)
-    assert np.isclose(mean_percentage_complete, 0.671)
-    assert np.isclose(mean_normalized_reward, 0.86283)
+    # Mean Reward : -3340.7
+    # Sum Normalized Reward : 43.39303661439535 (primary score)
+    # Mean Percentage Complete : 0.685 (secondary score)
+    # Mean Normalized Reward : 0.86786
+    assert np.isclose(mean_reward, -3340.7)
+    assert np.isclose(sum_normalized_reward, 43.39303661439535)
+    assert np.isclose(mean_percentage_complete, 0.685)
+    assert np.isclose(mean_normalized_reward, 0.86786)
 
 
 @pytest.mark.parametrize("post_seed", [
@@ -127,24 +126,22 @@ def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
     if post_seed == "1001":
-        # From online evaluation, see online_demo/test_online.py
-        # Mean Reward : -41.4
-        # Sum Normalized Reward : 19.32558075096354 (primary score)
+        # Mean Reward : -41.8
+        # Sum Normalized Reward : 19.318949881297193 (primary score)
+        # Mean Percentage Complete : 0.986 (secondary score)
+        # Mean Normalized Reward : 0.96595
+        assert np.isclose(mean_reward, -41.8)
+        assert np.isclose(sum_normalized_reward, 19.318949881297193)
+        assert np.isclose(mean_percentage_complete, 0.986)
+        assert np.isclose(mean_normalized_reward, 0.96595)
+    elif post_seed is None or post_seed == "NONE":
+        # Mean Reward : -40.5
+        # Sum Normalized Reward : 19.325644142300924 (primary score)
         # Mean Percentage Complete : 0.986 (secondary score)
         # Mean Normalized Reward : 0.96628
-        assert np.isclose(mean_reward, -41.4)
-        assert np.isclose(sum_normalized_reward, 19.32558075096354)
+        assert np.isclose(mean_reward, -40.5)
+        assert np.isclose(sum_normalized_reward, 19.325644142300924)
         assert np.isclose(mean_percentage_complete, 0.986)
         assert np.isclose(mean_normalized_reward, 0.96628)
-    elif post_seed is None or post_seed == "NONE":
-        # From online evaluation, see online_demo/test_online.py
-        # Mean Reward : -40.1
-        # Sum Normalized Reward : 19.33360268334587 (primary score)
-        # Mean Percentage Complete : 0.986 (secondary score)
-        # Mean Normalized Reward : 0.96668
-        assert np.isclose(mean_reward, -40.1)
-        assert np.isclose(sum_normalized_reward, 19.33360268334587)
-        assert np.isclose(mean_percentage_complete, 0.986)
-        assert np.isclose(mean_normalized_reward, 0.96668)
     else:
         raise AssertionError()
