@@ -46,8 +46,8 @@ PYTHONPATH=$PWD flatland-trajectory-generate-from-policy \
 Some tests need extra setup:
 
 - `test_episodes_deadlock_avoidance.py` replays recorded episodes and requires `BENCHMARK_EPISODES_FOLDER` to point
-  at an extracted copy of `FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip` (see `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`,
-  which ships as part of flatland-rl, not this repo).
+  at an extracted copy of `FLATLAND_BENCHMARK_EPISODES_FOLDER_v6.zip` (see `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`,
+  which ships as part of flatland-rl, not this repo, and `checks.yaml`'s `env.flatland-benchmarks-episodes-url`).
 - `test_policy_grid_runner_evaluator.py` needs no extra setup — it drives `generate_trajectories_from_metadata`/
   `evaluate_trajectories_from_metadata` against `env_data/tests/service_test` fixtures that ship inside flatland-rl
   itself (packaged and pip-installed alongside `flatland`, not this repo).

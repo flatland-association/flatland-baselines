@@ -110,7 +110,7 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
         observations, _, dones, _ = env.step(action_dict)
         for handle, expected_switch in ((0, SWITCH_A), (1, SWITCH_B)):
             agent = env.agents[handle]
-            position = agent.current_configuration[0] if agent.current_configuration is not None else None
+            position = agent.current_entry_point[0] if agent.current_entry_point is not None else None
             if position == expected_switch:
                 reached_switch[handle] = True
             if position in TRUNK:
@@ -119,7 +119,7 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
     assert reached_switch[0] and reached_switch[1], "expected both agents to reach their own switch"
     assert not entered_trunk[0] and not entered_trunk[1], "expected neither agent to ever enter the trunk"
 
-    positions = [agent.current_configuration[0] if agent.current_configuration is not None else None for agent in env.agents]
+    positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
     assert positions == [SWITCH_A, SWITCH_B], "expected both agents to be stuck at their own switch cell"
     assert states == [TrainState.STOPPED, TrainState.STOPPED], "expected both agents to be permanently stopped"
@@ -221,7 +221,7 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
     assert all(action == RailEnvActions.STOP_MOVING for action in action_dict.values()), \
         "expected DeadLockAvoidancePolicy to stop all four agents directly, not just the two facing each other"
 
-    positions = [agent.current_configuration[0] if agent.current_configuration is not None else None for agent in env.agents]
+    positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
     assert positions == [Q_SWITCH_A, Q_SWITCH_B, Q_FIRST, Q_SECOND], \
         "expected agents 2 and 3 to be stopped one cell short of where they started, never having caught up to the queue"
@@ -335,7 +335,7 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     assert action_dict[3] == RailEnvActions.MOVE_FORWARD, \
         "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
 
-    positions = [agent.current_configuration[0] if agent.current_configuration is not None else None for agent in env.agents]
+    positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
     assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], \
         "expected agents 2 and 3 to be physically queued one cell behind where they started"
