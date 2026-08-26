@@ -70,6 +70,28 @@ jobs:
           export PYTHONPATH=$PWD
           export FLATLAND_RL_PIP_URL="git+https://github.com/flatland-association/flatland-rl.git@${{ env.flatland-rl-ref }}"
           pytest -s flatland_baselines/deadlock_avoidance_heuristic/tests
+      - name: Run solution with debug environments
+        run: docker compose up --force-recreate --build
+        working-directory: demo
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.12" ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install pip dependencies
+        run: |
+          pip install -U pytest flatland-rl[ml]
+      - name: Run pytest
+        run: pytest -s --ignore=flatland-rl
+
+
 
   test-online-offline-evaluation-demo:
     runs-on: ubuntu-24.04
