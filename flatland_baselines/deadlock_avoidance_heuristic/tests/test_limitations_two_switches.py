@@ -62,12 +62,19 @@ def _make_two_switches_rail() -> RailGridTransitionMap:
 def _facing_agents_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     # agent 0 enters via switch A from the north and targets beyond switch B (east);
     # agent 1 enters via switch B from the north and targets beyond switch A (west).
+    # speed 0.5, not 1.0: since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary
+    # crossing", 178-agents-living-on-the-edge-9), a full-speed agent's entire one-cell-per-step motion
+    # is always "in flight" the instant it starts, so STOP_MOVING can never catch it before completing
+    # that cell -- it would advance one cell further than intended every time it's stopped. At half
+    # speed, a stopped agent is caught mid-cell (pre_offset + pre_speed < SEGMENT_LENGTH) instead, so it
+    # freezes exactly where expected, same as pre-#178. See test_two_agents_enter_facing_switches_and_deadlock_there's
+    # docstring for the full reasoning and why widening the rail (rather than slowing the agents) doesn't work.
     return Line(
         agent_waypoints={
             0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, EAST_OF_B)],
             1: [[Waypoint(N_OF_B, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, WEST_OF_A)],
         },
-        agent_speeds=[1.0, 1.0],
+        agent_speeds=[0.5, 0.5],
     )
 
 
@@ -98,6 +105,19 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
     of one another over the entire trunk, no number of free cells or trunk length changes this: the
     two agents permanently deadlock at their own switch cells, each blocked by the other being on its
     path, without ever entering the trunk between them.
+
+    Both agents run at half speed (see `_facing_agents_line_generator`) rather than full speed: since
+    flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing",
+    178-agents-living-on-the-edge-9), a full-speed agent's one-cell-per-step motion is always already
+    "in flight" (pre_offset + pre_speed >= SEGMENT_LENGTH) the instant it starts, so it would complete
+    one extra cell -- onto the trunk -- every time DeadLockAvoidancePolicy stops it, no matter how the
+    rail is laid out (verified empirically: widening the geometry with extra free cells, or raising
+    DeadLockAvoidancePolicy's min_free_cell, doesn't help either, since `_check_agent_can_move` only
+    applies min_free_cell once an opposing agent is already registered on the shared path -- it isn't a
+    static distance threshold, and both agents here become mutually visible on the same step regardless
+    of upstream buffer length). At half speed, a stopped agent is instead caught mid-cell
+    (pre_offset + pre_speed < SEGMENT_LENGTH), so it freezes exactly at its switch cell, matching the
+    pre-#178 behavior this test documents.
     """
     env = _build_env()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
@@ -171,6 +191,15 @@ def _facing_agents_with_queue_line_generator(rail, _num_agents, _hints, _num_res
     # agent 0 enters via switch A from the north and targets beyond switch B (east), same as before.
     # agents 1, 2 and 3 queue up north of switch B, all sharing agent 1's route: via switch B, the
     # trunk and switch A, to beyond switch A (west).
+    # agents 0 and 1 (the ones that actually face each other across the trunk) run at half speed, not
+    # full speed -- see _facing_agents_line_generator and
+    # test_two_agents_enter_facing_switches_and_deadlock_there's docstring for why. Agents 2 and 3 stay
+    # at full speed: they're brought to a halt by physically queueing behind the agent ahead of them (a
+    # denied crossing at a cell already occupied, banking distance at the boundary) -- a mechanism
+    # independent of, and unaffected by, flatland-rl#178's STOP_MOVING-completes-an-in-flight-crossing
+    # fix -- so their final position doesn't depend on their speed the way agents 0/1's does, even
+    # though DeadLockAvoidancePolicy also independently issues them STOP_MOVING once it detects agent 0
+    # as oncoming on their own path too (see the docstring below).
     return Line(
         agent_waypoints={
             0: [[Waypoint(Q_N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, Q_EAST_OF_B)],
@@ -178,7 +207,7 @@ def _facing_agents_with_queue_line_generator(rail, _num_agents, _hints, _num_res
             2: [[Waypoint(Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, Q_WEST_OF_A)],
             3: [[Waypoint(Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, Q_WEST_OF_A)],
         },
-        agent_speeds=[1.0, 1.0, 1.0, 1.0],
+        agent_speeds=[0.5, 0.5, 1.0, 1.0],
     )
 
 
@@ -224,7 +253,7 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
     assert positions == [Q_SWITCH_A, Q_SWITCH_B, Q_FIRST, Q_SECOND], \
-        "expected agents 2 and 3 to be stopped one cell short of where they started, never having caught up to the queue"
+        "expected agents 0 and 1 to be stuck at their own switch cell, and agents 2/3 one cell behind the agent ahead of them"
     assert states == [TrainState.STOPPED] * 4, "expected all four agents to be permanently stopped"
     assert not dones["__all__"], "expected the agents to deadlock and never all arrive"
 
@@ -248,6 +277,19 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
 # therefore shares the entire AA<->A<->trunk<->B segment with agent 0, in the opposite direction.
 # Agents 2 and 3 start further back in the same queue and target AA_WEST_OF_A: their path also goes
 # via B and the trunk, but branches west already at switch A, so it never reaches AA at all.
+#
+# NOTE: flatland-rl#178's "let STOP_MOVING complete an in-flight cell-boundary crossing"
+# (178-agents-living-on-the-edge-9) initially appeared to break this scenario's distinction (agent 0's
+# already-in-flight crossing would land it one cell further, on switch A itself, which agents 2/3's
+# own path also passes through). Widening the rail with a one-cell buffer between AA and switch A, and
+# separately bumping DeadLockAvoidancePolicy's min_free_cell from 1 to 2, were both tried to compensate
+# and did NOT work: DeadLockAvoidancePolicy._check_agent_can_move only applies min_free_cell once an
+# opposing agent is already registered on the shared path (`len_opp_agents == 0: return True`), so it
+# is not a static distance-based threshold, and no amount of upstream buffer changes when agent 0 and
+# agent 1 become mutually visible. What actually resolves it: agents 0 and 1 run at half speed (see
+# _agents_with_aa_line_generator), so their crossing is never "in flight" (pre_offset + pre_speed <
+# SEGMENT_LENGTH) when STOP_MOVING is issued -- see
+# test_two_agents_enter_facing_switches_and_deadlock_there's docstring for the general mechanism.
 AA_N_OF_AA = (2, 1)
 AA_AA = (3, 1)
 AA_WEST_OF_AA = (3, 0)
@@ -280,6 +322,8 @@ def _make_two_switches_with_aa_rail() -> RailGridTransitionMap:
 
 
 def _agents_with_aa_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+    # agents 0 and 1 (the ones that actually share the AA<->A<->trunk<->B segment) run at half speed,
+    # not full speed -- see the NOTE above and _facing_agents_line_generator for why.
     return Line(
         agent_waypoints={
             0: [[Waypoint(AA_N_OF_AA, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, AA_EAST_OF_B)],
@@ -287,7 +331,7 @@ def _agents_with_aa_line_generator(rail, _num_agents, _hints, _num_resets, _np_r
             2: [[Waypoint(AA_Q_SECOND, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, AA_WEST_OF_A)],
             3: [[Waypoint(AA_Q_THIRD, int(Grid4TransitionsEnum.SOUTH))], target_waypoints(rail, AA_WEST_OF_A)],
         },
-        agent_speeds=[1.0, 1.0, 1.0, 1.0],
+        agent_speeds=[0.5, 0.5, 1.0, 1.0],
     )
 
 
@@ -316,12 +360,12 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     opposite direction. Agents 2 and 3, in contrast, still target `AA_WEST_OF_A` (short of AA): their
     own path only reaches switch A and never includes the segment north of it.
 
-    Expected: once agent 0 reaches switch AA, it becomes visible (an oncoming train on its own path)
-    to agent 1 -- which is the only agent whose path extends that far -- and DeadLockAvoidancePolicy
-    stops agent 0 and agent 1 directly. Agents 2 and 3 never see agent 0 on their path (it is beyond
-    where their own route ever goes) and keep receiving MOVE_FORWARD from DeadLockAvoidancePolicy
-    indefinitely; it is only the environment's own motion check that keeps them from advancing, since
-    each is blocked by the (stationary) agent immediately ahead of it in the queue.
+    Once agent 0 reaches switch AA, it becomes visible (an oncoming train on its own path) to agent 1
+    -- which is the only agent whose path extends that far -- and DeadLockAvoidancePolicy stops agent 0
+    and agent 1 directly. Agents 2 and 3 never see agent 0 on their path (it is beyond where their own
+    route ever goes) and keep receiving MOVE_FORWARD from DeadLockAvoidancePolicy indefinitely; it is
+    only the environment's own motion check that keeps them from advancing, since each is blocked by
+    the (stationary) agent immediately ahead of it in the queue.
     """
     env = _build_env_with_aa()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
@@ -330,15 +374,11 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
 
     assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
     assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
-    assert action_dict[2] == RailEnvActions.MOVE_FORWARD, \
-        "expected agent 2 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
-    assert action_dict[3] == RailEnvActions.MOVE_FORWARD, \
-        "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+    assert action_dict[2] == RailEnvActions.MOVE_FORWARD, "expected agent 2 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+    assert action_dict[3] == RailEnvActions.MOVE_FORWARD, "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
 
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
-    assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], \
-        "expected agents 2 and 3 to be physically queued one cell behind where they started"
-    assert states == [TrainState.STOPPED] * 4, \
-        "expected agents 2 and 3 to be stopped by the environment's motion check despite DLA issuing MOVE_FORWARD"
+    assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], "expected agents 2 and 3 to be physically queued one cell behind where they started"
+    assert states == [TrainState.STOPPED] * 4, "expected agents 2 and 3 to be stopped by the environment's motion check despite DLA issuing MOVE_FORWARD"
     assert not dones["__all__"], "expected the agents to deadlock and never all arrive"
