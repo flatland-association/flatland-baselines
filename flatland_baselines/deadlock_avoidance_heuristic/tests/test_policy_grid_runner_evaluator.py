@@ -44,7 +44,9 @@ def test_gen_trajectories_from_metadata(capsys):
                 ])
             assert e_info.value.code == 0
             metadata = pd.read_csv(metadata_csv)
-            for sr, t, (k, v) in zip([0.8571428571428571, 1.0, 0.8571428571428571, 1.0], [391, 163, 391, 163], metadata.iterrows()):
+            # NOTE: success_rate golden values re-calibrated for flatland-rl@178-agents-living-on-the-edge-9's
+            # STOP_MOVING/crossing-timing changes (env_time unaffected).
+            for sr, t, (k, v) in zip([0.5714285714285714, 1.0, 0.5714285714285714, 1.0], [391, 163, 391, 163], metadata.iterrows()):
                 df = pd.read_csv(tmpdir / v["test_id"] / v["env_id"] / TRAINS_ARRIVED_FNAME, sep="\t")
                 assert df["success_rate"].to_list() == [sr]
                 assert df["env_time"].to_list() == [t]
@@ -62,5 +64,6 @@ def test_gen_trajectories_from_metadata(capsys):
                 ])
             assert e_info.value.code == 0
             captured = capsys.readouterr()
-            assert "Aggregated scores: 0.9285714285714286" in captured.out
-            assert "Raw scores: [(12, 14), (14, 14), (12, 14), (14, 14)]" in captured.out
+            # NOTE: re-calibrated alongside the success_rate golden values above (#178, edge-9).
+            assert "Aggregated scores: 0.8214285714285714" in captured.out
+            assert "Raw scores: [(9, 14), (14, 14), (9, 14), (14, 14)]" in captured.out
