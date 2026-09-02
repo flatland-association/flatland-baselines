@@ -146,6 +146,70 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
     assert not dones["__all__"], "expected the agents to deadlock and never both arrive"
 
 
+def _facing_agents_full_speed_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+    # same waypoints as _facing_agents_line_generator, but at full speed -- see
+    # test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression for why.
+    return Line(
+        agent_waypoints={
+            0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, EAST_OF_B)],
+            1: [[Waypoint(N_OF_B, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, WEST_OF_A)],
+        },
+        agent_speeds=[1.0, 1.0],
+    )
+
+
+def _build_full_speed_env() -> RailEnv:
+    rail = _make_two_switches_rail()
+    env = RailEnv(
+        width=rail.width,
+        height=rail.height,
+        rail_generator=rail_from_grid_transition_map(rail),
+        line_generator=_facing_agents_full_speed_line_generator,
+        timetable_generator=ttgen_flatland2,
+        number_of_agents=2,
+        obs_builder_object=FullEnvObservation(),
+    )
+    env.reset()
+    return env
+
+
+def test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression():
+    """
+    Regression test for flatland-rl#178's "let STOP_MOVING complete an in-flight cell-boundary
+    crossing" change (178-agents-living-on-the-edge-9). Same topology as
+    test_two_agents_enter_facing_switches_and_deadlock_there, but both agents run at full speed
+    (1.0) instead of half speed, so an agent is always already "in flight"
+    (pre_offset + pre_speed >= SEGMENT_LENGTH) the instant it reaches a cell boundary -- there is no
+    earlier step at which DeadLockAvoidancePolicy could brake before reaching it.
+
+    Since flatland-rl#178, a MOVING agent at a cell-exit boundary completes its crossing regardless
+    of which action is sent -- STOP_MOVING no longer prevents entry into the next cell, it only fails
+    to steer onto the correct branch at a switch (rail_grid_transition_map.py's `_check_action_new`
+    silently resolves STOP_MOVING to "continue straight" there, unlike a real MOVE_LEFT/MOVE_RIGHT).
+    DeadLockAvoidancePolicy now computes and sends its own intended directional action instead of
+    blind STOP_MOVING whenever this is the case (see `_extract_agent_can_move`'s `forced_action`), so
+    each agent is steered correctly onto the trunk rather than derailed onto an unplanned branch --
+    but, since full speed still forces them one cell further per step before DLA's opposition check
+    can react, they end up meeting one cell short of collision inside the trunk (not frozen at their
+    own switch cell, as they would at half speed) rather than at their own switch cell.
+    """
+    env = _build_full_speed_env()
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
+    observations = env._get_observations()
+
+    for _ in range(20):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, dones, _ = env.step(action_dict)
+
+    positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
+    states = [agent.state for agent in env.agents]
+    assert states == [TrainState.STOPPED, TrainState.STOPPED], "expected both agents to be permanently stopped"
+    assert positions == [TRUNK[1], TRUNK[2]], \
+        "expected both agents correctly routed onto the trunk (not derailed onto the wrong switch " \
+        "branch) and deadlocked one cell short of colliding head-on"
+    assert not dones["__all__"], "expected the agents to deadlock and never both arrive"
+
+
 # Same infrastructure as above, but with two more agents queuing up north of switch B, behind the
 # first one, all sharing the same route/target as the first (beyond switch A, to the west):
 #

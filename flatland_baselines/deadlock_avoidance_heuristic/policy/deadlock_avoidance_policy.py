@@ -169,6 +169,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] += 1
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
                 self._find_alternative(agent)
+            # flatland-rl#178: a MOVING agent at a cell-exit boundary completes its crossing no
+            # matter what action is sent - STOP_MOVING here was never actually preventing entry into
+            # the next cell, only failing to steer it onto the correct branch. Prefer the action
+            # `_extract_agent_can_move` already worked out for this case over blind STOP_MOVING.
+            forced = self.forced_action.get(handle)
+            if forced is not None:
+                act = forced
 
         # TODO port to client.py:  File "msgpack/_packer.pyx", line 257, in msgpack._cmsgpack.Packer._pack_inner
         # submission-1      | TypeError: can not serialize 'RailEnvActions' object
@@ -434,19 +441,21 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             new_cell_valid, new_entry_point, transition_valid, preprocessed_action, _ = self.rail_env.rail._check_action_on_agent(action, entry_point)
             if new_entry_point == next_entry_point:
                 return preprocessed_action
-        raise
+        raise RuntimeError(f"no action from {entry_point} to {next_entry_point}")
 
     def _extract_agent_can_move(self):
         """
         start_step (3): update whether agent can move. More precisely, updates:
         - `self.agent_can_move`
+        - `self.forced_action`
         """
         self.agent_can_move = {}
+        self.forced_action = {}
 
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
             if TrainState.DONE > agent.state >= TrainState.WAITING:
-                if self._check_agent_can_move(
+                can_move = self._check_agent_can_move(
                         self.shortest_distance_agent_map[handle],
                         self.shortest_distance_agent_len[handle],
                         self.opp_agent_map.get(handle, set()),
@@ -454,7 +463,15 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         agent.handle,
                         self.switches,
                         self.count_num_opp_agents_towards_min_free_cell,
-                ):
+                )
+                # flatland-rl#178: once MOVING and at a cell-exit boundary, the crossing completes
+                # regardless of the action sent - STOP_MOVING no longer prevents it, and (unlike a
+                # real directional action) lets the engine silently pick the wrong branch at a
+                # switch. Compute DLA's own intended action toward its planned path even when
+                # blocked, so `_act` can send that instead of a STOP_MOVING that was never actually
+                # preventing entry here anyway.
+                crossing_unavoidable = agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit()
+                if can_move or crossing_unavoidable:
                     if agent.current_entry_point is not None:
                         position = agent.current_entry_point[0]
                         direction = agent.current_entry_point[1]
@@ -493,7 +510,10 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         next_direction = self._set_paths[agent.handle][target_index].direction
                         action = self._get_action((lookahead_position, lookahead_direction), (next_position, next_direction))
 
-                    self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
+                    if can_move:
+                        self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
+                    else:
+                        self.forced_action[handle] = action
         if self.use_entering_prevention:
             entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
                                agent.state == TrainState.READY_TO_DEPART and self.agent_can_move.get(handle, None)]
