@@ -434,7 +434,11 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     env = _build_env_with_aa()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
 
-    action_dict, dones = _run_n_steps(env, policy, num_steps=20)
+    # Agents 2 and 3 are only held back by the environment's own motion check (queueing behind a
+    # stopped agent ahead of them, never receiving STOP_MOVING from DLA itself), which oscillates their
+    # state MOVING/STOPPED every single step even once their position has settled -- so the exact
+    # iteration count matters: it must land on a STOPPED phase, not a MOVING one.
+    action_dict, dones = _run_n_steps(env, policy, num_steps=21)
 
     assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
     assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
