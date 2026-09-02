@@ -135,6 +135,63 @@ def test_with_entering_prevention_only_one_agent_enters_until_the_other_has_left
 
 
 @pytest.mark.xfail(strict=True, reason="""
+    Known limitation: use_entering_prevention's pairwise "about to enter now" check only considers agents
+    currently in TrainState.READY_TO_DEPART (the `entering_agents` filter in
+    `_extract_agent_can_move`). An agent recovering from an off-map malfunction can transition directly
+    from MALFUNCTION_OFF_MAP to MOVING in a single step, bypassing READY_TO_DEPART entirely, so it is
+    never a candidate in `entering_agents` -- even on the exact step it enters the map. See the docstring
+    below for the exact mechanism.
+""")
+def test_with_entering_prevention_malfunction_off_map_still_lets_both_enter():
+    """
+    Same single-track A<->B scenario as
+    `test_with_entering_prevention_only_one_agent_enters_until_the_other_has_left` (agent 0 travels A->B,
+    agent 1 travels B->A, both with earliest_departure=0), except agent 1 additionally starts with a
+    forced 2-step malfunction while off map, instead of simply being READY_TO_DEPART from t=0 like agent 0.
+
+    `malfunction_down_counter` is decremented *before* being read as this step's `in_malfunction` signal
+    (rail_env.py's "(0a) UPDATE MALFUNCTION COUNTER", ahead of "(1) STATE TRANSITION SIGNALS"), so setting
+    it to 2 right after reset plays out as:
+
+    - step 1: down_counter 2->1, in_malfunction=True. Agent 1's pre-step state is WAITING (the state
+      machine's default at reset) -> `_handle_waiting` sees in_malfunction and transitions to
+      MALFUNCTION_OFF_MAP. Meanwhile agent 0 (never malfunctioning, earliest_departure=0) has
+      earliest_departure_reached and transitions WAITING -> READY_TO_DEPART.
+    - step 2: down_counter 1->0, in_malfunction=False. Agent 1's pre-step state is MALFUNCTION_OFF_MAP;
+      `_handle_malfunction_off_map` sees not in_malfunction, earliest_departure_reached, and a
+      movement_action_given/allowed, so it transitions *directly* to MOVING -- skipping READY_TO_DEPART.
+      Agent 0's pre-step state is READY_TO_DEPART; `_handle_ready_to_depart` transitions it to MOVING too,
+      the same step.
+
+    So both agents enter on step 2. When DLA computes actions for that step (i.e. against the
+    post-step-1 observation: agent 0 READY_TO_DEPART, agent 1 MALFUNCTION_OFF_MAP), `entering_agents`
+    only contains agent 0 -- agent 1 is filtered out purely because its state isn't literally
+    READY_TO_DEPART, even though `self.agent_can_move` was already populated for it. With only one
+    candidate in `entering_agents`, the pairwise conflict loop (`for a1 in entering_agents: for a2 in
+    entering_agents: ...`) has nothing to compare agent 0 against, so neither agent is held back, and both
+    physically enter the shared track simultaneously -- the exact head-on deadlock
+    `use_entering_prevention` exists to prevent.
+    """
+    env = _build_env(TRACK_LENGTH, A, B, Grid4TransitionsEnum.EAST, Grid4TransitionsEnum.WEST)
+    env.agents[1].malfunction_handler.malfunction_down_counter = 2
+
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=True, min_free_cell=1)
+
+    entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
+
+    assert entered_at[0] is not None and entered_at[1] is not None, "expected both agents to eventually enter"
+    # This is the assertion that actually fails today: both agents enter on the same step (step 2, see
+    # docstring above) instead of one being held back.
+    assert entered_at[0] != entered_at[1], "expected only one agent to enter at the first opportunity"
+
+    first, second = (0, 1) if entered_at[0] < entered_at[1] else (1, 0)
+    assert left_at[first] is not None, "expected the first agent to leave the scene (arrive)"
+    assert entered_at[second] >= left_at[first], "expected the second agent to enter only once the first has left the scene"
+
+    assert all_done, "expected both agents to arrive"
+
+
+@pytest.mark.xfail(strict=True, reason="""
     Known limitation: use_entering_prevention only serializes entry correctly when A and B are dead-ends.
     In this case, the held-back agent still enters one
     tick after the other and the two permanently deadlock. See the docstring below for the exact
