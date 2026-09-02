@@ -515,8 +515,14 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     else:
                         self.forced_action[handle] = action
         if self.use_entering_prevention:
+            # Both READY_TO_DEPART and MALFUNCTION_OFF_MAP can transition straight to MOVING in a single
+            # step (TrainStateMachine._handle_ready_to_depart / _handle_malfunction_off_map) - an agent
+            # recovering from an off-map malfunction never passes through READY_TO_DEPART on its way onto
+            # the map, so it must be considered here too, or its simultaneous entry with another agent
+            # goes undetected (WAITING never transitions directly to MOVING, so it's correctly excluded).
             entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
-                               agent.state == TrainState.READY_TO_DEPART and self.agent_can_move.get(handle, None)]
+                               agent.state in (TrainState.READY_TO_DEPART, TrainState.MALFUNCTION_OFF_MAP)
+                               and self.agent_can_move.get(handle, None)]
             if len(entering_agents) > 0:
                 if self.verbose:
                     print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
