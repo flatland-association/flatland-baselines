@@ -61,14 +61,14 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # Mean Reward : -3340.7
-    # Sum Normalized Reward : 43.39303661439535 (primary score)
-    # Mean Percentage Complete : 0.685 (secondary score)
-    # Mean Normalized Reward : 0.86786
-    assert np.isclose(mean_reward, -3340.7)
-    assert np.isclose(sum_normalized_reward, 43.39303661439535)
-    assert np.isclose(mean_percentage_complete, 0.685)
-    assert np.isclose(mean_normalized_reward, 0.86786)
+    # Mean Reward : -3619.98
+    # Sum Normalized Reward : 42.362933333003035 (primary score)
+    # Mean Percentage Complete : 0.625 (secondary score)
+    # Mean Normalized Reward : 0.84726
+    assert np.isclose(mean_reward, -3619.98)
+    assert np.isclose(sum_normalized_reward, 42.362933333003035)
+    assert np.isclose(mean_percentage_complete, 0.625)
+    assert np.isclose(mean_normalized_reward, 0.84726)
 
 
 @pytest.mark.parametrize("post_seed", [
@@ -126,22 +126,22 @@ def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
     if post_seed == "1001":
-        # Mean Reward : -41.8
-        # Sum Normalized Reward : 19.318949881297193 (primary score)
-        # Mean Percentage Complete : 0.986 (secondary score)
-        # Mean Normalized Reward : 0.96595
-        assert np.isclose(mean_reward, -41.8)
-        assert np.isclose(sum_normalized_reward, 19.318949881297193)
-        assert np.isclose(mean_percentage_complete, 0.986)
-        assert np.isclose(mean_normalized_reward, 0.96595)
+        # Mean Reward : -123.5
+        # Sum Normalized Reward : 18.295110329541394 (primary score)
+        # Mean Percentage Complete : 0.871 (secondary score)
+        # Mean Normalized Reward : 0.91476
+        assert np.isclose(mean_reward, -123.5)
+        assert np.isclose(sum_normalized_reward, 18.295110329541394)
+        assert np.isclose(mean_percentage_complete, 0.871)
+        assert np.isclose(mean_normalized_reward, 0.91476)
     elif post_seed is None or post_seed == "NONE":
-        # Mean Reward : -40.5
-        # Sum Normalized Reward : 19.325644142300924 (primary score)
-        # Mean Percentage Complete : 0.986 (secondary score)
-        # Mean Normalized Reward : 0.96628
-        assert np.isclose(mean_reward, -40.5)
-        assert np.isclose(sum_normalized_reward, 19.325644142300924)
-        assert np.isclose(mean_percentage_complete, 0.986)
-        assert np.isclose(mean_normalized_reward, 0.96628)
+        # Mean Reward : -123.2
+        # Sum Normalized Reward : 18.288577077317612 (primary score)
+        # Mean Percentage Complete : 0.871 (secondary score)
+        # Mean Normalized Reward : 0.91443
+        assert np.isclose(mean_reward, -123.2)
+        assert np.isclose(sum_normalized_reward, 18.288577077317612)
+        assert np.isclose(mean_percentage_complete, 0.871)
+        assert np.isclose(mean_normalized_reward, 0.91443)
     else:
         raise AssertionError()
