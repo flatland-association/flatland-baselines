@@ -520,9 +520,24 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # recovering from an off-map malfunction never passes through READY_TO_DEPART on its way onto
             # the map, so it must be considered here too, or its simultaneous entry with another agent
             # goes undetected (WAITING never transitions directly to MOVING, so it's correctly excluded).
+            # But a MALFUNCTION_OFF_MAP agent only actually enters *this* step if its malfunction is
+            # about to clear: malfunction_down_counter is decremented before being read as this step's
+            # `in_malfunction` signal (rail_env.py's "(0a)", ahead of "(1)"), so a value of 0 or 1 here
+            # means in_malfunction becomes False this step; 2 or more means it stays down and
+            # MALFUNCTION_OFF_MAP simply persists regardless of the action DLA sends. Without this
+            # check, a still-malfunctioning agent (which can't possibly move for many more steps) would
+            # be paired in the conflict check below against a genuinely entering agent and, since their
+            # paths typically overlap, incorrectly block that other agent from entering at all.
+            def _about_to_leave_off_map(agent) -> bool:
+                if agent.state == TrainState.READY_TO_DEPART:
+                    return True
+                if agent.state == TrainState.MALFUNCTION_OFF_MAP:
+                    return (agent.malfunction_handler.malfunction_down_counter <= 1
+                            and agent.earliest_departure <= self.rail_env._elapsed_steps)
+                return False
+
             entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
-                               agent.state in (TrainState.READY_TO_DEPART, TrainState.MALFUNCTION_OFF_MAP)
-                               and self.agent_can_move.get(handle, None)]
+                               _about_to_leave_off_map(agent) and self.agent_can_move.get(handle, None)]
             if len(entering_agents) > 0:
                 if self.verbose:
                     print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
