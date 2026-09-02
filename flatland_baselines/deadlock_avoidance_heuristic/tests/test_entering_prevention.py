@@ -134,34 +134,40 @@ def test_with_entering_prevention_only_one_agent_enters_until_the_other_has_left
     assert all_done, "expected both agents to arrive"
 
 
-def test_with_entering_prevention_malfunction_off_map_still_prevents_simultaneous_entry():
+@pytest.mark.parametrize("malfunctioning_handle", [0, 1])
+def test_with_entering_prevention_malfunction_off_map_ending_still_prevents_simultaneous_entry(malfunctioning_handle):
     """
     Same single-track A<->B scenario as
     `test_with_entering_prevention_only_one_agent_enters_until_the_other_has_left` (agent 0 travels A->B,
-    agent 1 travels B->A, both with earliest_departure=0), except agent 1 additionally starts with a
-    forced 2-step malfunction while off map, instead of simply being READY_TO_DEPART from t=0 like agent 0.
+    agent 1 travels B->A, both with earliest_departure=0), except `malfunctioning_handle` additionally
+    starts with a forced 2-step malfunction while off map, instead of simply being READY_TO_DEPART from
+    t=0 like the other agent. Parametrized over which of the two agents (0 or 1) is the malfunctioning
+    one, to confirm the fix below isn't sensitive to iteration/handle order.
 
     `malfunction_down_counter` is decremented *before* being read as this step's `in_malfunction` signal
     (rail_env.py's "(0a) UPDATE MALFUNCTION COUNTER", ahead of "(1) STATE TRANSITION SIGNALS"), so setting
     it to 2 right after reset plays out as:
 
-    - step 1: down_counter 2->1, in_malfunction=True. Agent 1's pre-step state is WAITING (the state
-      machine's default at reset) -> `_handle_waiting` sees in_malfunction and transitions to
-      MALFUNCTION_OFF_MAP. Meanwhile agent 0 (never malfunctioning, earliest_departure=0) has
-      earliest_departure_reached and transitions WAITING -> READY_TO_DEPART.
-    - step 2: down_counter 1->0, in_malfunction=False. Agent 1's pre-step state is MALFUNCTION_OFF_MAP;
-      `_handle_malfunction_off_map` sees not in_malfunction, earliest_departure_reached, and a
-      movement_action_given/allowed, so it transitions *directly* to MOVING -- skipping READY_TO_DEPART.
-      Agent 0's pre-step state is READY_TO_DEPART; `_handle_ready_to_depart` transitions it to MOVING too,
-      the same step.
+    - step 1: down_counter 2->1, in_malfunction=True. The malfunctioning agent's pre-step state is
+      WAITING (the state machine's default at reset) -> `_handle_waiting` sees in_malfunction and
+      transitions to MALFUNCTION_OFF_MAP. Meanwhile the other agent (never malfunctioning,
+      earliest_departure=0) has earliest_departure_reached and transitions WAITING -> READY_TO_DEPART.
+    - step 2: down_counter 1->0, in_malfunction=False. The malfunctioning agent's pre-step state is
+      MALFUNCTION_OFF_MAP; `_handle_malfunction_off_map` sees not in_malfunction, earliest_departure_reached,
+      and a movement_action_given/allowed, so it transitions *directly* to MOVING -- skipping
+      READY_TO_DEPART. The other agent's pre-step state is READY_TO_DEPART; `_handle_ready_to_depart`
+      transitions it to MOVING too, the same step.
 
     So both agents want to enter on step 2. `entering_agents` (`_extract_agent_can_move`) must consider
-    agent 1 even though its state is MALFUNCTION_OFF_MAP, not READY_TO_DEPART -- otherwise it's the only
-    candidate compared against nothing, and both agents physically enter the shared track simultaneously,
-    the exact head-on deadlock `use_entering_prevention` exists to prevent.
+    the malfunctioning agent even though its state is MALFUNCTION_OFF_MAP, not READY_TO_DEPART -- but
+    only because its malfunction is actually clearing this exact step (`malfunction_down_counter <= 1`,
+    see `test_with_entering_prevention_ongoing_malfunction_off_map_does_not_block_other_agent` for why
+    that condition matters) -- otherwise it's the only candidate compared against nothing, and both
+    agents physically enter the shared track simultaneously, the exact head-on deadlock
+    `use_entering_prevention` exists to prevent.
     """
     env = _build_env(TRACK_LENGTH, A, B, Grid4TransitionsEnum.EAST, Grid4TransitionsEnum.WEST)
-    env.agents[1].malfunction_handler.malfunction_down_counter = 2
+    env.agents[malfunctioning_handle].malfunction_handler.malfunction_down_counter = 2
 
     policy = DeadLockAvoidancePolicy(use_entering_prevention=True, min_free_cell=1)
 
@@ -174,6 +180,45 @@ def test_with_entering_prevention_malfunction_off_map_still_prevents_simultaneou
     assert left_at[first] is not None, "expected the first agent to leave the scene (arrive)"
     assert entered_at[second] >= left_at[first], "expected the second agent to enter only once the first has left the scene"
 
+    assert all_done, "expected both agents to arrive"
+
+
+@pytest.mark.parametrize("malfunctioning_handle", [0, 1])
+def test_with_entering_prevention_ongoing_malfunction_off_map_does_not_block_other_agent(malfunctioning_handle):
+    """
+    Same single-track A<->B scenario, except `malfunctioning_handle` starts with a long (10-step),
+    nowhere-near-clearing malfunction while off map. Since that agent cannot possibly leave
+    MALFUNCTION_OFF_MAP for many steps regardless of DLA's action, the other, healthy agent -- ready to
+    depart from t=0 -- must be allowed to enter immediately, without being held back by
+    `use_entering_prevention`'s pairwise conflict check. Parametrized over which of the two agents (0 or
+    1) is the malfunctioning one, to confirm this holds independent of agent/handle ordering.
+
+    This is the counterpart to the "ending" test above: `entering_agents` must only ever include a
+    MALFUNCTION_OFF_MAP agent when its malfunction is actually clearing *this* step
+    (`malfunction_down_counter <= 1`). Without that extra condition, a still-malfunctioning agent -- which
+    is included in `entering_agents` purely because `self.agent_can_move` happens to be populated for it
+    (geometric opposition detection doesn't know about malfunctions) -- gets paired in the pairwise
+    conflict check against the other, genuinely-entering agent. Since their paths fully overlap on this
+    single track, `_get_free` finds too few free cells between them, and the *other* agent is incorrectly
+    popped from `agent_can_move` and blocked for the entire remaining malfunction duration, even though the
+    malfunctioning agent poses no real entry conflict this tick.
+    """
+    other_handle = 1 - malfunctioning_handle
+    env = _build_env(TRACK_LENGTH, A, B, Grid4TransitionsEnum.EAST, Grid4TransitionsEnum.WEST)
+    env.agents[malfunctioning_handle].malfunction_handler.malfunction_down_counter = 10
+
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=True, min_free_cell=1)
+
+    entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
+
+    assert entered_at[other_handle] is not None, "expected the healthy agent to enter"
+    assert entered_at[other_handle] <= 1, (
+        "expected the healthy agent to enter promptly, not be held back by the still-malfunctioning agent"
+    )
+    assert entered_at[malfunctioning_handle] is not None, "expected the malfunctioning agent to eventually enter too"
+    assert entered_at[malfunctioning_handle] > entered_at[other_handle], (
+        "expected the malfunctioning agent to enter only once its malfunction actually clears, well after the healthy agent"
+    )
     assert all_done, "expected both agents to arrive"
 
 
