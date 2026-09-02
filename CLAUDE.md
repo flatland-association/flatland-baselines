@@ -46,8 +46,10 @@ PYTHONPATH=$PWD flatland-trajectory-generate-from-policy \
 Some tests need extra setup:
 
 - `test_episodes_deadlock_avoidance.py` replays recorded episodes and requires `BENCHMARK_EPISODES_FOLDER` to point
-  at an extracted copy of `FLATLAND_BENCHMARK_EPISODES_FOLDER_v6.zip` (see `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`,
-  which ships as part of flatland-rl, not this repo, and `checks.yaml`'s `env.flatland-benchmarks-episodes-url`).
+  at an extracted copy of the episodes zip named in `checks.yaml`'s `env.flatland-benchmarks-episodes-url` (see
+  `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`, which ships as part of flatland-rl, not this repo) — the
+  archive version (`FLATLAND_BENCHMARK_EPISODES_FOLDER_v*.zip`) bumps whenever the pinned flatland-rl ref changes
+  episode-relevant behavior, so check that URL rather than assuming a specific version.
 - `test_policy_grid_runner_evaluator.py` needs no extra setup — it drives `generate_trajectories_from_metadata`/
   `evaluate_trajectories_from_metadata` against `env_data/tests/service_test` fixtures that ship inside flatland-rl
   itself (packaged and pip-installed alongside `flatland`, not this repo).
@@ -64,16 +66,23 @@ paths in its `__main__` block to point at a local `flatland-scenarios` checkout 
 
 There is no lint/format tooling configured in this repo (no ruff/flake8/pre-commit config).
 
+Releases are automated: `release-please` (`.github/workflows/release-please.yml`) opens release PRs off
+Conventional Commit messages on `main` and publishes to PyPI on merge — write commit messages accordingly
+(`fix:`, `feat:`, `chore:`, etc.).
+
 ## The flatland-rl version pin
 
 `flatland-rl` is a separate, fast-moving upstream package. The exact pinned ref/version is duplicated in three
 places — all three must be bumped together (each has a `# DEPENDENCY SWITCH` comment marking it):
 
-- `pyproject.toml` — currently `flatland-rl==4.3.0` (pip package), with `flatland-rl @
-  git+https://github.com/flatland-association/flatland-rl.git@v4.3.0` present but commented out
-- `environment.yml` — currently `flatland-rl[ml]==4.3.0` (pip package), with the equivalent `git+https://...`
-  form commented out
-- `.github/workflows/checks.yaml` — `env.flatland-rl-ref`, currently `v4.3.0`
+- `pyproject.toml` — either `flatland-rl==X.Y.Z` (pip package) or `flatland-rl @
+  git+https://github.com/flatland-association/flatland-rl.git@<ref>`, with the other form commented out
+- `environment.yml` — either `flatland-rl[ml]==X.Y.Z` (pip package) or the equivalent `git+https://...` form,
+  with the other commented out
+- `.github/workflows/checks.yaml` — `env.flatland-rl-ref`, set to the matching `vX.Y.Z` tag or branch name
+
+Check the actual current value in each file rather than assuming — this pin moves frequently (e.g. across a
+sequence of in-flight branches while co-developing a flatland-rl feature).
 
 `pyproject.toml`/`environment.yml` each carry two alternative forms and exactly one must be active (the other
 commented out) at any time — which one depends on whether the pin targets a released version or an unreleased
@@ -107,9 +116,9 @@ before assuming compatibility.
 ### Baselines layout
 
 Each top-level directory under `flatland_baselines/` (`deadlock_avoidance_heuristic`, `do_nothing_heuristic`,
-`forever_heuristic`, `forward_only_heuristic`, `random`, `self_attention_ppo`, `tree_lstm_ppo`) is an independent
-baseline with its own `Dockerfile` for submission as a container to the Flatland Benchmarks evaluator. The simple
-ones are a few lines implementing `RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial one.
+`forever_heuristic`, `forward_only_heuristic`, `random`) is an independent baseline with its own `Dockerfile` for
+submission as a container to the Flatland Benchmarks evaluator. The simple ones are a few lines implementing
+`RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial one.
 
 ### Deadlock avoidance heuristic (DLA)
 
@@ -131,6 +140,15 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
+
+Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent at a
+cell-exit boundary completes its crossing regardless of which action is sent — `STOP_MOVING` no longer prevents
+entry into the next cell there, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
+wrong branch at a switch by flatland-rl's own action-resolution fallback. `_extract_agent_can_move` accounts for
+this: whenever a crossing is unavoidable this way (`agent.state == TrainState.MOVING and
+agent.speed_counter.is_cell_exit()`), it always computes DLA's intended directional action toward the agent's
+planned path — stored in `forced_action`, used by `_act` in place of blind `STOP_MOVING` — even while opposition
+would otherwise block the agent.
 
 **Known limitations** (see `deadlock_avoidance_heuristic/README.md` and, as tests, `tests/test_entering_prevention.py`,
 `tests/test_limitations_switch.py` and `tests/test_limitations_two_switches.py`): the opposition check is
