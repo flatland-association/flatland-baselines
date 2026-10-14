@@ -49,7 +49,11 @@ Some tests need extra setup:
   at an extracted copy of the episodes zip named in `checks.yaml`'s `env.flatland-benchmarks-episodes-url` (see
   `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`, which ships as part of flatland-rl, not this repo) — the
   archive version (`FLATLAND_BENCHMARK_EPISODES_FOLDER_v*.zip`) bumps whenever the pinned flatland-rl ref changes
-  episode-relevant behavior, so check that URL rather than assuming a specific version.
+  episode-relevant behavior, so check that URL rather than assuming a specific version. Its whole parametrized suite
+  is currently `@pytest.mark.skip`ped wholesale (#178): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
+  flatland-rl engine timing change makes it genuinely re-decide differently than what a recorded trajectory
+  captured before that change — the fix is a live rerun to regenerate the recording, not a values tweak, so it's
+  skipped rather than left red until that regeneration happens.
 - `test_policy_grid_runner_evaluator.py` needs no extra setup — it drives `generate_trajectories_from_metadata`/
   `evaluate_trajectories_from_metadata` against `env_data/tests/service_test` fixtures that ship inside flatland-rl
   itself (packaged and pip-installed alongside `flatland`, not this repo).
@@ -149,6 +153,19 @@ this: whenever a crossing is unavoidable this way (`agent.state == TrainState.MO
 agent.speed_counter.is_cell_exit()`), it always computes DLA's intended directional action toward the agent's
 planned path — stored in `forced_action`, used by `_act` in place of blind `STOP_MOVING` — even while opposition
 would otherwise block the agent.
+
+`use_entering_prevention` (opt-in, default `False`) stops more than one off-map agent from entering the map on
+the same tick when that would leave fewer than `min_free_cell` cells between their paths. Its `entering_agents`
+candidate list (`_extract_agent_can_move`'s `_about_to_leave_off_map` helper) can't rely on `agent.state ==
+TrainState.READY_TO_DEPART` alone, since `TrainStateMachine` has more than one off-map-to-`MOVING` shortcut that
+never passes through a `READY_TO_DEPART` step DLA could observe beforehand: a `MALFUNCTION_OFF_MAP` agent whose
+malfunction is clearing on this exact step (`malfunction_down_counter <= 1` — decremented *before* being read as
+this step's `in_malfunction` signal, so this is the one and only value meaning "clears this step"), and
+(flatland-rl issue #280) a `WAITING` agent with `earliest_departure == 0` on the episode's very first
+`env.step()` call. Missing either case entirely defeats `use_entering_prevention` for that agent; naively
+including a `MALFUNCTION_OFF_MAP` agent regardless of its down-counter instead incorrectly blocks a *different*,
+genuinely-entering agent, since `self.agent_can_move` has no notion of malfunctions (purely geometric opposition
+detection) and the two agents' paths typically overlap on a shared single-track segment.
 
 **Known limitations** (see `deadlock_avoidance_heuristic/README.md` and, as tests, `tests/test_entering_prevention.py`,
 `tests/test_limitations_switch.py` and `tests/test_limitations_two_switches.py`): the opposition check is
