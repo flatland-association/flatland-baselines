@@ -15,7 +15,7 @@ from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_p
 # TODO(#178, 178-agents-living-on-the-edge-9): 41 of the 50 episodes below fail against
 # flatland-rl@178-agents-living-on-the-edge-9's "let STOP_MOVING complete an in-flight cell-boundary
 # crossing" fix -- DeadLockAvoidancePolicy is a live/reactive policy, and this timing change makes it
-# make genuinely different decisions than what these recorded trajectories captured pre-edge-9. Fixing
+# make different decisions than what these recorded trajectories captured pre-edge-9. Fixing
 # this for real means regenerating the recorded trajectories via a live PolicyRunner.create_from_policy
 # rerun against the fixed engine (as re_run_episode below already does, just needs its output persisted
 # back as the new recorded trajectory) and accepting the new result after review, not diffing against

@@ -486,7 +486,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                                                "v": f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}"})
                         continue
                     # design: actions applied at cell entry -- once agent.next_entry_point holds a
-                    # genuinely pending target (decided one cell ago), this step's action no longer
+                    # pending target (decided one cell ago), this step's action no longer
                     # decides that transition (already settled) but the look-ahead beyond it, so it
                     # must be computed from next_entry_point against the set-path waypoint after it,
                     # not from current_entry_point against the immediate next waypoint.
@@ -532,7 +532,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # WAITING shortcut only fires on the actual first step() call of the episode (env._elapsed_steps
             # is read here *before* that call, i.e. still 0) for an agent that isn't malfunctioning itself.
             # Without these checks, an agent that in fact can't move yet would be paired in the conflict
-            # check below against a genuinely entering agent and, since their paths typically overlap,
+            # check below against an entering agent and, since their paths typically overlap,
             # incorrectly block that other agent from entering at all.
             def _about_to_leave_off_map(agent) -> bool:
                 if agent.state == TrainState.READY_TO_DEPART:

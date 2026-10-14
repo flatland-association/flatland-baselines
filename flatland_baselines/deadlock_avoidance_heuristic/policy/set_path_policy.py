@@ -52,7 +52,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
-        # design: actions applied at cell entry -- once agent.next_entry_point holds a genuinely
+        # design: actions applied at cell entry -- once agent.next_entry_point holds a
         # pending target (decided one cell ago), this step's action no longer decides that
         # transition (already settled) but the look-ahead beyond it, so it must be evaluated from
         # next_entry_point against the set-path waypoint after it, not from current_entry_point
