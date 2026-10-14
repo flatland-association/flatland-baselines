@@ -4,5 +4,6 @@ dependencies:
   - pip:
       - pytest
       # DEPENDENCY SWITCH:
-      - git+https://github.com/flatland-association/flatland-rl.git@178-agents-living-on-the-edge-14
+      # 178-agents-living-on-the-edge-17
+      - git+https://github.com/flatland-association/flatland-rl.git@99507b68216b0f90d07471f282bb2bc1d92b4d8d
       #- flatland-rl[ml]==4.3.0
