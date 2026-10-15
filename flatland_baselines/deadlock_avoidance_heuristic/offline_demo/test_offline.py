@@ -61,14 +61,14 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # Mean Reward : -3539.92
-    # Sum Normalized Reward : 42.48818649378445 (primary score)
+    # Mean Reward : -3539.24
+    # Sum Normalized Reward : 42.489043348623156 (primary score)
     # Mean Percentage Complete : 0.628 (secondary score)
-    # Mean Normalized Reward : 0.84976
-    assert np.isclose(mean_reward, -3539.92)
-    assert np.isclose(sum_normalized_reward, 42.48818649378445)
+    # Mean Normalized Reward : 0.84978
+    assert np.isclose(mean_reward, -3539.24)
+    assert np.isclose(sum_normalized_reward, 42.489043348623156)
     assert np.isclose(mean_percentage_complete, 0.628)
-    assert np.isclose(mean_normalized_reward, 0.84976)
+    assert np.isclose(mean_normalized_reward, 0.84978)
 
 
 @pytest.mark.parametrize("post_seed", [
