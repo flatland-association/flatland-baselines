@@ -45,8 +45,10 @@ def test_gen_trajectories_from_metadata(capsys):
             assert e_info.value.code == 0
             metadata = pd.read_csv(metadata_csv)
             # NOTE: success_rate golden values re-calibrated for flatland-rl@178-agents-living-on-the-edge-9's
-            # STOP_MOVING/crossing-timing changes (env_time unaffected).
-            for sr, t, (k, v) in zip([0.5714285714285714, 1.0, 0.5714285714285714, 1.0], [391, 163, 391, 163], metadata.iterrows()):
+            # STOP_MOVING/crossing-timing changes. env_time re-calibrated again for
+            # flatland-rl@178-agents-living-on-the-edge-14's earliest_departure=0 dispatch-timing fix
+            # (issue #280): Level_1's 163 -> 162, one step earlier (success_rate unaffected).
+            for sr, t, (k, v) in zip([0.5714285714285714, 1.0, 0.5714285714285714, 1.0], [391, 162, 391, 162], metadata.iterrows()):
                 df = pd.read_csv(tmpdir / v["test_id"] / v["env_id"] / TRAINS_ARRIVED_FNAME, sep="\t")
                 assert df["success_rate"].to_list() == [sr]
                 assert df["env_time"].to_list() == [t]
