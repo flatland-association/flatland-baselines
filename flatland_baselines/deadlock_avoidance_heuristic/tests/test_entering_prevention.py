@@ -6,6 +6,7 @@ from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.line_generators import LineGenerator
 from flatland.envs.rail_env import RailEnv
+from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -72,6 +73,7 @@ def _build_env(length: int, a: Tuple[int, int], b: Tuple[int, int], direction_a:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
+    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -198,7 +200,7 @@ def test_with_entering_prevention_ongoing_malfunction_off_map_does_not_block_oth
     (`malfunction_down_counter <= 1`). Without that extra condition, a still-malfunctioning agent -- which
     is included in `entering_agents` purely because `self.agent_can_move` happens to be populated for it
     (geometric opposition detection doesn't know about malfunctions) -- gets paired in the pairwise
-    conflict check against the other, genuinely-entering agent. Since their paths fully overlap on this
+    conflict check against the other entering agent. Since their paths fully overlap on this
     single track, `_get_free` finds too few free cells between them, and the *other* agent is incorrectly
     popped from `agent_can_move` and blocked for the entire remaining malfunction duration, even though the
     malfunctioning agent poses no real entry conflict this tick.

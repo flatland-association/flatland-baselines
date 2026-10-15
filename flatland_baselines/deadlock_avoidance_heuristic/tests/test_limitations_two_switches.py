@@ -4,6 +4,7 @@ from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env_action import RailEnvActions
+from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -90,6 +91,7 @@ def _build_env() -> RailEnv:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
+    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -169,6 +171,7 @@ def _build_full_speed_env() -> RailEnv:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
+    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -287,6 +290,7 @@ def _build_env_with_queue() -> RailEnv:
         number_of_agents=4,
         obs_builder_object=FullEnvObservation(),
     )
+    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -411,6 +415,7 @@ def _build_env_with_aa() -> RailEnv:
         number_of_agents=4,
         obs_builder_object=FullEnvObservation(),
     )
+    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
