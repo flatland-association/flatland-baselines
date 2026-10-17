@@ -2,8 +2,8 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  # 178-agents-living-on-the-edge-17
-  flatland-rl-ref: 99507b68216b0f90d07471f282bb2bc1d92b4d8d
+  # 178-agents-living-on-the-edge-19
+  flatland-rl-ref: 6d3290bb055d036747d371cb74c23c5cf1b35f94
   flatland-benchmarks-episodes-url: "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/178-agents-living-on-the-edge-9/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v7.zip"
 
 on:

@@ -33,7 +33,8 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
         line_length=3,
         obs_builder_object=FullEnvObservation(),
         seed=982374,
-        rewards=rewards
+        rewards=rewards,
+        skip_state_machine_update=False,
     )
     for a in env.agents:
         print(f"agent {a.handle}:")
@@ -49,6 +50,7 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
             snapshot_interval=0,
             ep_id=str(uuid.uuid4()),
             callbacks=GenerateMovieCallbacks() if gen_movies else None,
+            no_save=True,
         )
         assert np.isclose(trajectory.trains_arrived["success_rate"], expected)
         if debug:
