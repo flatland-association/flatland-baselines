@@ -5,5 +5,5 @@ dependencies:
       - pytest
       # DEPENDENCY SWITCH:
       # 178-agents-living-on-the-edge-19
-      - git+https://github.com/flatland-association/flatland-rl.git@6d3290bb055d036747d371cb74c23c5cf1b35f94
+      - git+https://github.com/flatland-association/flatland-rl.git@a57ad87589059fd4b4784927e92376980025a169
       #- flatland-rl[ml]==4.3.0
