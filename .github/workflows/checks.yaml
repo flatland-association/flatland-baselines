@@ -2,8 +2,8 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  # main
-  flatland-rl-ref: e355074d0f7afe0df8de92caed2274330369dbcf
+  # fix/policy-runner-skip-state-machine-update
+  flatland-rl-ref: ea4a9ac1054dbb90426e05c857246d08fcbdaeb3
   flatland-benchmarks-episodes-url: "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/178-agents-living-on-the-edge-9/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v7.zip"
 
 on:

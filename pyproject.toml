@@ -25,8 +25,8 @@ dependencies = [
     #           git+https://github.com/flatland-association/flatland-rl.git@v4.3.0. See
     #           https://packaging.python.org/specifications/core-metadata for more
     #           information.
-    # main
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@e355074d0f7afe0df8de92caed2274330369dbcf",
+    # fix/policy-runner-skip-state-machine-update
+    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@ea4a9ac1054dbb90426e05c857246d08fcbdaeb3",
     #"flatland-rl==4.3.0",
 ]
 dynamic = ["version"]
