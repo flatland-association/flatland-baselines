@@ -35,6 +35,8 @@ def test_offline_calibrated_against_online_post_seed_envs_v2():
                 "--legacy-env-generator", True,
                 # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
                 "--post-seed", 1001,
+                # DeadLockAvoidancePolicy reads agent.state directly
+                "--skip-state-machine-update", False,
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
@@ -61,14 +63,16 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # Mean Reward : -3539.24
-    # Sum Normalized Reward : 42.489043348623156 (primary score)
-    # Mean Percentage Complete : 0.628 (secondary score)
-    # Mean Normalized Reward : 0.84978
-    assert np.isclose(mean_reward, -3539.24)
-    assert np.isclose(sum_normalized_reward, 42.489043348623156)
-    assert np.isclose(mean_percentage_complete, 0.628)
-    assert np.isclose(mean_normalized_reward, 0.84978)
+    # NOTE: re-calibrated for flatland-rl 6788c0a7 (earliest_departure == 1 departs one step earlier,
+    # ready_to_depart's elapsed_steps==1 special case removed).
+    # Mean Reward : -3573.02
+    # Sum Normalized Reward : 42.4600874279907 (primary score)
+    # Mean Percentage Complete : 0.63 (secondary score)
+    # Mean Normalized Reward : 0.8492
+    assert np.isclose(mean_reward, -3573.02)
+    assert np.isclose(sum_normalized_reward, 42.4600874279907)
+    assert np.isclose(mean_percentage_complete, 0.63)
+    assert np.isclose(mean_normalized_reward, 0.8492)
 
 
 @pytest.mark.parametrize("post_seed", [
@@ -99,6 +103,8 @@ def test_offline_calibrated_against_online_envs_v3(post_seed):
                 "--obs-builder-cls", "FullEnvObservation",
                 # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
                 "--post-seed", post_seed,
+                # DeadLockAvoidancePolicy reads agent.state directly
+                "--skip-state-machine-update", False,
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
