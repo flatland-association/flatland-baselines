@@ -75,8 +75,8 @@ Requirements:
 | Follow-up | Why not in this PR | From | Findings | Issue |
 |---|---|---|---|---|
 | Pin the released flatland-rl 5.0.0 in all three places, after the stack is merged into `main` and before release-please's release PR is merged. | Waits for flatland-rl#541's merge and the 5.0.0 release; moved out of this PR on 2026-11-12 (formerly S-37). | REQ-7 | F-2, F-16, F-17 | - |
-| Record the 50 benchmark episodes again with the current engine and replay them in the tests. | Needs a new archive in flatland-scenarios (another repo) and a review of the new results. | §2.1 (TODO) | F-5 | - |
-| Apply the alternative path DLA picks when an agent is blocked, planned from the settled next entry point. | Fails on `main` too; applying it changes DLA's results and needs its own calibration. | §2.1 | F-9 | - |
+| Record the 50 benchmark episodes again with the current engine and replay them in the tests. | Needs a new archive in flatland-scenarios (another repo) and a review of the new results. | §2.1 (TODO) | F-5 | [#94](https://github.com/flatland-association/flatland-baselines/issues/94) |
+| Apply the alternative path DLA picks when an agent is blocked, planned from the settled next entry point. | Fails on `main` too; applying it changes DLA's results and needs its own calibration. | §2.1 | F-9 | [#93](https://github.com/flatland-association/flatland-baselines/issues/93) |
 | Redesign DLA to need no train state, as preparation for the observation builder extraction ([#65](https://github.com/flatland-association/flatland-baselines/pull/65)). | A redesign; this PR only needs DLA to get the state right (Q-2). | Q-2 | F-14 | - |
 
 ## 2. Constraints
@@ -99,9 +99,9 @@ Limitations (DLA's own list: `flatland_baselines/deadlock_avoidance_heuristic/RE
 weakness", and `CLAUDE.md`, "Known limitations"):
 
 - The 50 recorded benchmark episodes are not replayed: the test is skipped
-  (`tests/test_episodes_deadlock_avoidance.py:15`, TODO referring to flatland-rl#178). §1.4, F-5.
+  (`tests/test_episodes_deadlock_avoidance.py:15`, TODO referring to #94). §1.4, F-5, [#94](https://github.com/flatland-association/flatland-baselines/issues/94).
 - DLA picks an alternative path for a blocked agent but never applies it (`_find_alternative`, on `main` too).
-  §1.4, F-9.
+  §1.4, F-9, [#93](https://github.com/flatland-association/flatland-baselines/issues/93).
 - `SetPathPolicy` on its own fails on an agent on the map: it calls a flatland-rl method that is private since 4.3.0.
   F-8, S-30.
 - The DLA limitations documented before the stack stay (free space filled by other trains, two switches facing
@@ -468,6 +468,7 @@ Each PR of the stack is checked against `main`'s rules, and the history must be 
 | 2026-11-12 | ✅ DLA reads the derived state with the step count, not `agent.state`; a redesign without train state follows later (Q-2). | No caller has to turn on the state machine, and its cost goes away; checked to keep every golden value. Wrapping in `_init_env` (b) was the first choice "for now", but keeps the state machine. | S-31; the breaking change "DLA needs the state machine" goes away (§8.2); follow-up in §1.4 (#65). |
 | 2026-11-12 | ✅ Merge the stack top down with GitHub's stack merge (Q-3). | One operation; `main` never pins a deleted flatland-rl branch; the release PR is merged only after. | `main`'s rules must accept every PR of the stack (F-18, F-19, §11.2). |
 | 2026-11-12 | ✅ Pin the released flatland-rl 5.0.0 after the merge, in a follow-up (formerly S-37). | The stack need not wait for flatland-rl#541's merge and the 5.0.0 release. | REQ-7 and F-2, F-16, F-17 leave the PR (§1.4); `main` pins flatland-rl#541's commit until the follow-up, so release-please's release PR waits for it, and the commit must stay fetchable (§2.2). |
+| 2026-11-12 | ✅ Leave F-5 (record the episodes again) and F-9 (apply the alternative path) out of this PR, tracked in [#94](https://github.com/flatland-association/flatland-baselines/issues/94) and [#93](https://github.com/flatland-association/flatland-baselines/issues/93). | F-9 fails on `main` too and only matters with rerouting switched on (off by default); both change DLA's results and need their own review; F-5 needs a new archive in flatland-scenarios. Fixing F-9 here as a step of phase 8 was the alternative. Both had been put into the follow-ups when the plan was written, without asking. | Two follow-ups in §1.4 with issues; no steps for them. |
 
 ### 9.3 Code Review Findings
 
@@ -476,7 +477,7 @@ Each PR of the stack is checked against `main`'s rules, and the history must be 
 The stack #80-#90 (`main` c1733cb .. `178-agents-living-on-the-edge-19`). Code review findings (F-1–F-13) were added
 on 2026-11-12, at ffd2477; their line numbers refer to it. PR review comments on #90 (F-14–F-17) were added on
 2026-11-12; #80-#89 have no review comments. F-18 (CI) and F-19 (`main`'s ruleset) were added on 2026-11-12, at
-ffd2477. No TODO added in the stack becomes a finding: the only one refers to flatland-rl#178. In Fixed: ✅ fixed,
+ffd2477. No TODO added in the stack becomes a finding: the only one referred to flatland-rl#178, and since 8f9b161 refers to #94, which tracks it. In Fixed: ✅ fixed,
 ⏭️ open and taken over by a follow-up (§1.4), ❌ next to ✅: fixed in the code, but the PR comment is not resolved on
 GitHub yet. "resolved" in Source marks threads resolved on GitHub.
 
@@ -484,15 +485,16 @@ GitHub yet. "resolved" in Source marks threads resolved on GitHub.
 |---|---|---|---|---|---|---|
 | ✅ ❌ | F-15 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4312300888) | ci | low | `.github/workflows/checks.yaml:1`: "Depends on #91" (dropping Python 3.10). Fixed in 34a3bce (S-24): #91 is merged into this branch. | chore: drop Python 3.10, test 3.14. (#91) |
 | ✅ | F-18 | CI | bug | high | `tests/test_policy_grid_runner_evaluator.py:59`, flatland-rl `flatland/evaluators/trajectory_evaluator.py:135` (at b99bfd11): CI on ffd2477 fails `test_gen_trajectories_from_metadata` on Python 3.11-3.14 with numpy's `DTypePromotionError`: under pandas 3.0.6 an expected reward comes back as a string. Cause: `Trajectory._read_trains_rewards_dones_infos` converted tuple rewards (`PunctualityRewards`) only for an `object` column, and pandas 3 reads text as `str`; no flatland-rl test reloads tuple rewards. The re-pin brought in flatland-rl#540 (pandas 3); be92953 passed with pandas 2.3.3. Local checks missed it: the local env has pandas 2.3.3. Fixed in 4ef5ace (S-27): the cause is fixed in flatland-rl c689b22f on #541's branch (30e7a35f before #541's rebase), and the pin moved there. | fix: pin flatland-rl to #541's head with the pandas 3 fix for tuple rewards. |
+| ✅ | F-19 | ruleset | ci | high | `.github/workflows/checks.yaml:27`, `main`'s ruleset (id 9165551): it required `test-dla-regression (3.10)`, which #90 no longer runs, and not `(3.14)`, so the stack merge was blocked. Fixed on 2026-11-12 by chenkins in the repository settings: the ruleset requires `(3.11)` to `(3.14)` (strict); no commit and no step. | - |
 |  | F-1 | code review | bug | high | `flatland_baselines/deadlock_avoidance_heuristic/policy/deadlock_avoidance_policy.py:473,493-516,176`, `tests/test_limitations_two_switches.py:210`: a full-speed agent is at a cell exit every step, so a blocked one gets `forced_action` instead of `STOP_MOVING` every step, and with a settled target the forced action commits it to the cell after. It drives on until the engine blocks it, head-on next to the other train. Shown in the full-speed two-switch scenario: agent 0 ends at (1,3) next to agent 1; with the forced action off, both stop in step 2 with a free cell between them, and nothing derails. The test asserts the head-on outcome. Open: planned in S-28. | fix(dla): send a directional action for an unavoidable crossing only where STOP_MOVING would leave the planned path. |
 | ⏭️ | F-2 | code review | build | high | `pyproject.toml:29`, `.github/workflows/release-please.yml:26-48`: the dependency is a direct git URL; merging release-please's release PR publishes to PyPI, and PyPI rejects direct URLs. While `main` carries the git pin, the next release fails. Open: taken over by the follow-up "Pin the released flatland-rl 5.0.0" (§1.4). | build: pin flatland-rl to the released 5.0.0 before merging to main. |
 |  | F-3 | code review | bug | medium | `deadlock_avoidance_policy.py:543-546`: the first-step shortcut for waiting agents matches only `earliest_departure == 0`; the engine lets 0 and 1 enter in step 1 (`rail_env_state_machine_wrapper.py:100`). Two facing agents with earliest departure 0 and 1 enter head-on unchecked. Open: planned in S-29. | fix(dla): mirror the engine's departure rules in entering prevention. |
 |  | F-4 | code review | bug | medium | `deadlock_avoidance_policy.py:540-542`: the malfunction-off-map check compares the earliest departure with the step count before `step()` increments it; the engine compares after (`rail_env_state_machine_wrapper.py:113`). An agent whose malfunction ends in its departure step enters unchecked. Open: planned in S-29. | fix(dla): mirror the engine's departure rules in entering prevention. |
-| ⏭️ | F-5 | code review | test-coverage | medium | `tests/test_episodes_deadlock_avoidance.py:15-25`: the 50 recorded-episode replays are skipped unconditionally, while CI still downloads the episodes (`checks.yaml:52,106`); the TODO's bare `#178` means flatland-rl#178. Open: taken over by the follow-up "Record the 50 benchmark episodes again" (§1.4). | test(dla): regenerate the recorded episodes against the pinned flatland-rl and replay them again. |
+| ⏭️ | F-5 | code review | test-coverage | medium | `tests/test_episodes_deadlock_avoidance.py:15-25`: the 50 recorded-episode replays are skipped unconditionally, while CI still downloads the episodes (`checks.yaml:52,106`); the TODO's bare `#178` meant flatland-rl#178; since 8f9b161 it refers to #94. Open: taken over by the follow-up "Record the 50 benchmark episodes again" (§1.4, [#94](https://github.com/flatland-association/flatland-baselines/issues/94)). | test(dla): regenerate the recorded episodes against the pinned flatland-rl and replay them again. |
 |  | F-6 | code review | ci | medium | `.github/workflows/checks.yaml:7`: the episodes archive comes from the flatland-scenarios branch `178-agents-living-on-the-edge-9`, which can change or be deleted. Open: planned in S-33. | ci: pin the benchmark episodes archive to a flatland-scenarios commit. |
 |  | F-7 | code review | design | medium | `policy/set_path_policy.py:60-67`, `deadlock_avoidance_policy.py:493-511`: the look-ahead is copied in two places and has already drifted (F-8). Open: planned in S-34. | refactor(dla): share the cell-entry look-ahead between SetPathPolicy and DeadLockAvoidancePolicy. |
 |  | F-8 | code review | bug | low | `policy/set_path_policy.py:69`: `SetPathPolicy._act` calls `check_action_on_agent`, private (`_check_action_on_agent`, five values) since flatland-rl 4.3.0; standalone use raises `AttributeError`. On `main` it fails as well. Open: planned in S-30. | fix(policies): use flatland-rl's _check_action_on_agent in SetPathPolicy._act and test it. |
-| ⏭️ | F-9 | code review | bug | low | `deadlock_avoidance_policy.py:232-239,219`: `_find_alternative` picks an alternative but never assigns it, so rerouting never takes effect; on `main` it is the same. Once applied, it must start from a settled next entry point. Open: taken over by the follow-up "Apply the alternative path" (§1.4). | fix(dla): apply the chosen alternative path, planned from the settled next entry point. |
+| ⏭️ | F-9 | code review | bug | low | `deadlock_avoidance_policy.py:232-239,219`: `_find_alternative` picks an alternative but never assigns it, so rerouting never takes effect; on `main` it is the same. Once applied, it must start from a settled next entry point. Open: taken over by the follow-up "Apply the alternative path" (§1.4, [#93](https://github.com/flatland-association/flatland-baselines/issues/93)). | fix(dla): apply the chosen alternative path, planned from the settled next entry point. |
 |  | F-10 | code review | test-robustness | low | `tests/test_limitations_two_switches.py:446,455`: `num_steps=21` only lands the oscillating agents 2 and 3 on STOPPED; a one-step timing change breaks the test without a regression. Open: planned in S-32. | test(dla): assert queued agents' positions, not their oscillating state. |
 |  | F-11 | code review | design | low | `deadlock_avoidance_policy.py:446-571,537,186-267`: `_extract_agent_can_move` has 126 lines and redefines `_about_to_leave_off_map` every step (named for leaving, used for entering); `_find_alternative` repeats six verbose/audit blocks. Open: planned in S-35. | refactor(dla): split _extract_agent_can_move and log through one audit helper. |
 |  | F-12 | code review | docs | low | `CLAUDE.md:86,163-165`: the pin is described as a tag or branch name (it is a commit SHA); "the one and only value" for `<= 1`; the first-step rule repeats F-3. Open: planned in S-29 (lines 163-165) and S-36 (line 86). | docs: describe the flatland-rl pin and entering prevention as the code has them. |
@@ -500,11 +502,10 @@ GitHub yet. "resolved" in Source marks threads resolved on GitHub.
 |  | F-14 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4311347990) | design | medium | `tests/test_policy_grid_runner_evaluator.py:44`: "update dla instead?": DLA could get the agents' state itself instead of every caller passing the option. Open: planned in S-31 (Q-2: derived state); the redesign without train state is a follow-up (§1.4). | refactor(dla): read the agents' derived state instead of requiring the state machine. |
 | ⏭️ | F-16 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4326418695) | build | medium | `environment.yml:8` (outdated): suggests pinning flatland-rl `@main`; now pinned to flatland-rl#541's head until it is merged. Open: taken over by the follow-up "Pin the released flatland-rl 5.0.0" (§1.4). | build: pin flatland-rl to the released 5.0.0 before merging to main. |
 | ⏭️ | F-17 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4326431817) | build | medium | `.github/workflows/checks.yaml:6` (outdated): "TODO update to released version", answered "depends on flatland-rl#541". Open: taken over by the follow-up "Pin the released flatland-rl 5.0.0" (§1.4). | build: pin flatland-rl to the released 5.0.0 before merging to main. |
-|  | F-19 | ruleset | ci | high | `.github/workflows/checks.yaml:27`, `main`'s ruleset (id 9165551): it requires `test-dla-regression (3.10)`, which #90 no longer runs, and not `(3.14)`. The stack merge stays blocked. Open: a repository setting, changed by an admin before the merge (§11.2 prerequisite); no commit and no step. | - |
 
-Issue references: the stack closes no issue. The code refers to flatland-rl#178 (closed) in
-`tests/test_episodes_deadlock_avoidance.py:15` and in comments of `deadlock_avoidance_policy.py`; it stays until the
-follow-up for F-5 is done.
+Issue references: the stack closes no issue. The code refers to flatland-rl#178 (closed) in comments of
+`deadlock_avoidance_policy.py`, as context for the crossing timing, not as open work. The skip's TODO in
+`tests/test_episodes_deadlock_avoidance.py:15` refers to [#94](https://github.com/flatland-association/flatland-baselines/issues/94) since 8f9b161 (F-5's follow-up), until #94 removes it.
 
 ## 10. Glossary
 
@@ -631,8 +632,8 @@ follow-up for F-5 is done.
   The plan lives on the top branch.
 - Merge (Q-3): GitHub's stack merge on #90, after S-36; it merges #80-#90 into `main` bottom up. Then the follow-up
   pins flatland-rl 5.0.0 (§1.4), and only then is release-please's release PR merged. Prerequisites:
-  - `main`'s ruleset (`main`, id 9165551) requires `test-dla-regression (3.10)` to `(3.13)` (strict). #90 no longer
-    runs 3.10, so that check never reports: an admin replaces 3.10 with 3.14 in the ruleset (F-19).
+  - `main`'s ruleset (`main`, id 9165551) requires `test-dla-regression (3.11)` to `(3.14)` (strict), the versions #90
+    runs; it required `(3.10)` before 2026-11-12 (F-19, fixed).
   - Every PR of the stack green against `main`'s rules: #80-#89 passed, but re-runs fail, as their flatland-rl
     branch pins no longer exist; #90 failed `test-dla-regression` at ffd2477 (F-18, fixed in 4ef5ace; CI on it
     pending).
