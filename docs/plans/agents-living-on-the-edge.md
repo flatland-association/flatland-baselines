@@ -11,7 +11,7 @@
 > [#90](https://github.com/flatland-association/flatland-baselines/pull/90) (`-19`, head ffd2477). Upstream issue
 > [flatland-rl#178](https://github.com/flatland-association/flatland-rl/issues/178) ("(D2) Remove Action Saver
 > Class: agents live on "edges", actions are applied at cell entry"). The plan lives on the top branch. No open
-> questions (§9.1). CI on ffd2477 fails one test under pandas 3 (finding 18, step F0).
+> questions (§9.1). CI on ffd2477 fails one test under pandas 3 (finding 18), fixed in 4ef5ace (F0); CI on it pending.
 >
 > **Why:** flatland-rl 5.0 changes when actions apply, how agents enter and stop, and whether a plain environment
 > tracks the agents' state. The baselines, above all the deadlock-avoidance heuristic (DLA), must keep running
@@ -192,7 +192,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 
 | # | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
-| 1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ❌ at ffd2477: locally 20 passed, 51 skipped, 1 xfailed (pandas 2); CI fails `test_gen_trajectories_from_metadata` on pandas 3 (finding 18) | - |
+| 1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ❌ at ffd2477: locally 20 passed, 51 skipped, 1 xfailed (pandas 2); CI fails `test_gen_trajectories_from_metadata` on pandas 3 (finding 18, fixed in 4ef5ace; CI on it pending) | - |
 | 2 | New action timing | `test_limitations_*.py`, `test_intermediate_stops.py` | ✅ | - |
 | 3 | No wrong branch at an unavoidable crossing | `test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression` | ❌ the forced action also keeps blocked agents moving (finding 1, step F1) | - |
 | 4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ❌ misses earliest departure 1 and is one step late after a malfunction (findings 3, 4, step F2) | - |
@@ -450,7 +450,7 @@ but the PR comment is not resolved on GitHub yet. "resolved" in Source marks thr
 |  | 14 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4311347990) | design | medium | `tests/test_policy_grid_runner_evaluator.py:44`: "update dla instead?": DLA could get the agents' state itself instead of every caller passing the option. Open: planned in F4 (Q2: derived state); the redesign without train state is a follow-up (§1.4). | refactor(dla): read the agents' derived state instead of requiring the state machine. |
 |  | 16 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4326418695) | build | medium | `environment.yml:8` (outdated): suggests pinning flatland-rl `@main`; now pinned to flatland-rl#541's head until it is merged. Open: planned in F10. | build: pin flatland-rl to the released 5.0.0 before merging to main. |
 |  | 17 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4326431817) | build | medium | `.github/workflows/checks.yaml:6` (outdated): "TODO update to released version", answered "depends on flatland-rl#541". Open: planned in F10. | build: pin flatland-rl to the released 5.0.0 before merging to main. |
-|  | 18 | CI | bug | high | `tests/test_policy_grid_runner_evaluator.py:59`, flatland-rl `flatland/evaluators/trajectory_evaluator.py:135` (at b99bfd11): CI on ffd2477 fails `test_gen_trajectories_from_metadata` on Python 3.11-3.14 with numpy's `DTypePromotionError`: under pandas 3.0.6 an expected reward comes back as a string. The re-pin brought in flatland-rl#540 (pandas 3); be92953 passed with pandas 2.3.3. Local checks missed it: the local env has pandas 2.3.3. Open: planned in F0. | fix: evaluate the grid runner's trajectories under pandas 3. |
+| ✅ | 18 | CI | bug | high | `tests/test_policy_grid_runner_evaluator.py:59`, flatland-rl `flatland/evaluators/trajectory_evaluator.py:135` (at b99bfd11): CI on ffd2477 fails `test_gen_trajectories_from_metadata` on Python 3.11-3.14 with numpy's `DTypePromotionError`: under pandas 3.0.6 an expected reward comes back as a string. Cause: `Trajectory._read_trains_rewards_dones_infos` converted tuple rewards (`PunctualityRewards`) only for an `object` column, and pandas 3 reads text as `str`; no flatland-rl test reloads tuple rewards. The re-pin brought in flatland-rl#540 (pandas 3); be92953 passed with pandas 2.3.3. Local checks missed it: the local env has pandas 2.3.3. Fixed in 4ef5ace (F0): the cause is fixed in flatland-rl c689b22f on #541's branch (30e7a35f before #541's rebase), and the pin moved there. | fix: pin flatland-rl to #541's head with the pandas 3 fix for tuple rewards. |
 |  | 19 | ruleset | ci | high | `.github/workflows/checks.yaml:27`, `main`'s ruleset (id 9165551): it requires `test-dla-regression (3.10)`, which #90 no longer runs, and not `(3.14)`. The stack merge stays blocked. Open: a repository setting, changed by an admin before the merge (§11.2 prerequisite); no commit and no step. | - |
 
 Issue references: the stack closes no issue. The code refers to flatland-rl#178 (closed) in
@@ -556,7 +556,7 @@ follow-up for finding 5 is done.
 
 | ID | Findings | Step | Category | Severity | Commit message | Commit(s) | Needs | Blocked by |
 |---|---|---|---|---|---|---|---|---|
-| F0 | 18 | Find where the reward turns into a string under pandas 3 (reproduce in an env with pandas 3.0.6, numpy 2.4.6); fix it in flatland-rl if the evaluator reads it wrongly (upstream PR, then re-pin), else in the test. | bug | high | fix: evaluate the grid runner's trajectories under pandas 3. |  | - | - |
+| F0 | 18 | Re-pin flatland-rl to c689b22f (#541's head after its rebase on main, with the fix for tuple rewards under pandas 3) in all three places. Checked against 30e7a35f, the same code before the rebase, under pandas 3.0.6: DLA tests and offline demo pass (20 passed, 50 skipped, 1 xfailed). | bug | high | fix: pin flatland-rl to #541's head with the pandas 3 fix for tuple rewards. | 4ef5ace | flatland-rl c689b22f | - |
 | F1 | 1 | Steer only the crossings `STOP_MOVING` would get wrong; keep `STOP_MOVING` for a settled target. Test: the full-speed scenario stops with a free cell between the agents, and a switch scenario still takes the planned branch. Recalibrate if the values move. | bug | high | fix(dla): send a directional action for an unavoidable crossing only where STOP_MOVING would leave the planned path. |  | - | - |
 | F2 | 3, 4, 12 | Mirror the engine's departure rules in entering prevention (earliest departure 0 or 1 on the first step; one step ahead after a malfunction), with tests and `CLAUDE.md:163-165`. | bug | medium | fix(dla): mirror the engine's departure rules in entering prevention. |  | - | - |
 | F3 | 8 | Use `_check_action_on_agent` in `SetPathPolicy._act`, with a test of `SetPathPolicy` on its own. | bug | low | fix(policies): use flatland-rl's _check_action_on_agent in SetPathPolicy._act and test it. |  | - | - |
@@ -579,7 +579,7 @@ follow-up for finding 5 is done.
   - `main`'s ruleset (`main`, id 9165551) requires `test-dla-regression (3.10)` to `(3.13)` (strict). #90 no longer
     runs 3.10, so that check never reports: an admin replaces 3.10 with 3.14 in the ruleset (finding 19).
   - Every PR of the stack green against `main`'s rules: #80-#89 passed, but re-runs fail, as their flatland-rl
-    branch pins no longer exist; #90 fails `test-dla-regression` (finding 18).
+    branch pins no longer exist; #90 failed `test-dla-regression` at ffd2477 (finding 18, fixed in 4ef5ace; CI on it pending).
   - One approval, code owner review (ruleset); merge methods squash or merge.
 - If a lower branch has to change after all: `git rebase --onto <new base head> <old base head> <branch>` for each branch
   above it, in order; the golden values above it may need recalibrating again.
