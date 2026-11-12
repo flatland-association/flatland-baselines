@@ -81,7 +81,7 @@ Requirements:
 | flatland-rl 4.2.6 in phase 1 | technical | The competition supported 4.2.5 and 4.2.6; the winner's image pins `flatland-rl==4.2.6` from PyPI. |
 | The repo pin stays 4.3.0 | convention | `pyproject.toml`, `environment.yml`, `checks.yaml` (`# DEPENDENCY SWITCH`, `CLAUDE.md`) pin 4.3.0 for all baselines and the PyPI package. |
 | Winner's code doesn't run on 4.3.0+ | technical | It calls `ObservationBuilder.reset()` without `env` (4.3.0: `reset(env)`) and reads `agent.position` (removed in 4.3.0, now `agent.current_configuration`). |
-| MIT licence | organisational | The winner's copyright and licence notice must be kept with the code. |
+| MIT licence | organisational | The licence file must be kept with the code. The winner's repo kept the starterkit's `LICENSE` ("Copyright (c) 2025 Flatland Association"), so it names no other author; the README credits darshanmakwana412. |
 | Evaluator contract | technical | The container is started with `flatland-trajectory-generate-from-policy ...`; `POLICY`, `OBS_BUILDER` set, CLI on `PATH`; pod start incl. pull within 20 minutes. |
 | Scenarios not public | organisational | The 35 ECML 2026 envs are on the organisers' SharePoint (`flatland-ecml2026-evaluation` README); only `level_0_scenario_1.pkl` of the starterkit is public. |
 | Remote git and submissions | organisational | Pushing, image publishing triggers and competition submissions are done by the user. |
@@ -178,8 +178,8 @@ Screenshots: none, nothing visible changes. C1 and C2 are manual checks by the u
 | # | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
 | C1 | 2, fidelity | Extract `/app/submission` from `ghcr.io/darshanmakwana412/ecml2026:v4-sipp-locks` (`flatland-ecml2026-evaluation` README, "Extract code") and `diff -r` it with the repo's `submission/` at `efcdd89`. | open | - |
-| 1 | 1 | `test_sipp_locks_policy_runner.py`: runs `level_0_scenario_1.pkl` through `generate_trajectory_from_policy`, asserts exit 0, all agents done, reward equals the recorded value. | open | - |
-| 2 | 2 | New CI job on flatland-rl 4.2.6 green; `git diff` of S2 against S1 shows only imports. | open | - |
+| 1 | 1 | `test_sipp_locks_policy_runner.py`: runs `level_0_scenario_1.pkl` through `generate_trajectory_from_policy`, asserts exit 0, all agents done, reward equals the recorded value. Also the image's contract by hand: only the files the `Dockerfile` copies, `POLICY`/`OBS_BUILDER` set, `flatland-trajectory-generate-from-policy`. | ✅ locally on flatland-rl 4.2.6, Python 3.12.13: 6 of 6 trains arrive, reward −200 (skipped stops), normalized 0.9325, the same in three runs and by hand; skipped on flatland-rl `main`. CI open. | - |
+| 2 | 2 | New CI job on flatland-rl 4.2.6 green; `git diff` of S2 against S1 shows only imports. | S1 files have the source's git blob SHAs; S2 changes one import line in `or_policy.py`. CI open. | - |
 | 3 | 3 | C2: calibration as decided in Q3; results table in the baseline's README (S4). | open | - |
 | 4 | 4 | `docker.yml` pushes `flatland-baselines-sipp-locks:<tag>`; image size noted in the PR. | open | - |
 | 5 | 5 | Phase 2 (§4.6). | open | - |
@@ -208,7 +208,8 @@ corridor locks (ECML 2026 winner)", crediting darshanmakwana412.
   `FLATLAND_RL_REF` build argument of `docker.yml` (phase 1).
 - `checks.yaml`: job `test-sipp-locks` (ubuntu-24.04, Python 3.12), `pip install flatland-rl==4.2.6 pytest`,
   downloads `level_0_scenario_1.pkl` into `ECML2026_PKL`, runs `pytest flatland_baselines/sipp_locks/tests`.
-- The tests skip unless `importlib.metadata.version("flatland-rl")` starts with `4.2.`; the DLA job does not collect
+- The tests skip unless `ObservationBuilder.reset` takes no `env` (flatland-rl 4.2.x), not by package version: flatland-rl
+  can come through `PYTHONPATH` without package metadata. The DLA job does not collect
   them (it runs only `deadlock_avoidance_heuristic/tests`).
 
 ### 4.6 Phase 2: flatland pre-5.0.0 (requirement 5; Q4)
@@ -366,7 +367,7 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 
 *Findings from code reviews, PR comments and TODOs, with their status and the commits that fix them.*
 
-PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), based on `main` `c1733cb`, checked at `e478229` on 2026-11-12: no review or conversation comments and no TODOs added yet, so no findings.
+PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), based on `main` `c1733cb`, checked at `58ca384` on 2026-11-12: no review or conversation comments and no TODOs added, so no findings.
 
 ## 10. Glossary
 
@@ -391,14 +392,14 @@ PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), ba
 
 *One row per commit: what it does, the findings it fixes, its message, and its SHAs once committed.*
 
-#### Phase 1: the winner on flatland-rl 4.2.6, calibrated
+#### Phase 1: the winner on flatland-rl 4.2.6, calibrated (in progress)
 
 | ID | Findings | Step | Category | Severity | Commit message | Commit(s) | Needs | Blocked by |
 |---|---|---|---|---|---|---|---|---|
-| S1 | - | Copy the winner's planner and policy byte-identical at `efcdd89`, with its licence. | feature | - | `feat(sipp-locks): import ECML 2026 winner v4-sipp-locks unchanged from darshanmakwana412/ecml2026@efcdd89.` |  | C1 | - |
-| S2 | - | Package it: imports, `Dockerfile`, README (provenance, limitations), smoke test, repo README and `CLAUDE.md` entries. | feature | - | `feat(sipp-locks): run v4-sipp-locks as baseline on flatland-rl 4.2.6.` |  | S1 | - |
-| S3 | - | CI job `test-sipp-locks` on flatland-rl 4.2.6. | ci | - | `ci(sipp-locks): test the sipp-locks baseline against flatland-rl 4.2.6.` |  | S2 | - |
-| S4 | - | Build and push the image in `docker.yml`. | ci | - | `ci(docker): build and push the sipp-locks baseline image.` |  | S2 | - |
+| S1 | - | Copy the winner's planner and policy byte-identical at `efcdd89`, with its licence. | feature | - | `feat(sipp-locks): import ECML 2026 winner v4-sipp-locks unchanged from darshanmakwana412/ecml2026@efcdd89.` | 80124cb | C1 | - |
+| S2 | - | Package it: imports, `Dockerfile`, README (provenance, limitations), smoke test, repo README and `CLAUDE.md` entries. | feature | - | `feat(sipp-locks): run v4-sipp-locks as baseline on flatland-rl 4.2.6.` | 2172dfb | S1 | - |
+| S3 | - | CI job `test-sipp-locks` on flatland-rl 4.2.6. | ci | - | `ci(sipp-locks): test the sipp-locks baseline against flatland-rl 4.2.6.` | 2df6edb | S2 | - |
+| S4 | - | Build and push the image in `docker.yml`. | ci | - | `ci(docker): build and push the sipp-locks baseline image.` | 58ca384 | S2 | - |
 | S5 | - | Record the calibration (C2) in the baseline's README. | docs | - | `docs(sipp-locks): record calibration against the ECML 2026 leaderboard.` |  | S4 | - |
 
 #### Phase 2: flatland pre-5.0.0 (second PR, Q4)
@@ -424,10 +425,10 @@ Phase 1; phase 2 is listed after C2.
 | `flatland_baselines/sipp_locks/__init__.py` | Package marker. |
 | `flatland_baselines/sipp_locks/or_policy.py` | `PlannerPolicy`, `PlannerObsBuilder` (winner's, import path changed in S2). |
 | `flatland_baselines/sipp_locks/planner/{__init__,netgraph,sipp,runtime}.py` | `NetGraph`, `SippPlanner`, `Reservations`, `PlannerRuntime` (winner's, unchanged). |
-| `flatland_baselines/sipp_locks/LICENSE-ecml2026` | The winner's MIT licence. |
+| `flatland_baselines/sipp_locks/LICENSE-ecml2026` | The winner's repo's MIT licence file (from the starterkit). |
 | `flatland_baselines/sipp_locks/README.md` | Provenance (repo, commit, submission, score), how to run, `PLANNER_*` knobs, limitations (§2.1), calibration (S5). |
 | `flatland_baselines/sipp_locks/Dockerfile` | Slim image on flatland-rl 4.2.6 (§4.5). |
-| `flatland_baselines/sipp_locks/tests/{__init__,test_sipp_locks_policy_runner}.py` | Smoke test on `level_0_scenario_1.pkl`, skipped unless flatland-rl 4.2.x and `ECML2026_PKL` set. |
+| `flatland_baselines/sipp_locks/tests/{__init__,test_sipp_locks_policy_runner}.py` | Smoke test on `level_0_scenario_1.pkl` with `ECML2026Rewards`, skipped unless flatland-rl 4.2.x and `ECML2026_PKL` set. |
 
 ### 12.2 Modified files
 
