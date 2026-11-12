@@ -2,7 +2,8 @@
 
 > **Status:** plan of 2026-11-12, draft. Based on `main` `c1733cb` (release 4.3.0, pins flatland-rl 4.3.0). Issue
 > [#88](https://github.com/flatland-association/flatland-baselines/issues/88) ("Add ECML 2026 winner as flatland
-> baseline, update to flatland pre 5.0.0.", chenkins). Branch `88-ecml2026-winner-baseline` (local), no PR yet. Open
+> baseline, update to flatland pre 5.0.0.", chenkins). Branch `88-ecml2026-winner-baseline`,
+> PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92). Open
 > questions: §9.1 (Q5, phase 2 only).
 >
 > **Why:** the ECML 2026 non-RL winner [v4-sipp-locks](https://github.com/darshanmakwana412/ecml2026) (20.8429 of 35)
@@ -365,7 +366,7 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 
 *Findings from code reviews, PR comments and TODOs, with their status and the commits that fix them.*
 
-None yet (no PR).
+PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), based on `main` `c1733cb`, checked at `e478229` on 2026-11-12: no review or conversation comments and no TODOs added yet, so no findings.
 
 ## 10. Glossary
 
