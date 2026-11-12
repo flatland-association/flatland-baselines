@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from flatland.core.env_observation_builder import ObservationBuilder
 from flatland.envs.RailEnvPolicy import RailEnvPolicy
 
-from submission.planner.runtime import PlannerRuntime
+from flatland_baselines.sipp_locks.planner.runtime import PlannerRuntime
 
 
 class PlannerObsBuilder(ObservationBuilder):
