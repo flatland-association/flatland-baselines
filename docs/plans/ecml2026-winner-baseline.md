@@ -67,7 +67,7 @@ Requirements:
 
 | Follow-up | Why not in this PR | From | Findings | Issue |
 |---|---|---|---|---|
-| Phase 2: run on flatland pre-5.0.0 and re-calibrate (§4.6). | Second PR, after the phase-1 calibration and flatland-rl 5.0.0 (Q4). | Requirement 5, Q4 | - | - |
+| Phase 2: run on flatland pre-5.0.0 and re-calibrate (§4.6). | Second PR, after the phase-1 calibration and flatland-rl 5.0.0 (Q4). | Requirement 5, Q4 | - | [#88](https://github.com/flatland-association/flatland-baselines/issues/88) (stays open: this PR relates to it, the phase-2 PR closes it) |
 | Serve intermediate stops again once braking is no longer penalised like a collision. | The winner skips stops because flatland-rl 4.2.6 penalises a normal stop with −250·v; a reward change, not packaging. | §2.1 | - | - |
 | Second place (`fast-first-v3`) as a baseline. | Not asked; it hardcodes the competition map. | - | - | - |
 | Calibration in public CI. | The 35 ECML 2026 scenarios are not public. | §2 | - | - |
