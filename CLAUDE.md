@@ -146,7 +146,7 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 (plans for all agents at once from global state), unlike per-agent tree observations.
 
 DLA never reads a train state (`agent.state` or `TrainState`): it decides from the agents' facts, through small
-helpers in `DeadLockAvoidancePolicy` (`_is_done`, `_is_on_map`, `_is_before_departure`, `_is_not_ready_to_depart`,
+helpers in `DeadLockAvoidancePolicy` (`_is_done`, `_is_en_route`, `_is_before_departure`, `_is_not_ready_to_depart`,
 `_enters_map_in_coming_step`): target reached (`target_entry_point`), position, `malfunction_handler`, speed
 (`speed_counter.is_cell_exit()`) and earliest departure with the step count. So DLA needs neither
 `RailEnvStateMachineWrapper` nor the runners' `--skip-state-machine-update False`; on a plain flatland-rl 5.0 env,

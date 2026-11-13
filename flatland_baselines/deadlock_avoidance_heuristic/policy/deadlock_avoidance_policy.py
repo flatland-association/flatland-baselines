@@ -160,8 +160,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         return agent.target_entry_point is not None
 
     @staticmethod
-    def _is_on_map(agent: EnvAgent) -> bool:
-        """The agent is on the map and not done."""
+    def _is_en_route(agent: EnvAgent) -> bool:
+        """
+        The agent is between departure and target: on the map and not done. An agent parked at its target
+        (`remove_agents_at_target=False`) is on the map, but done, so not en route. With `_is_before_departure` and
+        `_is_done`, exactly one of the three holds for every agent; the callers want en route, as a parked agent needs
+        no alternative path, opposition check or forced action.
+        """
         return agent.current_entry_point is not None and agent.target_entry_point is None
 
     @staticmethod
@@ -219,7 +224,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] = 0
         else:
             self.num_blocked[handle] += 1
-            if self._is_on_map(agent) and not agent.malfunction_handler.in_malfunction:
+            if self._is_en_route(agent) and not agent.malfunction_handler.in_malfunction:
                 self._find_alternative(agent)
             # flatland-rl#178: a MOVING agent whose distance plus speed reaches the end of its cell
             # this step crosses into its next entry point with any action valid there; the action
@@ -320,7 +325,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_positions = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int) - 1
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
-            if self._is_on_map(agent):
+            if self._is_en_route(agent):
                 self.agent_positions[agent.current_entry_point[0]] = handle
 
     def _update_shortest_distance_maps_and_opp_agent_map(self):
@@ -523,7 +528,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # switch it may resolve to a branch the planned path doesn't take. Compute DLA's own action toward its planned
         # path even when blocked, and keep it as `forced_action` only where STOP_MOVING would leave the path
         # (`_stop_moving_leaves_path`).
-        crossing_unavoidable = (self._is_on_map(agent) and not agent.malfunction_handler.in_malfunction
+        crossing_unavoidable = (self._is_en_route(agent) and not agent.malfunction_handler.in_malfunction
                                 and agent.speed_counter.is_cell_exit())
         if not (can_move or crossing_unavoidable):
             return
