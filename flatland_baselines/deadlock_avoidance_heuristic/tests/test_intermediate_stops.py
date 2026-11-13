@@ -34,7 +34,6 @@ def test_intermediate(scale_max_episode_steps, expected, gen_movies=False, debug
         obs_builder_object=FullEnvObservation(),
         seed=982374,
         rewards=rewards,
-        skip_state_machine_update=False,
     )
     for a in env.agents:
         print(f"agent {a.handle}:")

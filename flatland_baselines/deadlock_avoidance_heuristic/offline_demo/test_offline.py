@@ -35,8 +35,6 @@ def test_offline_calibrated_against_online_post_seed_envs_v2():
                 "--legacy-env-generator", True,
                 # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
                 "--post-seed", 1001,
-                # DeadLockAvoidancePolicy reads agent.state directly
-                "--skip-state-machine-update", False,
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(
@@ -105,8 +103,6 @@ def test_offline_calibrated_against_online_envs_v3(post_seed):
                 "--obs-builder-cls", "FullEnvObservation",
                 # --post-seed mimicks online evaluation, which does a reset on the env loaded from pkl using `FLATLAND_EVALUATION_RANDOM_SEED`
                 "--post-seed", post_seed,
-                # DeadLockAvoidancePolicy reads agent.state directly
-                "--skip-state-machine-update", False,
             ])
         assert e_info.value.code == 0
         all_actions, all_trains_positions, all_trains_arrived, all_trains_rewards_dones_infos, env_stats, agent_stats = data_frame_for_trajectories(

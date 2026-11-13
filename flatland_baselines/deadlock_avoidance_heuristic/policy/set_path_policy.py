@@ -77,6 +77,16 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                 return a
         raise Exception("Invalid state")
 
+    @staticmethod
+    def _derived_state(agent: EnvAgent, env: RailEnv) -> TrainState:
+        """
+        The agent's state, derived by flatland-rl from its position, speed, malfunction and earliest departure and the
+        env's step count (`EnvAgent.derived_state`), instead of `agent.state`. Read between two steps, it equals the
+        state the state machine tracks, and it is also right when the env does not run the state machine
+        (`RailEnvStateMachineWrapper` absent or skipping its updates), where `agent.state` never changes.
+        """
+        return agent.derived_state(env._elapsed_steps)
+
     def act_many(self, handles: List[int], observations: List[RailEnv], **kwargs):
         actions = {}
         for handle, env in zip(handles, observations):
@@ -89,7 +99,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         """
         Build `_shortest_paths`.
         """
-        if agent.state == TrainState.DONE:
+        if self._derived_state(agent, env) == TrainState.DONE:
             self._set_paths.pop(agent.handle, None)
             return
 

@@ -41,8 +41,6 @@ def test_gen_trajectories_from_metadata(capsys):
                     "--rewards-pkg", "flatland.envs.rewards",
                     "--rewards-cls", "PunctualityRewards",
                     "--legacy-env-generator", "True",
-                    # DeadLockAvoidancePolicy reads agent.state directly
-                    "--skip-state-machine-update", "False",
                 ])
             assert e_info.value.code == 0
             metadata = pd.read_csv(metadata_csv)
