@@ -80,7 +80,7 @@ Requirements:
 |---|---|---|
 | flatland-rl 4.2.6 in phase 1 | technical | The competition supported 4.2.5 and 4.2.6; the winner's image pins `flatland-rl==4.2.6` from PyPI. |
 | The repo pin stays 4.3.0 | convention | `pyproject.toml`, `environment.yml`, `checks.yaml` (`# DEPENDENCY SWITCH`, `CLAUDE.md`) pin 4.3.0 for all baselines and the PyPI package. |
-| Winner's code doesn't run on 4.3.0+ | technical | It calls `ObservationBuilder.reset()` without `env` (4.3.0: `reset(env)`) and reads `agent.position` (removed in 4.3.0, now `agent.current_configuration`). |
+| Winner's code doesn't run on 4.3.0+ | technical | It calls `ObservationBuilder.reset()` without `env` (4.3.0: `reset(env)`) and reads `agent.position`/`agent.direction`/`agent.initial_configuration` (removed in 4.3.0; on flatland-rl `main` after 4.3.0 renamed again to `agent.current_entry_point`/`agent.initial_entry_point`, commit 7599b962b). |
 | MIT licence | organisational | The licence file must be kept with the code. The winner's repo kept the starterkit's `LICENSE` ("Copyright (c) 2025 Flatland Association"), so it names no other author; the README credits darshanmakwana412. |
 | Evaluator contract | technical | The container is started with `flatland-trajectory-generate-from-policy ...`; `POLICY`, `OBS_BUILDER` set, CLI on `PATH`; pod start incl. pull within 20 minutes. |
 | Scenarios not public | organisational | The 35 ECML 2026 envs are on the organisers' SharePoint (`flatland-ecml2026-evaluation` README); only `level_0_scenario_1.pkl` of the starterkit is public. |
@@ -215,16 +215,28 @@ corridor locks (ECML 2026 winner)", crediting darshanmakwana412.
 
 ### 4.6 Phase 2: flatland pre-5.0.0 (REQ-5; Q-4)
 
-Outline, detailed in a plan revision after CHK-2:
+Outline, detailed in a plan revision at the start of the phase-2 PR (checked against flatland-rl `main` `3e30f9ef` on
+2026-11-13):
 
 - `PlannerObsBuilder.reset(env)` (4.3.0 interface); `agent.position`/`agent.direction` →
-  `agent.current_configuration` (as DLA in #78).
+  `agent.current_entry_point`, `agent.initial_configuration` → `agent.initial_entry_point`. The `*_configuration`
+  names of 4.3.0 (used by DLA since #78) were renamed to `*_entry_point` on `main` after 4.3.0 (7599b962b,
+  "rename Configuration/ConfigurationType to EntryPoint"). Still there on `main`: `speed_counter`,
+  `malfunction_handler.malfunction_down_counter`, `waypoints*`, `_elapsed_steps`, `_max_episode_steps`, `TrainState`.
+- Blocked outside this plan: flatland-baselines `main` (pinned to 4.3.0, green) does not yet run on flatland-rl
+  `main`; its DLA tests fail there (`ImportError: cannot import name 'ObservationType'` from
+  `flatland.core.env_observation_builder`, 6 failed and 4 errors on 2026-11-13). Moving the repo pin to 5.0.0 comes
+  first; S-7 builds on it.
 - Dockerfile back to the repo pattern (`FROM flatland-rl:<tag>`, `pip install -e .`, `FLATLAND_RL_PIP_URL`); tests
   join the repo pin's CI job; version skip removed.
 - Re-run the calibration of Q-3 on flatland-rl 5.0.0 (or its release branch); explain differences by flatland change
   (e.g. the collision penalty for a normal stop, `fix/collision-penalty-for-normal-stop`).
 - If flatland-rl 5.0.0 no longer penalises a normal stop like a collision, re-measure `PLANNER_SERVE_STOPS=1` and
   change the default if serving intermediate stops scores better (follow-up in §1.4).
+- Per-level scores for the comparison come from the FAB results API:
+  `https://api-fab.flatland.cloud/results/submissions/<submission id>/tests/<test ids, comma-separated>` (or
+  `api-fab-int` for fab-int), with the seven ECML 2026 test IDs from `ECML2026` in
+  `flatland-ecml2026-evaluation`'s `stage_00_rerun_with_detailled_rewards.py`; the totals without `/tests/...`.
 
 ## 5. Building block view
 
@@ -352,7 +364,8 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 - a) `v5.0.0` once released.
 - b) A pre-release branch via `FLATLAND_RL_PIP_URL`.
 
-*Proposal:* decide at the start of phase 2; a) if released by then.
+*Proposal:* decide at the start of phase 2; a) if released by then. Either way the repo pin moves first (§4.6,
+blocker of S-7).
 
 ### 9.2 Decision log
 
@@ -410,15 +423,15 @@ PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), ba
 
 | ID | Findings | Step | Category | Severity | Commit message | Commit(s) | Needs | Blocked by |
 |---|---|---|---|---|---|---|---|---|
-| 💡 S-6 | - | Adapt to `ObservationBuilder.reset(env)` and `agent.current_configuration`. | refactor | - | `refactor(sipp-locks): adapt to the flatland-rl pre-5.0.0 interfaces.` |  | S-5 | Q-5 |
-| 💡 S-7 | - | Dockerfile and CI back to the repo pin; drop the version skip. | build | - | `build(sipp-locks): build and test on the repo's flatland-rl pin.` |  | S-6 | - |
+| 💡 S-6 | - | Adapt to `ObservationBuilder.reset(env)` and `agent.current_entry_point`/`initial_entry_point`. | refactor | - | `refactor(sipp-locks): adapt to the flatland-rl pre-5.0.0 interfaces.` |  | S-5 | Q-5 |
+| 💡 S-7 | - | Dockerfile and CI back to the repo pin; drop the version skip. | build | - | `build(sipp-locks): build and test on the repo's flatland-rl pin.` |  | S-6 | the repo pin on flatland-rl 5.0.0 (§4.6) |
 | 💡 S-8 | - | Re-calibrate and explain the difference to phase 1. | docs | - | `docs(sipp-locks): record calibration on flatland-rl 5.0.0.` |  | S-7 | - |
 
 ## 12. Change inventory
 
 *Every file the change adds, modifies, renames or removes, and what stays unchanged on purpose.*
 
-Phase 1; phase 2 is listed after CHK-2.
+Phase 1; phase 2 is listed at the start of the phase-2 PR.
 
 ### 12.1 New files
 
