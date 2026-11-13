@@ -51,7 +51,8 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if agent.current_entry_point is None:
             return RailEnvActions.MOVE_FORWARD
 
-        if len(self._set_paths[agent.handle]) == 0:
+        # done: `_update_agent` has dropped the set path, also for an agent parked at its target (`remove_agents_at_target=False`)
+        if agent.handle not in self._set_paths or len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
         # design: actions applied at cell entry -- once agent.next_entry_point holds a
