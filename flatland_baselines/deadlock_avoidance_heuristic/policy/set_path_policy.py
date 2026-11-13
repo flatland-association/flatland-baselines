@@ -1,7 +1,7 @@
 import warnings
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Dict, Tuple
+from typing import List, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,6 +44,8 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         self.k_shortest_path_cutoff = k_shortest_path_cutoff
         self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_always_first_strategy
         self.verbose = verbose
+        # audit log, only turned on by DeadLockAvoidancePolicy(audit=True)
+        self.audit: Optional[List[Dict]] = None
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.current_entry_point is None:
@@ -66,7 +68,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             return RailEnvActions.MOVE_FORWARD
 
         for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
-            new_cell_valid, (new_position, new_direction), transition_valid, preprocessed_action = env.rail.check_action_on_agent(
+            new_cell_valid, (new_position, new_direction), transition_valid, _, _ = env.rail._check_action_on_agent(
                 RailEnvActions.from_value(a), lookahead_from
             )
             if new_cell_valid and transition_valid and (
