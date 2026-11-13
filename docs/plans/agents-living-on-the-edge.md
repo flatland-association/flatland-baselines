@@ -77,6 +77,7 @@ Requirements:
 | Pin the released flatland-rl 5.0.0 in all three places, after the stack is merged into `main` and before release-please's release PR is merged. | Waits for the flatland-rl 5.0.0 release; moved out of this PR on 2026-11-12 (formerly S-37). | REQ-7 | F-2, F-16, F-17 | untracked |
 | Record the 50 benchmark episodes again with the current engine and replay them in the tests. | Needs a new archive in flatland-scenarios (another repo) and a review of the new results. | §2.1 (TODO) | F-5 | [#94](https://github.com/flatland-association/flatland-baselines/issues/94) |
 | Apply the alternative path DLA picks when an agent is blocked, planned from the settled next entry point. | Fails on `main` too; applying it changes DLA's results and needs its own calibration. | §2.1 | F-9 | [#93](https://github.com/flatland-association/flatland-baselines/issues/93) |
+| Let DLA hold off-map agents until their earliest departure itself, with the predicate entering prevention uses (`earliest_departure <= _elapsed_steps + 1`), once flatland-rl stops enforcing the earliest departure. | [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) is open and its design (the meaning of `WAITING`, `action_required` for off-map agents) not decided; the pinned flatland-rl enforces it. | §2.2 | - | [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) |
 | Redesign DLA to need no train state, as preparation for the observation builder extraction ([#65](https://github.com/flatland-association/flatland-baselines/pull/65)). | A redesign; this PR only needs DLA to get the state right (Q-2). | Q-2 | F-14 | - |
 
 ## 2. Constraints
@@ -119,6 +120,11 @@ Not checked in code; they hold by construction of the test setups and of flatlan
 - flatland-rl decrements the malfunction counter and increments the step count before it reads the state
   transition signals, as at b99bfd11 (`rail_env_state_machine_wrapper.py:100-122`). Entering prevention mirrors that
   order.
+- flatland-rl enforces the earliest departure: an off-map agent enters only once `earliest_departure <=
+  _elapsed_steps` (`RailEnv._candidate_entry_points`, at 9eec95df), so DLA sends moving actions to agents not yet due
+  and entering prevention predicts entry from the same rule (S-29), as the flatland-book's 5.0.0 draft describes it
+  ([Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb), "Step counting and departure", [flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42) at 0dd2d37). [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) proposes to drop this
+  enforcement; then DLA has to wait itself (§1.4).
 - The online and offline demos run the same episodes with the same seeds, so they can share their expected values.
 - GitHub's stack merge is available for the repository when the stack is merged (Q-3); the docs mark it as a
   public preview on GitHub Enterprise Cloud.
@@ -199,7 +205,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 | REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on 11887c7, Python 3.11-3.14 (pandas 3). At ffd2477 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 4ef5ace) | - |
 | REQ-2 | New action timing | `test_limitations_*.py`, `test_intermediate_stops.py` | ✅ | - |
 | REQ-3 | No wrong branch at an unavoidable crossing | `test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression`, `test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_path`, `test_blocked_full_speed_agent_stops_before_a_symmetric_switch` | ✅ locally against 9eec95df (S-28, 70e8660): blocked full-speed agents stop with a free cell between them; steered only where `STOP_MOVING` would leave the path; before a symmetric switch they stop | - |
-| REQ-4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ❌ misses earliest departure 1 and is one step late after a malfunction (F-3, F-4, S-29) | - |
+| REQ-4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ✅ locally against 9eec95df (S-29, 9e18779): earliest departures 0 and 1 in the first step, and a malfunction ending in the departure step, enter one after the other | - |
 | REQ-5 | DLA sees the agents' correct state | now: grid runner test and offline demo with `--skip-state-machine-update False`, online client wrapped; after S-31: the same tests without state machine, unwrapped | ✅ now; S-31 checked in a scratch copy (Q-2) | - |
 | REQ-6 | Recalibrations named | commit messages of 17d2c76, 1d1b4fd, 048ea5f, 49635a3, 46e74cb, 01322b0, be92953, ffd2477 | ✅ | - |
 | REQ-7 | Released flatland-rl before `main` | `pyproject.toml` without a git URL | ⏭️ moved to the follow-up in §1.4 (2026-11-12) | - |
@@ -248,7 +254,8 @@ For flatland-rl#513.
 
 - Entering prevention also considers an agent leaving a malfunction off the map, only when its malfunction clears
   this step.
-- F-4: the condition is off by one against the engine (S-29).
+- F-4: the condition was off by one against the engine; since S-29 (9e18779) entering prevention uses the engine's
+  own rule (`earliest_departure <= _elapsed_steps + 1`, malfunction counter <= 1), whatever the agent's state.
 - Golden values recalibrated for optimistic re-promotion.
 
 ### 4.7 Phase 5: entering on the first step (#85; REQ-4)
@@ -258,8 +265,8 @@ For flatland-rl#513.
 For flatland-rl#515.
 
 - On the first step, entering prevention also considers a waiting agent with earliest departure 0.
-- F-3: the condition is off by one against the engine, which lets earliest departure 0 and 1 enter in step 1
-  (S-29).
+- F-3: the condition was off by one against the engine, which lets earliest departure 0 and 1 enter in step 1;
+  fixed by the same rule in S-29 (9e18779, §4.6).
 - Golden values recalibrated for the one-step-earlier departure.
 
 ### 4.8 Phase 6: optional state machine (#89; REQ-5, REQ-6)
@@ -396,7 +403,7 @@ Compared with `main` c1733cb. What is reused, and what is not new on purpose, is
 |---|---|---|
 | PAT-1 | Look-ahead: act from the settled next entry point toward the waypoint after it | §4.3 |
 | PAT-2 | Forced action for an unavoidable crossing | §4.5 |
-| PAT-3 | Entering prevention mirrors the engine's shortcuts into `MOVING` | §4.6, §4.7 |
+| PAT-3 | Entering prevention mirrors the engine's map-entry rule (earliest departure, malfunction counter), not its states | §4.6, §4.7 |
 | PAT-4 | DLA derives the agents' state (`derived_state` with the step count) instead of requiring the state machine | §4.8, Q-2 |
 | PAT-5 | flatland-rl pinned by commit SHA with the branch name as a comment | §4.8 |
 
@@ -474,6 +481,7 @@ Each PR of the stack is checked against `main`'s rules, and the history must be 
 | 2026-11-12 | ✅ Pin the released flatland-rl 5.0.0 after the merge, in a follow-up (formerly S-37). | The stack need not wait for flatland-rl#541's merge and the 5.0.0 release. | REQ-7 and F-2, F-16, F-17 leave the PR (§1.4); `main` pins flatland-rl#541's commit until the follow-up, so release-please's release PR waits for it, and the commit must stay fetchable (§2.2). |
 | 2026-11-12 | ✅ Leave F-5 (record the episodes again) and F-9 (apply the alternative path) out of this PR, tracked in [#94](https://github.com/flatland-association/flatland-baselines/issues/94) and [#93](https://github.com/flatland-association/flatland-baselines/issues/93). | F-9 fails on `main` too and only matters with rerouting switched on (off by default); both change DLA's results and need their own review; F-5 needs a new archive in flatland-scenarios. Fixing F-9 here as a step of phase 8 was the alternative. Both had been put into the follow-ups when the plan was written, without asking. | Two follow-ups in §1.4 with issues; no steps for them. |
 | 2026-11-12 | ✅ Leave the follow-up "Pin the released flatland-rl 5.0.0" untracked; re-pin flatland-rl to #541's merge commit once #541 is merged (S-38). | #541 is about to be merged; pinning its merge commit on flatland-rl's `main` keeps `main` fetchable whatever merge method #541 gets. | S-38 before the stack merge (§11.2); the follow-up has no issue. |
+| 2026-11-13 | ✅ Keep S-29 on the pinned engine's departure rule; track [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) (earliest departure no longer enforced by the env) in a follow-up. | #559 is open and undecided; S-29 matches the flatland-rl the stack pins. Not taken: let DLA wait for the earliest departure itself now (ready for #559, but DLA's actions for agents not yet due change), or hold S-29 until #559 is decided (F-3, F-4 stay open). | Follow-up (§1.4): once #559 lands, DLA waits with the same predicate, and entering prevention stays as it is. |
 
 ### 9.3 Code Review Findings
 
@@ -489,12 +497,12 @@ GitHub yet. "resolved" in Source marks threads resolved on GitHub.
 | Fixed | ID | Source | Category | Severity | Finding | Commit message |
 |---|---|---|---|---|---|---|
 | ✅ | F-1 | code review | bug | high | `flatland_baselines/deadlock_avoidance_heuristic/policy/deadlock_avoidance_policy.py:473,493-516,176`, `tests/test_limitations_two_switches.py:210`: a full-speed agent reaches the end of its cell every step (`is_cell_exit()`), so a blocked one gets `forced_action` instead of `STOP_MOVING` every step, and with a settled target the forced action commits it to the cell after. It drives on until the engine blocks it, head-on next to the other train. Shown in the full-speed two-switch scenario: agent 0 ends at (1,3) next to agent 1; with the forced action off, both stop in step 2 with a free cell between them, and nothing derails. The test asserts the head-on outcome. Fixed in 70e8660 (S-28): the forced action only where `STOP_MOVING` would lead to another branch than the planned path; both agents now stop with a free cell between them. | fix(dla): send a directional action for an unavoidable crossing only where STOP_MOVING would leave the planned path. |
+| ✅ | F-3 | code review | bug | medium | `deadlock_avoidance_policy.py:543-546`: the first-step shortcut for waiting agents matches only `earliest_departure == 0`; the engine lets 0 and 1 enter in step 1 (`rail_env_state_machine_wrapper.py:100`). Two facing agents with earliest departure 0 and 1 enter head-on unchecked. Fixed in 9e18779 (S-29): an off-map agent is entering if `earliest_departure <= _elapsed_steps + 1` and its malfunction counter is <= 1. | fix(dla): mirror the engine's departure rules in entering prevention. |
+| ✅ | F-4 | code review | bug | medium | `deadlock_avoidance_policy.py:540-542`: the malfunction-off-map check compares the earliest departure with the step count before `step()` increments it; the engine compares after (`rail_env_state_machine_wrapper.py:113`). An agent whose malfunction ends in its departure step enters unchecked. Fixed in 9e18779 (S-29), with the engine's own rule. | fix(dla): mirror the engine's departure rules in entering prevention. |
 | ✅ ❌ | F-15 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4312300888) | ci | low | `.github/workflows/checks.yaml:1`: "Depends on #91" (dropping Python 3.10). Fixed in 34a3bce (S-24): #91 is merged into this branch. | chore: drop Python 3.10, test 3.14. (#91) |
 | ✅ | F-18 | CI | bug | high | `tests/test_policy_grid_runner_evaluator.py:59`, flatland-rl `flatland/evaluators/trajectory_evaluator.py:135` (at b99bfd11): CI on ffd2477 fails `test_gen_trajectories_from_metadata` on Python 3.11-3.14 with numpy's `DTypePromotionError`: under pandas 3.0.6 an expected reward comes back as a string. Cause: `Trajectory._read_trains_rewards_dones_infos` converted tuple rewards (`PunctualityRewards`) only for an `object` column, and pandas 3 reads text as `str`; no flatland-rl test reloads tuple rewards. The re-pin brought in flatland-rl#540 (pandas 3); be92953 passed with pandas 2.3.3. Local checks missed it: the local env has pandas 2.3.3. Fixed in 4ef5ace (S-27): the cause is fixed in flatland-rl c689b22f on #541's branch (30e7a35f before #541's rebase), and the pin moved there. | fix: pin flatland-rl to #541's head with the pandas 3 fix for tuple rewards. |
 | ✅ | F-19 | ruleset | ci | high | `.github/workflows/checks.yaml:27`, `main`'s ruleset (id 9165551): it required `test-dla-regression (3.10)`, which #90 no longer runs, and not `(3.14)`, so the stack merge was blocked. Fixed on 2026-11-12 by chenkins in the repository settings: the ruleset requires `(3.11)` to `(3.14)` (strict); no commit and no step. | - |
 | ⏭️ | F-2 | code review | build | high | `pyproject.toml:29`, `.github/workflows/release-please.yml:26-48`: the dependency is a direct git URL; merging release-please's release PR publishes to PyPI, and PyPI rejects direct URLs. While `main` carries the git pin, the next release fails. Open: taken over by the follow-up "Pin the released flatland-rl 5.0.0" (§1.4). | build: pin flatland-rl to the released 5.0.0 before merging to main. |
-|  | F-3 | code review | bug | medium | `deadlock_avoidance_policy.py:543-546`: the first-step shortcut for waiting agents matches only `earliest_departure == 0`; the engine lets 0 and 1 enter in step 1 (`rail_env_state_machine_wrapper.py:100`). Two facing agents with earliest departure 0 and 1 enter head-on unchecked. Open: planned in S-29. | fix(dla): mirror the engine's departure rules in entering prevention. |
-|  | F-4 | code review | bug | medium | `deadlock_avoidance_policy.py:540-542`: the malfunction-off-map check compares the earliest departure with the step count before `step()` increments it; the engine compares after (`rail_env_state_machine_wrapper.py:113`). An agent whose malfunction ends in its departure step enters unchecked. Open: planned in S-29. | fix(dla): mirror the engine's departure rules in entering prevention. |
 | ⏭️ | F-5 | code review | test-coverage | medium | `tests/test_episodes_deadlock_avoidance.py:15-25`: the 50 recorded-episode replays are skipped unconditionally, while CI still downloads the episodes (`checks.yaml:52,106`); the TODO's bare `#178` meant flatland-rl#178; since 8f9b161 it refers to #94. Open: taken over by the follow-up "Record the 50 benchmark episodes again" (§1.4, [#94](https://github.com/flatland-association/flatland-baselines/issues/94)). | test(dla): regenerate the recorded episodes against the pinned flatland-rl and replay them again. |
 |  | F-6 | code review | ci | medium | `.github/workflows/checks.yaml:7`: the episodes archive comes from the flatland-scenarios branch `178-agents-living-on-the-edge-9`, which can change or be deleted. Open: planned in S-33. | ci: pin the benchmark episodes archive to a flatland-scenarios commit. |
 |  | F-7 | code review | design | medium | `policy/set_path_policy.py:60-67`, `deadlock_avoidance_policy.py:493-511`: the look-ahead is copied in two places and has already drifted (F-8). Open: planned in S-34. | refactor(dla): share the cell-entry look-ahead between SetPathPolicy and DeadLockAvoidancePolicy. |
@@ -502,7 +510,7 @@ GitHub yet. "resolved" in Source marks threads resolved on GitHub.
 | ⏭️ | F-9 | code review | bug | low | `deadlock_avoidance_policy.py:232-239,219`: `_find_alternative` picks an alternative but never assigns it, so rerouting never takes effect; on `main` it is the same. Once applied, it must start from a settled next entry point. Open: taken over by the follow-up "Apply the alternative path" (§1.4, [#93](https://github.com/flatland-association/flatland-baselines/issues/93)). | fix(dla): apply the chosen alternative path, planned from the settled next entry point. |
 |  | F-10 | code review | test-robustness | low | `tests/test_limitations_two_switches.py:446,455`: `num_steps=21` only lands the oscillating agents 2 and 3 on STOPPED; a one-step timing change breaks the test without a regression. Open: planned in S-32. | test(dla): assert queued agents' positions, not their oscillating state. |
 |  | F-11 | code review | design | low | `deadlock_avoidance_policy.py:446-571,537,186-267`: `_extract_agent_can_move` has 126 lines and redefines `_about_to_leave_off_map` every step (named for leaving, used for entering); `_find_alternative` repeats six verbose/audit blocks. Open: planned in S-35. | refactor(dla): split _extract_agent_can_move and log through one audit helper. |
-|  | F-12 | code review | docs | low | `CLAUDE.md:86,163-165`: the pin is described as a tag or branch name (it is a commit SHA); "the one and only value" for `<= 1`; the first-step rule repeats F-3. Open: planned in S-29 (lines 163-165) and S-36 (line 86). | docs: describe the flatland-rl pin and entering prevention as the code has them. |
+|  | F-12 | code review | docs | low | `CLAUDE.md:86,163-165`: the pin is described as a tag or branch name (it is a commit SHA); "the one and only value" for `<= 1`; the first-step rule repeats F-3. Partly fixed in 9e18779 (S-29): lines 163-165 describe the engine's rule. Open: line 86, planned in S-36. | docs: describe the flatland-rl pin and entering prevention as the code has them. |
 |  | F-13 | code review | style | low | `deadlock_avoidance_policy.py:452-453,537`, `online_demo/submission/run_solution.py:40`: per-step state not declared with types; no `EnvAgent` hint; the online client drops the wrapper's return value. Open: planned in S-36. | style(dla): declare per-step state with type hints and use the wrapper's return value. |
 |  | F-14 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4311347990) | design | medium | `tests/test_policy_grid_runner_evaluator.py:44`: "update dla instead?": DLA could get the agents' state itself instead of every caller passing the option. Open: planned in S-31 (Q-2: derived state); the redesign without train state is a follow-up (§1.4). | refactor(dla): read the agents' derived state instead of requiring the state machine. |
 | ⏭️ | F-16 | [PR comment](https://github.com/flatland-association/flatland-baselines/pull/90#discussion_r4326418695) | build | medium | `environment.yml:8` (outdated): suggests pinning flatland-rl `@main`; now pinned to flatland-rl#541's merge commit 9eec95df on `main` (S-38). Open: taken over by the follow-up "Pin the released flatland-rl 5.0.0" (§1.4). | build: pin flatland-rl to the released 5.0.0 before merging to main. |
@@ -524,7 +532,9 @@ Issue references: the stack closes no issue. The code refers to flatland-rl#178 
 - **Unavoidable crossing** (`MOVING` and `speed_counter.is_cell_exit()`: distance plus speed reaches the end of the
   cell this step): a crossing the engine completes with any action valid there (flatland-rl#509). Not a position: an
   agent never sits on the exit of its cell; a refused crossing (an action invalid there, or the next cell taken)
-  stops it with speed 0 and keeps its distance (flatland-rl#545).
+  stops it with speed 0 and keeps its distance (flatland-rl#545). Described in the flatland-book's 5.0.0 draft,
+  [Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb) ([flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42) at 0dd2d37), which may still change until 5.0.0; at 0dd2d37 it still describes
+  the refused crossing as before #545 (distance 1).
 - **Forced action** (`DeadLockAvoidancePolicy.forced_action`): DLA's action toward its path, sent to a blocked agent
   at an unavoidable crossing instead of `STOP_MOVING`, only where `STOP_MOVING` would lead to another branch than
   the planned path (`_stop_moving_leaves_path`).
@@ -616,7 +626,7 @@ Issue references: the stack closes no issue. The code refers to flatland-rl#178 
 |---|---|---|---|---|---|---|---|---|
 | ✅ S-27 | F-18 | Re-pin flatland-rl to c689b22f (#541's head after its rebase on main, with the fix for tuple rewards under pandas 3) in all three places. Checked against 30e7a35f, the same code before the rebase, under pandas 3.0.6: DLA tests and offline demo pass (20 passed, 50 skipped, 1 xfailed). | bug | high | fix: pin flatland-rl to #541's head with the pandas 3 fix for tuple rewards. | 4ef5ace | flatland-rl c689b22f | - |
 | ✅ S-28 | F-1 | Steer only the crossings `STOP_MOVING` would get wrong; keep `STOP_MOVING` for a settled target. Test: the full-speed scenario stops with a free cell between the agents, and a switch scenario still takes the planned branch. Recalibrate if the values move. | bug | high | fix(dla): send a directional action for an unavoidable crossing only where STOP_MOVING would leave the planned path. | 70e8660 | - | - |
-| 💡 S-29 | F-3, F-4, F-12 | Mirror the engine's departure rules in entering prevention (earliest departure 0 or 1 on the first step; one step ahead after a malfunction), with tests and `CLAUDE.md:163-165`. | bug | medium | fix(dla): mirror the engine's departure rules in entering prevention. |  | - | - |
+| ✅ S-29 | F-3, F-4, F-12 | Mirror the engine's departure rules in entering prevention (earliest departure 0 or 1 on the first step; one step ahead after a malfunction), with tests and `CLAUDE.md:163-165`. | bug | medium | fix(dla): mirror the engine's departure rules in entering prevention. | 9e18779 | - | - |
 | 💡 S-30 | F-8 | Use `_check_action_on_agent` in `SetPathPolicy._act`, with a test of `SetPathPolicy` on its own. | bug | low | fix(policies): use flatland-rl's _check_action_on_agent in SetPathPolicy._act and test it. |  | - | - |
 | 💡 S-31 | F-14 | DLA reads `agent.derived_state(self.rail_env._elapsed_steps)` (`SetPathPolicy`: `env._elapsed_steps`) instead of `agent.state`; drop the runner option from the tests and the offline demo, the wrappers from the tests and the online client; `CLAUDE.md` (Q-2). | refactor | medium | refactor(dla): read the agents' derived state instead of requiring the state machine. |  | - | - |
 | 💡 S-32 | F-10 | Assert the queued agents' positions, not their state. | test | low | test(dla): assert queued agents' positions, not their oscillating state. |  | - | - |
@@ -674,13 +684,13 @@ Issue references: the stack closes no issue. The code refers to flatland-rl#178 
 | `observation/full_env_observation.py` | `ObservationT`. |
 | `online_demo/submission/run_solution.py` | Wraps the client's local env; S-31 removes it again. |
 | `offline_demo/test_offline.py` | Runner option for the state machine (removed by S-31); golden values per phase. |
-| `tests/test_entering_prevention.py` | Wrapped env (removed by S-31); malfunction-off-map tests; planned: earliest departure 1 and malfunction ending in the departure step (S-29). |
+| `tests/test_entering_prevention.py` | Wrapped env (removed by S-31); malfunction-off-map tests; earliest departures 0 and 1, and a malfunction ending in the departure step (S-29). |
 | `tests/test_limitations_two_switches.py`, `tests/test_limitations_switch.py` | Wrapped envs (removed by S-31); half-speed agents; full-speed test, stopping with a free cell; steering at a simple switch and stopping before a symmetric switch (S-28); planned: positions instead of states (S-32). |
 | `tests/test_episodes_deadlock_avoidance.py` | Skipped, with TODO. |
 | `tests/test_policy_grid_runner_evaluator.py`, `tests/test_policy_runner.py`, `tests/test_intermediate_stops.py` | Runner options (removed by S-31); golden values. |
 | `tests/rail_test_utils.py` | `is_valid_entry_point`. |
 | `pyproject.toml`, `environment.yml`, `.github/workflows/checks.yaml` | flatland-rl pin (9eec95df, flatland-rl#541's merge commit, since S-38); Python 3.11-3.14; episodes URL. Planned: episodes by commit (S-33); flatland-rl 5.0.0 in the follow-up (§1.4). |
-| `CLAUDE.md` | Pins, layout, crossing timing, entering prevention. Planned: departure rules (S-29), derived state (S-31), pin wording (S-36). |
+| `CLAUDE.md` | Pins, layout, crossing timing, entering prevention. Departure rules (S-29). Planned: derived state (S-31), pin wording (S-36). |
 
 Unchanged on purpose: the simple baselines, the Dockerfiles, `docker.yml`, `release-please.yml`, the DLA README.
 Outside this repo: S-33 also changes flatland-rl's `checks.yml`.
