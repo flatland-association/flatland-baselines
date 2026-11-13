@@ -5,5 +5,5 @@ dependencies:
       - pytest
       # DEPENDENCY SWITCH:
       # fix/policy-runner-skip-state-machine-update
-      - git+https://github.com/flatland-association/flatland-rl.git@c689b22f34af779374b3a8c1972de23d84ad88d9
+      - git+https://github.com/flatland-association/flatland-rl.git@9eec95df079e83afa1dd71ef8fededca7455dd66
       #- flatland-rl[ml]==4.3.0
