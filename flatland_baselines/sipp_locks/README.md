@@ -72,4 +72,24 @@ competition:
 
 ## Calibration
 
-Against the ECML 2026 leaderboard (submission 9f2952a6, 20.8429): pending.
+The image of this directory (`flatland-baselines-sipp-locks:88-ecml2026-winner-baseline`, flatland-rl 4.2.6) on the
+ECML 2026 suite, against the submitted image of the winner (tolerance ±0.5 total and ±2 percentage points completion;
+accepted 2026-11-13):
+
+| Level | This baseline: normalized reward | Completion | Winner: normalized reward | Completion | Difference |
+|---|---|---|---|---|---|
+| 0 | 3.9601 | 100.0% | 3.9601 | 100.0% | 0 |
+| 1 | 4.4378 | 100.0% | 4.4378 | 100.0% | 0 |
+| 2 | 4.2046 | 100.0% | 4.2046 | 100.0% | 0 |
+| 3 | 3.1545 | 80.2% | 3.1545 | 80.2% | 0 |
+| 4 | 1.7602 | 57.8% | 1.7737 | 58.0% | −0.0135 |
+| 5 | 2.3557 | 60.7% | 2.3557 | 60.7% | 0 |
+| 6 | 0.9364 | 14.1% | 0.9564 | 14.1% | −0.0200 |
+| **Total** | **20.8094** | **73.24%** | **20.8429** | **73.27%** | **−0.0335** |
+
+- This baseline: [submission 39f952ae](https://fab-int.flatland.cloud/suites/6240c685-0fb4-481e-9404-47a570632227/c85d5fc2-15da-4a62-8e14-28d1261c29bd/submissions/39f952ae-5191-4d8a-a2ac-66328f14210f)
+  on fab-int.
+- Winner: [submission 9f2952a6](https://fab.flatland.cloud/suites/6240c685-0fb4-481e-9404-47a570632227/c85d5fc2-15da-4a62-8e14-28d1261c29bd/submissions/9f2952a6-fb6b-4140-be5e-ca118baaa74e)
+  (`ghcr.io/darshanmakwana412/ecml2026:v4-sipp-locks`).
+- Five of seven levels are identical. The two that differ are among the densest, where the wall-clock budget
+  (`PLANNER_TIME_BUDGET_S`) cuts the search depending on the machine (see "Limitations").
