@@ -535,36 +535,19 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                             (lookahead_position, lookahead_direction), (next_position, next_direction)):
                         self.forced_action[handle] = action
         if self.use_entering_prevention:
-            # READY_TO_DEPART, MALFUNCTION_OFF_MAP and (flatland-rl issue #280) a first-step
-            # earliest_departure=0 WAITING agent can all transition straight to MOVING in a single step
-            # (TrainStateMachine._handle_ready_to_depart / _handle_malfunction_off_map;
-            # AbstractRailEnv.step()'s own "(1) STATE TRANSITION SIGNALS" forces WAITING -> READY_TO_DEPART
-            # in-place on the very first step() call for such an agent, since there is no earlier step() call
-            # in which the state machine could have made that transition visible beforehand) - none of these
-            # ever show up to DLA as READY_TO_DEPART *before* the step in which they actually enter, so each
-            # must be considered here too, or its simultaneous entry with another agent goes undetected.
-            #
-            # But a MALFUNCTION_OFF_MAP agent only actually enters *this* step if its malfunction is
-            # about to clear: malfunction_down_counter is decremented before being read as this step's
-            # `in_malfunction` signal (rail_env.py's "(0a)", ahead of "(1)"), so a value of 0 or 1 here
-            # means in_malfunction becomes False this step; 2 or more means it stays down and
-            # MALFUNCTION_OFF_MAP simply persists regardless of the action DLA sends. Likewise the
-            # WAITING shortcut only fires on the actual first step() call of the episode (env._elapsed_steps
-            # is read here *before* that call, i.e. still 0) for an agent that isn't malfunctioning itself.
-            # Without these checks, an agent that in fact can't move yet would be paired in the conflict
-            # check below against an entering agent and, since their paths typically overlap,
-            # incorrectly block that other agent from entering at all.
+            # Mirror flatland-rl's own map-entry rule (`RailEnv._candidate_entry_points`), which is derived from
+            # earliest_departure and the step count, not from the agent's state. In the coming step(), the env
+            # first increments `_elapsed_steps` and decrements the malfunction counter, then lets an off-map
+            # agent with a moving action enter if `earliest_departure <= _elapsed_steps` (no longer in
+            # malfunction: counter <= 1 now). So READY_TO_DEPART alone is not enough: a MALFUNCTION_OFF_MAP
+            # agent whose malfunction clears in its departure step, and a WAITING agent with earliest_departure
+            # 0 or 1 in the first step (flatland-rl issue #280), enter without being READY_TO_DEPART before.
+            # An agent that can't enter yet (still in malfunction, not yet due) must not be a candidate: since
+            # their paths typically overlap, it would block another agent that really enters.
             def _about_to_leave_off_map(agent) -> bool:
-                if agent.state == TrainState.READY_TO_DEPART:
-                    return True
-                if agent.state == TrainState.MALFUNCTION_OFF_MAP:
-                    return (agent.malfunction_handler.malfunction_down_counter <= 1
-                            and agent.earliest_departure <= self.rail_env._elapsed_steps)
-                if agent.state == TrainState.WAITING:
-                    return (self.rail_env._elapsed_steps == 0
-                            and agent.earliest_departure == 0
-                            and not agent.malfunction_handler.in_malfunction)
-                return False
+                return (agent.state.is_off_map_state()
+                        and agent.earliest_departure <= self.rail_env._elapsed_steps + 1
+                        and agent.malfunction_handler.malfunction_down_counter <= 1)
 
             entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
                                _about_to_leave_off_map(agent) and self.agent_can_move.get(handle, None)]
