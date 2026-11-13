@@ -12,7 +12,7 @@ from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observ
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
 
 
-# TODO(#94): 41 of the 50 episodes below fail against
+# TODO(https://github.com/flatland-association/flatland-scenarios/issues/37): 41 of the 50 episodes below fail against
 # flatland-rl@178-agents-living-on-the-edge-9's "let STOP_MOVING complete an in-flight cell-boundary
 # crossing" fix -- DeadLockAvoidancePolicy is a live/reactive policy, and this timing change makes it
 # make different decisions than what these recorded trajectories captured pre-edge-9. Fixing
@@ -22,7 +22,7 @@ from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_p
 # the stale recording -- see the equivalent analysis in flatland-rl's own
 # tests/test_flatland_regression_episodes.py. Skipped wholesale for now rather than left red.
 @pytest.mark.skip(reason="41/50 episodes diverge from flatland-rl@edge-9's STOP_MOVING crossing-timing "
-                          "change; DLA is reactive so this needs live-rerun regeneration, not a values fix (#94)")
+                          "change; DLA is reactive so this needs live-rerun regeneration, not a values fix (flatland-scenarios#37)")
 @pytest.mark.parametrize("data_sub_dir,ep_id", [
     # trajectories generated with DLA
     ("malfunction_deadlock_avoidance_heuristics/Test_00/Level_0", "Test_00_Level_0"),
