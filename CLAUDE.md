@@ -145,6 +145,12 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
 
+DLA and `SetPathPolicy` never read `agent.state`: they read the agent's state through
+`SetPathPolicy._derived_state(agent, env)`, i.e. flatland-rl's `agent.derived_state(env._elapsed_steps)`, derived
+from position, speed, malfunction and earliest departure. Read between two steps it equals the state the state
+machine tracks, so DLA needs neither `RailEnvStateMachineWrapper` nor the runners' `--skip-state-machine-update
+False`; on a plain flatland-rl 5.0 env, `agent.state` would stay `WAITING`. Below, "state" means this derived state.
+
 The step semantics DLA relies on below (speed and distance, `is_cell_exit()`, step counting and departure) are
 described in the flatland-book's draft for flatland-rl 5.0.0, [Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb) ([flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42), at 0dd2d37). They
 may change until 5.0.0 (e.g. flatland-rl#559 proposes that the env no longer enforces the earliest departure). The
@@ -158,7 +164,7 @@ speed afterwards, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently r
 wrong branch at a switch by flatland-rl's own action-resolution fallback. An agent never sits on the exit of its
 cell: since flatland-rl#545, a refused crossing (an action invalid there, or the next cell taken) stops the agent
 (speed 0) and keeps its distance. `_extract_agent_can_move` accounts for
-this: whenever a crossing is unavoidable this way (`agent.state == TrainState.MOVING and
+this: whenever a crossing is unavoidable this way (state `MOVING` and
 agent.speed_counter.is_cell_exit()`) and opposition blocks the agent, it computes DLA's intended directional action
 toward the agent's planned path, and stores it in `forced_action` (used by `_act` in place of `STOP_MOVING`) only
 where `STOP_MOVING` would resolve to another branch than the planned one (`_stop_moving_leaves_path`, using
@@ -171,7 +177,7 @@ candidate list (`_extract_agent_can_move`'s `_about_to_leave_off_map` helper) mi
 rule (`RailEnv._candidate_entry_points`), which uses `earliest_departure` and the step count, not the agent's state:
 in the coming `env.step()`, `_elapsed_steps` is incremented and the malfunction counter decremented first, so an
 off-map agent is a candidate if `earliest_departure <= _elapsed_steps + 1` and `malfunction_down_counter <= 1`.
-`agent.state == TrainState.READY_TO_DEPART` alone would miss agents that enter without being `READY_TO_DEPART` the
+State `READY_TO_DEPART` alone would miss agents that enter without being `READY_TO_DEPART` the
 step before: a `MALFUNCTION_OFF_MAP` agent whose malfunction clears in its departure step, and (flatland-rl issue
 #280) a `WAITING` agent with `earliest_departure` 0 or 1 in the first step. Missing one defeats
 `use_entering_prevention` for that agent; including an agent that can't enter yet (still in malfunction, or not yet
