@@ -145,6 +145,12 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
 
+The step semantics DLA relies on below (speed and distance, `is_cell_exit()`, step counting and departure) are
+described in the flatland-book's draft for flatland-rl 5.0.0, [Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb) ([flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42), at 0dd2d37). They
+may change until 5.0.0 (e.g. flatland-rl#559 proposes that the env no longer enforces the earliest departure). The
+draft still describes a refused crossing as leaving the agent at the end of its cell (distance 1), which is the
+behaviour before flatland-rl#545: at the pinned flatland-rl, the agent keeps its distance.
+
 Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent whose
 distance plus speed reaches the end of its cell this step (`agent.speed_counter.is_cell_exit()`) crosses into its
 next entry point with any action valid there — `STOP_MOVING` no longer prevents the crossing, it only lowers the
