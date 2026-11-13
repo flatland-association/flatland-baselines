@@ -225,8 +225,10 @@ Outline, detailed in a plan revision at the start of the phase-2 PR (checked aga
   `malfunction_handler.malfunction_down_counter`, `waypoints*`, `_elapsed_steps`, `_max_episode_steps`, `TrainState`.
 - Blocked outside this plan: flatland-baselines `main` (pinned to 4.3.0, green) does not yet run on flatland-rl
   `main`; its DLA tests fail there (`ImportError: cannot import name 'ObservationType'` from
-  `flatland.core.env_observation_builder`, 6 failed and 4 errors on 2026-11-13). Moving the repo pin to 5.0.0 comes
-  first; S-7 builds on it.
+  `flatland.core.env_observation_builder`, 6 failed and 4 errors on 2026-11-13). The stack "agents living on the
+  edge" ([#80](https://github.com/flatland-association/flatland-baselines/pull/80) to [#90](https://github.com/flatland-association/flatland-baselines/pull/90), plan `docs/plans/agents-living-on-the-edge.md` on its branches) moves DLA and the repo
+  pin to flatland-rl `main` (flatland-rl#541's merge commit `9eec95df`); the released 5.0.0 pin is a follow-up of that
+  stack. S-7 builds on the stack (§11.2).
 - Dockerfile back to the repo pattern (`FROM flatland-rl:<tag>`, `pip install -e .`, `FLATLAND_RL_PIP_URL`); tests
   join the repo pin's CI job; version skip removed.
 - Re-run the calibration of Q-3 on flatland-rl 5.0.0 (or its release branch); explain differences by flatland change
@@ -364,8 +366,8 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 - a) `v5.0.0` once released.
 - b) A pre-release branch via `FLATLAND_RL_PIP_URL`.
 
-*Proposal:* decide at the start of phase 2; a) if released by then. Either way the repo pin moves first (§4.6,
-blocker of S-7).
+*Proposal:* decide at the start of phase 2; a) if released by then. Either way phase 2 builds on the repo pin the
+stack up to #90 sets (§4.6, §11.2): a flatland-rl `main` commit until the stack's 5.0.0 follow-up.
 
 ### 9.2 Decision log
 
@@ -379,6 +381,7 @@ blocker of S-7).
 | 2026-11-12 | ✅ Calibrate by suite submission and offline `stage_03` rerun, tolerance ±0.5 total and ±2 pp completion (Q-3, §4.2). | The suite gives the comparable total, the rerun gives per-scenario diffs; the wall-clock governor rules out bit-identity. | CHK-2, S-5; a larger gap is analysed per scenario before phase 2. |
 | 2026-11-12 | ✅ Phase 2 in a second PR on this plan (Q-4, §4.6). | Phase 1 can merge once calibrated; phase 2 depends on flatland-rl 5.0.0 (due 2026-12-01). | §1.4 follow-up; S-6–S-8 in the second PR. |
 | 2026-11-13 | ✅ Serving intermediate stops is revisited in phase 2 under #88; the second place as a baseline and calibration in public CI stay untracked (§1.4). | Serving stops depends on the rewards phase 2 moves to. The runner-up hardcodes the competition map, and the competition's scenarios are not public. | §4.6 gets the serve-stops re-measurement; no new issues. |
+| 2026-11-13 | ✅ Merge order: this PR, then the stack [#80](https://github.com/flatland-association/flatland-baselines/pull/80)–[#90](https://github.com/flatland-association/flatland-baselines/pull/90), then the phase-2 PR (§11.2). | The stack already moves DLA and the repo pin to flatland-rl `main`; this PR does not depend on it (own flatland-rl 4.2.6) and is ready first. No separate pin PR. | The stack rebases on `main` after this PR, with small conflicts in `checks.yaml` and `CLAUDE.md`; S-7 waits for the stack. |
 
 ### 9.3 Code Review Findings
 
@@ -424,8 +427,22 @@ PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), ba
 | ID | Findings | Step | Category | Severity | Commit message | Commit(s) | Needs | Blocked by |
 |---|---|---|---|---|---|---|---|---|
 | 💡 S-6 | - | Adapt to `ObservationBuilder.reset(env)` and `agent.current_entry_point`/`initial_entry_point`. | refactor | - | `refactor(sipp-locks): adapt to the flatland-rl pre-5.0.0 interfaces.` |  | S-5 | Q-5 |
-| 💡 S-7 | - | Dockerfile and CI back to the repo pin; drop the version skip. | build | - | `build(sipp-locks): build and test on the repo's flatland-rl pin.` |  | S-6 | the repo pin on flatland-rl 5.0.0 (§4.6) |
+| 💡 S-7 | - | Dockerfile and CI back to the repo pin; drop the version skip. | build | - | `build(sipp-locks): build and test on the repo's flatland-rl pin.` |  | S-6 | the stack up to [#90](https://github.com/flatland-association/flatland-baselines/pull/90) (§11.2) |
 | 💡 S-8 | - | Re-calibrate and explain the difference to phase 1. | docs | - | `docs(sipp-locks): record calibration on flatland-rl 5.0.0.` |  | S-7 | - |
+
+### 11.2 Rebase and merge
+
+*How the branch is rebased or merged when it builds on other open PRs, and the known conflicts.*
+
+Order (2026-11-13): this PR ([#92](https://github.com/flatland-association/flatland-baselines/pull/92), on `main`) → the stack "agents living on the edge" ([#80](https://github.com/flatland-association/flatland-baselines/pull/80), [#81](https://github.com/flatland-association/flatland-baselines/pull/81),
+[#83](https://github.com/flatland-association/flatland-baselines/pull/83), [#84](https://github.com/flatland-association/flatland-baselines/pull/84), [#85](https://github.com/flatland-association/flatland-baselines/pull/85), [#89](https://github.com/flatland-association/flatland-baselines/pull/89), [#90](https://github.com/flatland-association/flatland-baselines/pull/90); bottom on `main`) → the phase-2 PR on `main`.
+
+- This PR does not depend on the stack: it brings its own flatland-rl 4.2.6. It merges first.
+- After it, the stack rebases on `main` (its own procedure, in its plan). Known conflicts: both change
+  `.github/workflows/checks.yaml` (this PR: `env.ecml2026-pkl` and the `test-sipp-locks` job; the stack: the pin and
+  the Python matrix) and `CLAUDE.md` (this PR: "Baselines layout" and the `sipp_locks` exception; the stack: the pin
+  section). Keep both sides; the `test-sipp-locks` job keeps its own flatland-rl 4.2.6 and Python 3.12.
+- The phase-2 PR starts from `main` after the stack is merged (S-7).
 
 ## 12. Change inventory
 
