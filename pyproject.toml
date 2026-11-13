@@ -26,7 +26,7 @@ dependencies = [
     #           https://packaging.python.org/specifications/core-metadata for more
     #           information.
     # fix/policy-runner-skip-state-machine-update
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@c689b22f34af779374b3a8c1972de23d84ad88d9",
+    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@9eec95df079e83afa1dd71ef8fededca7455dd66",
     #"flatland-rl==4.3.0",
 ]
 dynamic = ["version"]
