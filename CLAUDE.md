@@ -161,16 +161,17 @@ the agent brakes and stops in the cell it crosses into, instead of driving on in
 
 `use_entering_prevention` (opt-in, default `False`) stops more than one off-map agent from entering the map on
 the same tick when that would leave fewer than `min_free_cell` cells between their paths. Its `entering_agents`
-candidate list (`_extract_agent_can_move`'s `_about_to_leave_off_map` helper) can't rely on `agent.state ==
-TrainState.READY_TO_DEPART` alone, since `TrainStateMachine` has more than one off-map-to-`MOVING` shortcut that
-never passes through a `READY_TO_DEPART` step DLA could observe beforehand: a `MALFUNCTION_OFF_MAP` agent whose
-malfunction is clearing on this exact step (`malfunction_down_counter <= 1` — decremented *before* being read as
-this step's `in_malfunction` signal, so this is the one and only value meaning "clears this step"), and
-(flatland-rl issue #280) a `WAITING` agent with `earliest_departure == 0` on the episode's very first
-`env.step()` call. Missing either case entirely defeats `use_entering_prevention` for that agent; naively
-including a `MALFUNCTION_OFF_MAP` agent regardless of its down-counter instead incorrectly blocks a *different*,
-genuinely-entering agent, since `self.agent_can_move` has no notion of malfunctions (purely geometric opposition
-detection) and the two agents' paths typically overlap on a shared single-track segment.
+candidate list (`_extract_agent_can_move`'s `_about_to_leave_off_map` helper) mirrors flatland-rl's own map-entry
+rule (`RailEnv._candidate_entry_points`), which uses `earliest_departure` and the step count, not the agent's state:
+in the coming `env.step()`, `_elapsed_steps` is incremented and the malfunction counter decremented first, so an
+off-map agent is a candidate if `earliest_departure <= _elapsed_steps + 1` and `malfunction_down_counter <= 1`.
+`agent.state == TrainState.READY_TO_DEPART` alone would miss agents that enter without being `READY_TO_DEPART` the
+step before: a `MALFUNCTION_OFF_MAP` agent whose malfunction clears in its departure step, and (flatland-rl issue
+#280) a `WAITING` agent with `earliest_departure` 0 or 1 in the first step. Missing one defeats
+`use_entering_prevention` for that agent; including an agent that can't enter yet (still in malfunction, or not yet
+due) instead blocks a *different*, really entering agent, since `self.agent_can_move` has no notion of
+malfunctions (purely geometric opposition detection) and the two agents' paths typically overlap on a shared
+single-track segment.
 
 **Known limitations** (see `deadlock_avoidance_heuristic/README.md` and, as tests, `tests/test_entering_prevention.py`,
 `tests/test_limitations_switch.py` and `tests/test_limitations_two_switches.py`): the opposition check is
