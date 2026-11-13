@@ -57,7 +57,7 @@ Requirements:
 
 | Role | Name | Expectations |
 |---|---|---|
-| Issue author, decides Q-1-Q-5 | chenkins | A calibrated strong baseline, then one on flatland 5.0.0. |
+| Issue author, decides Q-1–Q-5 | chenkins | A calibrated strong baseline, then one on flatland 5.0.0. |
 | Author of the winning solution | darshanmakwana412 | Credit, and the code kept faithful to the submission (MIT licence). |
 | Benchmark users (FAB, competition organisers) | - | A reference score next to DLA, comparable to the ECML 2026 leaderboard. |
 
@@ -68,9 +68,9 @@ Requirements:
 | Follow-up | Why not in this PR | From | Findings | Issue |
 |---|---|---|---|---|
 | Phase 2: run on flatland pre-5.0.0 and re-calibrate (§4.6). | Second PR, after the phase-1 calibration and flatland-rl 5.0.0 (Q-4). | REQ-5, Q-4 | - | [#88](https://github.com/flatland-association/flatland-baselines/issues/88) (stays open: this PR relates to it, the phase-2 PR closes it) |
-| Serve intermediate stops again once braking is no longer penalised like a collision. | The winner skips stops because flatland-rl 4.2.6 penalises a normal stop with −250·v; a reward change, not packaging. | §2.1 | - | - |
-| Second place (`fast-first-v3`) as a baseline. | Not asked; it hardcodes the competition map. | - | - | - |
-| Calibration in public CI. | The 35 ECML 2026 scenarios are not public. | §2 | - | - |
+| Serve intermediate stops again once braking is no longer penalised like a collision. | The winner skips stops because flatland-rl 4.2.6 penalises a normal stop with −250·v; a reward change, not packaging. | §2.1 | - | [#88](https://github.com/flatland-association/flatland-baselines/issues/88) (phase 2) |
+| Second place (`fast-first-v3`) as a baseline. | Not asked; it hardcodes the competition map. | - | - | untracked |
+| Calibration in public CI. | The 35 ECML 2026 scenarios are not public. | §2 | - | untracked |
 
 ## 2. Constraints
 
@@ -223,6 +223,8 @@ Outline, detailed in a plan revision after CHK-2:
   join the repo pin's CI job; version skip removed.
 - Re-run the calibration of Q-3 on flatland-rl 5.0.0 (or its release branch); explain differences by flatland change
   (e.g. the collision penalty for a normal stop, `fix/collision-penalty-for-normal-stop`).
+- If flatland-rl 5.0.0 no longer penalises a normal stop like a collision, re-measure `PLANNER_SERVE_STOPS=1` and
+  change the default if serving intermediate stops scores better (follow-up in §1.4).
 
 ## 5. Building block view
 
@@ -362,7 +364,8 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 | 2026-11-12 | ✅ Name `sipp_locks`, image `flatland-baselines-sipp-locks` (Q-1, §4.3). | Follows the submission name `v4-sipp-locks` and says what it does; not `ecml2026_winner` (origin only) or `sipp_heuristic` (drops the locks). | Directory, image, README entry. |
 | 2026-11-12 | ✅ Vendored copy, byte-identical first commit, imports only in the second (Q-2, §4.4). | Fidelity is checkable in one diff; no submodule (import paths, build, external repo) and no waiting for an author PR. | S-1, S-2; licence file kept; updates from upstream are manual. |
 | 2026-11-12 | ✅ Calibrate by suite submission and offline `stage_03` rerun, tolerance ±0.5 total and ±2 pp completion (Q-3, §4.2). | The suite gives the comparable total, the rerun gives per-scenario diffs; the wall-clock governor rules out bit-identity. | CHK-2, S-5; a larger gap is analysed per scenario before phase 2. |
-| 2026-11-12 | ✅ Phase 2 in a second PR on this plan (Q-4, §4.6). | Phase 1 can merge once calibrated; phase 2 depends on flatland-rl 5.0.0 (due 2026-12-01). | §1.4 follow-up; S-6-S-8 in the second PR. |
+| 2026-11-12 | ✅ Phase 2 in a second PR on this plan (Q-4, §4.6). | Phase 1 can merge once calibrated; phase 2 depends on flatland-rl 5.0.0 (due 2026-12-01). | §1.4 follow-up; S-6–S-8 in the second PR. |
+| 2026-11-13 | ✅ Serving intermediate stops is revisited in phase 2 under #88; the second place as a baseline and calibration in public CI stay untracked (§1.4). | Serving stops depends on the rewards phase 2 moves to. The runner-up hardcodes the competition map, and the competition's scenarios are not public. | §4.6 gets the serve-stops re-measurement; no new issues. |
 
 ### 9.3 Code Review Findings
 
