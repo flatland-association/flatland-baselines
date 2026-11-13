@@ -153,7 +153,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         check = self.agent_can_move.get(handle, None)
         agent = self.rail_env.agents[handle]
-        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and agent.state < TrainState.MOVING:
+        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and self._derived_state(agent, self.rail_env) < TrainState.MOVING:
             # prevent entering map as default!
             act = RailEnvActions.DO_NOTHING
         else:
@@ -167,7 +167,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] = 0
         else:
             self.num_blocked[handle] += 1
-            if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
+            if self._derived_state(agent, self.rail_env) in [TrainState.MOVING, TrainState.STOPPED]:
                 self._find_alternative(agent)
             # flatland-rl#178: a MOVING agent whose distance plus speed reaches the end of its cell
             # this step crosses into its next entry point with any action valid there; the action
@@ -295,7 +295,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_positions = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int) - 1
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
-            if agent.state in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
+            if self._derived_state(agent, self.rail_env) in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
                 if agent.current_entry_point is not None:
                     self.agent_positions[agent.current_entry_point[0]] = handle
 
@@ -322,7 +322,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
             # (2.2)
             self._build_full_shortest_distance_agent_map(agent, handle)
-            if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
+            if self._derived_state(agent, self.rail_env) in [TrainState.DONE, TrainState.WAITING]:
                 continue
 
             # (2.3)
@@ -473,7 +473,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
-            if TrainState.DONE > agent.state >= TrainState.WAITING:
+            state = self._derived_state(agent, self.rail_env)
+            if TrainState.DONE > state >= TrainState.WAITING:
                 can_move = self._check_agent_can_move(
                         self.shortest_distance_agent_map[handle],
                         self.shortest_distance_agent_len[handle],
@@ -489,7 +490,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 # it may resolve to a branch the planned path doesn't take. Compute DLA's own action
                 # toward its planned path even when blocked, and keep it as `forced_action` only where
                 # STOP_MOVING would leave the path (`_stop_moving_leaves_path`).
-                crossing_unavoidable = agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit()
+                crossing_unavoidable = state == TrainState.MOVING and agent.speed_counter.is_cell_exit()
                 if can_move or crossing_unavoidable:
                     if agent.current_entry_point is not None:
                         position = agent.current_entry_point[0]
@@ -545,7 +546,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # An agent that can't enter yet (still in malfunction, not yet due) must not be a candidate: since
             # their paths typically overlap, it would block another agent that really enters.
             def _about_to_leave_off_map(agent) -> bool:
-                return (agent.state.is_off_map_state()
+                return (self._derived_state(agent, self.rail_env).is_off_map_state()
                         and agent.earliest_departure <= self.rail_env._elapsed_steps + 1
                         and agent.malfunction_handler.malfunction_down_counter <= 1)
 

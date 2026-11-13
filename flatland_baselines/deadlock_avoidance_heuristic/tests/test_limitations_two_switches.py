@@ -5,7 +5,6 @@ from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env_action import RailEnvActions
-from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -93,7 +92,6 @@ def _build_env() -> RailEnv:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -144,7 +142,7 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
     assert not entered_trunk[0] and not entered_trunk[1], "expected neither agent to ever enter the trunk"
 
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
     assert positions == [SWITCH_A, SWITCH_B], "expected both agents to be stuck at their own switch cell"
     assert states == [TrainState.STOPPED, TrainState.STOPPED], "expected both agents to be permanently stopped"
     assert not dones["__all__"], "expected the agents to deadlock and never both arrive"
@@ -173,7 +171,6 @@ def _build_full_speed_env() -> RailEnv:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -204,7 +201,7 @@ def test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression():
         observations, _, dones, _ = env.step(action_dict)
 
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
     assert states == [TrainState.STOPPED, TrainState.STOPPED], "expected both agents to be permanently stopped"
     assert positions == [TRUNK[0], TRUNK[2]], \
         "expected both agents to stop on the trunk with one free cell between them"
@@ -250,7 +247,6 @@ def test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_p
         number_of_agents=1,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
     observations = env._get_observations()
@@ -263,7 +259,7 @@ def test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_p
         observations, _, _, _ = env.step(action_dict)
     else:
         raise AssertionError("expected the agent to approach switch A from the east")
-    assert agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected the crossing into switch A to be unavoidable"
+    assert agent.derived_state(env._elapsed_steps) == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected the crossing into switch A to be unavoidable"
 
     policy._check_agent_can_move = lambda *args, **kwargs: False
     action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
@@ -327,7 +323,6 @@ def test_blocked_full_speed_agent_stops_before_a_symmetric_switch():
         obs_builder_object=FullEnvObservation(),
         rewards=BaseDefaultRewards(collision_factor=1.0),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
     observations = env._get_observations()
@@ -340,7 +335,7 @@ def test_blocked_full_speed_agent_stops_before_a_symmetric_switch():
         observations, _, _, _ = env.step(action_dict)
     else:
         raise AssertionError("expected the agent to approach switch S from the east")
-    assert agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected a crossing into switch S this step"
+    assert agent.derived_state(env._elapsed_steps) == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected a crossing into switch S this step"
     assert env.rail.apply_action_independent(RailEnvActions.STOP_MOVING, agent.next_entry_point) is None, \
         "expected STOP_MOVING to be invalid at switch S"
     speed = agent.speed_counter.speed
@@ -354,7 +349,7 @@ def test_blocked_full_speed_agent_stops_before_a_symmetric_switch():
         observations, rewards, _, _ = env.step(action_dict)
         invalid_action_penalties.append(rewards[0][DefaultPenalties.INVALID_ACTION.value])
         assert agent.current_entry_point[0] == APPROACH_S, "expected the agent to stay in front of switch S"
-        assert agent.state == TrainState.STOPPED
+        assert agent.derived_state(env._elapsed_steps) == TrainState.STOPPED
         assert agent.speed_counter.speed == 0
         assert agent.speed_counter.distance == distance, "expected the refused crossing to keep the distance"
 
@@ -438,7 +433,6 @@ def _build_env_with_queue() -> RailEnv:
         number_of_agents=4,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -467,7 +461,7 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
         "expected DeadLockAvoidancePolicy to stop all four agents directly, not just the two facing each other"
 
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
     assert positions == [Q_SWITCH_A, Q_SWITCH_B, Q_FIRST, Q_SECOND], \
         "expected agents 0 and 1 to be stuck at their own switch cell, and agents 2/3 one cell behind the agent ahead of them"
     assert states == [TrainState.STOPPED] * 4, "expected all four agents to be permanently stopped"
@@ -563,7 +557,6 @@ def _build_env_with_aa() -> RailEnv:
         number_of_agents=4,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -599,7 +592,7 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     assert action_dict[3] == RailEnvActions.MOVE_FORWARD, "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
 
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
     assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], "expected agents 2 and 3 to be physically queued one cell behind where they started"
     assert states == [TrainState.STOPPED] * 4, "expected agents 2 and 3 to be stopped by the environment's motion check despite DLA issuing MOVE_FORWARD"
     assert not dones["__all__"], "expected the agents to deadlock and never all arrive"

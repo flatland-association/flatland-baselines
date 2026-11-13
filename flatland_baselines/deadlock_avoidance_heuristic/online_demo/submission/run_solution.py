@@ -1,5 +1,4 @@
 from flatland.envs.rail_env import RailEnv
-from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.evaluators.client import FlatlandRemoteClient
 from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observation import FullEnvObservation
 from flatland_baselines.deadlock_avoidance_heuristic.policy.deadlock_avoidance_policy import DeadLockAvoidancePolicy
@@ -36,8 +35,6 @@ def main():
                 """
                 print("[INFO] DONE ALL, BREAKING")
                 break
-        # DeadLockAvoidancePolicy reads agent.state directly: the client's local env is loaded unwrapped, so let its step() update agent.state
-        RailEnvStateMachineWrapper(env, skip_state_machine_update=False)
 
         pbar = ProgressBar()
         total_reward = 0
