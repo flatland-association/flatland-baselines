@@ -30,7 +30,7 @@ def _line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
     )
 
 
-def _build_env() -> RailEnv:
+def _build_env(remove_agents_at_target: bool = True) -> RailEnv:
     row0 = [0, RailEnvTransitionsEnum.dead_end_from_south, 0, 0, 0, RailEnvTransitionsEnum.dead_end_from_south, 0]
     row1 = [RailEnvTransitionsEnum.dead_end_from_east, RailEnvTransitionsEnum.simple_switch_west_right] \
            + [RailEnvTransitionsEnum.horizontal_straight] * 3 \
@@ -44,6 +44,7 @@ def _build_env() -> RailEnv:
         timetable_generator=ttgen_flatland2,
         number_of_agents=1,
         obs_builder_object=FullEnvObservation(),
+        remove_agents_at_target=remove_agents_at_target,
     )
     env.reset()
     return env
@@ -75,3 +76,25 @@ def test_set_path_policy_on_its_own_follows_its_path_to_the_target():
     assert agent.arrival_time is not None
     turns = {entry_point: action for entry_point, action in actions_at.items() if action != RailEnvActions.MOVE_FORWARD}
     assert set(turns) <= {(SWITCH_A, int(Grid4TransitionsEnum.SOUTH))}, f"expected a turn at most at switch A, got {turns}"
+
+
+def test_set_path_policy_on_its_own_acts_for_an_agent_parked_at_its_target():
+    """
+    With `remove_agents_at_target=False`, the agent stays on the map at its target once it arrives. `SetPathPolicy` drops
+    its set path then, and must still give it an action in the steps after its arrival, instead of looking the path up.
+    """
+    env = _build_env(remove_agents_at_target=False)
+    policy = SetPathPolicy()
+    observations = env._get_observations()
+    agent = env.agents[0]
+
+    for _ in range(20):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        if agent.target_entry_point is not None:
+            break
+        observations, _, _, _ = env.step(action_dict)
+    else:
+        raise AssertionError("expected the agent to arrive at its target")
+
+    assert agent.current_entry_point is not None, "expected the agent to stay on the map at its target"
+    assert action_dict[0] == RailEnvActions.DO_NOTHING
