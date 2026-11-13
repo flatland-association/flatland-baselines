@@ -6,8 +6,8 @@
 > [flatland-rl#178](https://github.com/flatland-association/flatland-rl/issues/178) ("(D2) Remove Action Saver Class:
 > agents live on "edges", actions are applied at cell entry", chenkins). Stack of seven PRs, top branch
 > `178-agents-living-on-the-edge-19`, PR [#90](https://github.com/flatland-association/flatland-baselines/pull/90)
-> (head ffd2477, chain in §11.2). Open questions: none (§9.1). CI on ffd2477 fails one test under pandas 3 (F-18),
-> fixed in 4ef5ace (S-27); CI on it pending.
+> (head 11887c7 at the last CI run, chain in §11.2). Open questions: none (§9.1). CI on ffd2477 failed one test under
+> pandas 3 (F-18), fixed in 4ef5ace (S-27); CI on 11887c7 passes.
 >
 > **Why:** flatland-rl 5.0 changes when actions apply, how agents enter and stop, and whether a plain environment
 > tracks the agents' state. The baselines, above all the deadlock-avoidance heuristic (DLA), must keep running
@@ -74,7 +74,7 @@ Requirements:
 
 | Follow-up | Why not in this PR | From | Findings | Issue |
 |---|---|---|---|---|
-| Pin the released flatland-rl 5.0.0 in all three places, after the stack is merged into `main` and before release-please's release PR is merged. | Waits for flatland-rl#541's merge and the 5.0.0 release; moved out of this PR on 2026-11-12 (formerly S-37). | REQ-7 | F-2, F-16, F-17 | - |
+| Pin the released flatland-rl 5.0.0 in all three places, after the stack is merged into `main` and before release-please's release PR is merged. | Waits for flatland-rl#541's merge and the 5.0.0 release; moved out of this PR on 2026-11-12 (formerly S-37). | REQ-7 | F-2, F-16, F-17 | untracked |
 | Record the 50 benchmark episodes again with the current engine and replay them in the tests. | Needs a new archive in flatland-scenarios (another repo) and a review of the new results. | §2.1 (TODO) | F-5 | [#94](https://github.com/flatland-association/flatland-baselines/issues/94) |
 | Apply the alternative path DLA picks when an agent is blocked, planned from the settled next entry point. | Fails on `main` too; applying it changes DLA's results and needs its own calibration. | §2.1 | F-9 | [#93](https://github.com/flatland-association/flatland-baselines/issues/93) |
 | Redesign DLA to need no train state, as preparation for the observation builder extraction ([#65](https://github.com/flatland-association/flatland-baselines/pull/65)). | A redesign; this PR only needs DLA to get the state right (Q-2). | Q-2 | F-14 | - |
@@ -89,7 +89,7 @@ Requirements:
 | C-2 | No direct git dependency on PyPI | technical | PyPI rejects a package whose dependencies are direct URLs (`pyproject.toml:24-26`). |
 | C-3 | release-please publishes when its release PR is merged | organisational | `.github/workflows/release-please.yml`: every push to `main` updates the release PR; merging that PR publishes to PyPI, which fails while `main` carries a git pin. |
 | C-4 | Upstream branches are deleted after their merge | organisational | All `178-agents-living-on-the-edge-*` branches of flatland-rl are gone; pins by branch name break. |
-| C-5 | Python 3.11-3.14 | technical | flatland-rl 5.0 requires Python 3.11 or newer. |
+| C-5 | Python 3.11-3.14 | technical | flatland-rl 5.0 requires Python 3.11 or newer. | 
 
 ### 2.1 Limitations
 
@@ -122,9 +122,8 @@ Not checked in code; they hold by construction of the test setups and of flatlan
 - The online and offline demos run the same episodes with the same seeds, so they can share their expected values.
 - GitHub's stack merge is available for the repository when the stack is merged (Q-3); the docs mark it as a
   public preview on GitHub Enterprise Cloud.
-- The flatland-rl commit `main` pins after the merge (c689b22f, on flatland-rl#541's branch) stays fetchable until the
-  follow-up pins flatland-rl 5.0.0 (§1.4): #541 is merged without squashing, or the follow-up comes before #541's
-  branch is deleted.
+- flatland-rl#541 is merged before the stack, so S-38 can pin its merge commit on flatland-rl's `main`, which stays
+  fetchable after #541's branch is deleted, until the follow-up pins flatland-rl 5.0.0 (§1.4).
 
 ## 3. Context and scope (checked 2026-11-12 on `main` c1733cb)
 
@@ -196,7 +195,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 
 | ID | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
-| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ❌ at ffd2477: locally 20 passed, 51 skipped, 1 xfailed (pandas 2); CI fails `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 4ef5ace; CI on it pending) | - |
+| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on 11887c7, Python 3.11-3.14 (pandas 3). At ffd2477 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 4ef5ace) | - |
 | REQ-2 | New action timing | `test_limitations_*.py`, `test_intermediate_stops.py` | ✅ | - |
 | REQ-3 | No wrong branch at an unavoidable crossing | `test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression` | ❌ the forced action also keeps blocked agents moving (F-1, S-28) | - |
 | REQ-4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ❌ misses earliest departure 1 and is one step late after a malfunction (F-3, F-4, S-29) | - |
@@ -469,6 +468,7 @@ Each PR of the stack is checked against `main`'s rules, and the history must be 
 | 2026-11-12 | ✅ Merge the stack top down with GitHub's stack merge (Q-3). | One operation; `main` never pins a deleted flatland-rl branch; the release PR is merged only after. | `main`'s rules must accept every PR of the stack (F-18, F-19, §11.2). |
 | 2026-11-12 | ✅ Pin the released flatland-rl 5.0.0 after the merge, in a follow-up (formerly S-37). | The stack need not wait for flatland-rl#541's merge and the 5.0.0 release. | REQ-7 and F-2, F-16, F-17 leave the PR (§1.4); `main` pins flatland-rl#541's commit until the follow-up, so release-please's release PR waits for it, and the commit must stay fetchable (§2.2). |
 | 2026-11-12 | ✅ Leave F-5 (record the episodes again) and F-9 (apply the alternative path) out of this PR, tracked in [#94](https://github.com/flatland-association/flatland-baselines/issues/94) and [#93](https://github.com/flatland-association/flatland-baselines/issues/93). | F-9 fails on `main` too and only matters with rerouting switched on (off by default); both change DLA's results and need their own review; F-5 needs a new archive in flatland-scenarios. Fixing F-9 here as a step of phase 8 was the alternative. Both had been put into the follow-ups when the plan was written, without asking. | Two follow-ups in §1.4 with issues; no steps for them. |
+| 2026-11-12 | ✅ Leave the follow-up "Pin the released flatland-rl 5.0.0" untracked; re-pin flatland-rl to #541's merge commit once #541 is merged (S-38). | #541 is about to be merged; pinning its merge commit on flatland-rl's `main` keeps `main` fetchable whatever merge method #541 gets. | S-38 before the stack merge (§11.2); the follow-up has no issue. |
 
 ### 9.3 Code Review Findings
 
@@ -616,6 +616,7 @@ Issue references: the stack closes no issue. The code refers to flatland-rl#178 
 | 💡 S-34 | F-7 | Share the look-ahead between `SetPathPolicy` and DLA. | refactor | medium | refactor(dla): share the cell-entry look-ahead between SetPathPolicy and DeadLockAvoidancePolicy. |  | S-30 | - |
 | 💡 S-35 | F-11 | Split `_extract_agent_can_move`, rename the helper for entering, log through one helper. | refactor | low | refactor(dla): split _extract_agent_can_move and log through one audit helper. |  | S-28, S-29, S-34 | - |
 | 💡 S-36 | F-12, F-13 | `CLAUDE.md:86` on the pin; type hints for the per-step state; use the wrapper's return value. | style | low | style(dla): declare per-step state with type hints and use the wrapper's return value. |  | S-31 | - |
+| 💡 S-38 | - | Re-pin flatland-rl to flatland-rl#541's merge commit on `main` in all three places, so `main` doesn't pin a commit of #541's deleted branch after the stack merge; recalibrate if the values move. | build | high | fix: pin flatland-rl to the merge commit of flatland-rl#541 on main. |  | S-27 | flatland-rl#541 merged |
 
 ### 11.2 Rebase and merge
 
@@ -630,13 +631,13 @@ Issue references: the stack closes no issue. The code refers to flatland-rl#178 
   ([#89](https://github.com/flatland-association/flatland-baselines/pull/89)) ← `-19`
   ([#90](https://github.com/flatland-association/flatland-baselines/pull/90)). Each PR's base is the branch below.
   The plan lives on the top branch.
-- Merge (Q-3): GitHub's stack merge on #90, after S-36; it merges #80-#90 into `main` bottom up. Then the follow-up
+- Merge (Q-3): GitHub's stack merge on #90, after S-36 and S-38; it merges #80-#90 into `main` bottom up. Then the follow-up
   pins flatland-rl 5.0.0 (§1.4), and only then is release-please's release PR merged. Prerequisites:
   - `main`'s ruleset (`main`, id 9165551) requires `test-dla-regression (3.11)` to `(3.14)` (strict), the versions #90
     runs; it required `(3.10)` before 2026-11-12 (F-19, fixed).
   - Every PR of the stack green against `main`'s rules: #80-#89 passed, but re-runs fail, as their flatland-rl
-    branch pins no longer exist; #90 failed `test-dla-regression` at ffd2477 (F-18, fixed in 4ef5ace; CI on it
-    pending).
+    branch pins no longer exist; #90 passes since 11887c7 (at ffd2477 `test-dla-regression` failed, F-18, fixed in
+    4ef5ace).
   - One approval, code owner review (ruleset); merge methods squash or merge.
 - If a lower branch has to change after all: `git rebase --onto <new base head> <old base head> <branch>` for each
   branch above it, in order; the golden values above it may need recalibrating again.
