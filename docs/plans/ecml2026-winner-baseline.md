@@ -178,12 +178,12 @@ Screenshots: none, nothing visible changes. C1 and C2 are manual checks by the u
 | # | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
 | C1 | 2, fidelity | Extract `/app/submission` from `ghcr.io/darshanmakwana412/ecml2026:v4-sipp-locks` (`flatland-ecml2026-evaluation` README, "Extract code") and `diff -r` it with the repo's `submission/` at `efcdd89`. | open | - |
-| 1 | 1 | `test_sipp_locks_policy_runner.py`: runs `level_0_scenario_1.pkl` through `generate_trajectory_from_policy`, asserts exit 0, all agents done, reward equals the recorded value. Also the image's contract by hand: only the files the `Dockerfile` copies, `POLICY`/`OBS_BUILDER` set, `flatland-trajectory-generate-from-policy`. | ✅ locally on flatland-rl 4.2.6, Python 3.12.13: 6 of 6 trains arrive, reward −200 (skipped stops), normalized 0.9325, the same in three runs and by hand; skipped on flatland-rl `main`. CI open. | - |
-| 2 | 2 | New CI job on flatland-rl 4.2.6 green; `git diff` of S2 against S1 shows only imports. | S1 files have the source's git blob SHAs; S2 changes one import line in `or_policy.py`. CI open. | - |
-| 3 | 3 | C2: calibration as decided in Q3; results table in the baseline's README (S4). | open | - |
-| 4 | 4 | `docker.yml` pushes `flatland-baselines-sipp-locks:<tag>`; image size noted in the PR. | open | - |
+| 1 | 1 | `test_sipp_locks_policy_runner.py`: runs `level_0_scenario_1.pkl` through `generate_trajectory_from_policy`, asserts exit 0, all agents done, reward equals the recorded value. Also the image's contract by hand: only the files the `Dockerfile` copies, `POLICY`/`OBS_BUILDER` set, `flatland-trajectory-generate-from-policy`. | ✅ locally on flatland-rl 4.2.6, Python 3.12.13: 6 of 6 trains arrive, reward −200 (skipped stops), normalized 0.9325, the same in three runs and by hand; skipped on flatland-rl `main`. CI at 58ca384: `test-sipp-locks` 1 passed on flatland-rl 4.2.6. | - |
+| 2 | 2 | New CI job on flatland-rl 4.2.6 green; `git diff` of S2 against S1 shows only imports. | S1 files have the source's git blob SHAs; S2 changes one import line in `or_policy.py`. ✅ CI green at 58ca384. | - |
+| 3 | 3 | C2: calibration as decided in Q3; results table in the baseline's README (S5). | ✅ suite submission 39f952ae on fab-int: 20.8094 vs. 20.8429 (−0.0335), completion 73.24% vs. 73.27% (−0.03 pp); five of seven levels identical, levels 4 and 6 slightly lower. Accepted by chenkins on 2026-11-13. The offline per-scenario rerun of Q3 b was not run. | - |
+| 4 | 4 | `docker.yml` pushes `flatland-baselines-sipp-locks:<tag>`; image size noted in the PR. | ✅ pushed at 58ca384 as `ghcr.io/flatland-association/flatland-baselines-sipp-locks:88-ecml2026-winner-baseline` (amd64, arm64). Size not yet noted. | - |
 | 5 | 5 | Phase 2 (§4.6). | open | - |
-| Q-isolation | quality 2 | Existing `checks.yaml` jobs unchanged and green; `pip install .` resolves flatland-rl 4.3.0. | open | - |
+| Q-isolation | quality 2 | Existing `checks.yaml` jobs unchanged and green; `pip install .` resolves flatland-rl 4.3.0. | ✅ at 58ca384: `test-dla-regression` and `test-online-offline-evaluation-demo` green on all Python versions; `pyproject.toml` unchanged. | - |
 
 ### 4.3 Package and naming (requirement 1; Q1)
 
@@ -367,7 +367,7 @@ within ±0.5 of 20.8429 and the completion rate within ±2 percentage points; a 
 
 *Findings from code reviews, PR comments and TODOs, with their status and the commits that fix them.*
 
-PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), based on `main` `c1733cb`, checked at `58ca384` on 2026-11-12: no review or conversation comments and no TODOs added, so no findings.
+PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), based on `main` `c1733cb`, checked at `f4c85c8` on 2026-11-12: no review or conversation comments and no TODOs added, so no findings.
 
 ## 10. Glossary
 
@@ -392,7 +392,7 @@ PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), ba
 
 *One row per commit: what it does, the findings it fixes, its message, and its SHAs once committed.*
 
-#### Phase 1: the winner on flatland-rl 4.2.6, calibrated (in progress)
+#### Phase 1: the winner on flatland-rl 4.2.6, calibrated ✅
 
 | ID | Findings | Step | Category | Severity | Commit message | Commit(s) | Needs | Blocked by |
 |---|---|---|---|---|---|---|---|---|
@@ -400,7 +400,7 @@ PR [#92](https://github.com/flatland-association/flatland-baselines/pull/92), ba
 | S2 | - | Package it: imports, `Dockerfile`, README (provenance, limitations), smoke test, repo README and `CLAUDE.md` entries. | feature | - | `feat(sipp-locks): run v4-sipp-locks as baseline on flatland-rl 4.2.6.` | 2172dfb | S1 | - |
 | S3 | - | CI job `test-sipp-locks` on flatland-rl 4.2.6. | ci | - | `ci(sipp-locks): test the sipp-locks baseline against flatland-rl 4.2.6.` | 2df6edb | S2 | - |
 | S4 | - | Build and push the image in `docker.yml`. | ci | - | `ci(docker): build and push the sipp-locks baseline image.` | 58ca384 | S2 | - |
-| S5 | - | Record the calibration (C2) in the baseline's README. | docs | - | `docs(sipp-locks): record calibration against the ECML 2026 leaderboard.` |  | S4 | - |
+| S5 | - | Record the calibration (C2) in the baseline's README. | docs | - | `docs(sipp-locks): record calibration against the ECML 2026 leaderboard.` | 26f5fe2 | S4 | - |
 
 #### Phase 2: flatland pre-5.0.0 (second PR, Q4)
 
