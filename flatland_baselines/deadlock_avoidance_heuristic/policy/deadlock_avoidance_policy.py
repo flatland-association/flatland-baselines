@@ -230,7 +230,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # this step crosses into its next entry point with any action valid there; the action
             # only decides the transition after it. Where
             # STOP_MOVING would take the agent off its planned path there, send the action
-            # `_extract_agent_can_move` worked out instead; elsewhere STOP_MOVING brakes the agent.
+            # `_update_agent_can_move` worked out instead; elsewhere STOP_MOVING brakes the agent.
             forced = self.forced_action.get(handle)
             if forced is not None:
                 act = forced
@@ -540,7 +540,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             return
         lookahead_entry_point, next_entry_point, action, has_lookahead = self._lookahead(agent)
         if can_move:
-            self.agent_can_move.update({handle: [next_entry_point[0][0], next_entry_point[0][1], next_entry_point[1], action]})
+            self.agent_can_move.update({handle: (next_entry_point[0][0], next_entry_point[0][1], next_entry_point[1], action)})
         elif has_lookahead and self._stop_moving_leaves_path(lookahead_entry_point, next_entry_point):
             self.forced_action[handle] = action
 
