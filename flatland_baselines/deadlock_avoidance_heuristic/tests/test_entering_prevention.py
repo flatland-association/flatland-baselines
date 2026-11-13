@@ -246,8 +246,8 @@ def test_with_entering_prevention_earliest_departure_0_and_1_do_not_enter_togeth
 
     entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
 
-    assert min(entered_at[0], entered_at[1]) == 0, "expected one agent to enter in the first step"
     _assert_entered_one_after_the_other(entered_at, left_at, all_done)
+    assert min(entered_at[0], entered_at[1]) == 0, "expected one agent to enter in the first step"
 
 
 @pytest.mark.parametrize("malfunctioning_handle", [0, 1])
@@ -267,9 +267,9 @@ def test_with_entering_prevention_malfunction_ending_in_departure_step_still_pre
 
     entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
 
+    _assert_entered_one_after_the_other(entered_at, left_at, all_done)
     # _run counts steps from 0, so step() call number 2 is index 1.
     assert min(entered_at[0], entered_at[1]) == 1, "expected one agent to enter in step 2, its departure step"
-    _assert_entered_one_after_the_other(entered_at, left_at, all_done)
 
 
 @pytest.mark.xfail(strict=True, reason="""
