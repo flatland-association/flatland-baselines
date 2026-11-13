@@ -107,9 +107,17 @@ before assuming compatibility.
 ### Baselines layout
 
 Each top-level directory under `flatland_baselines/` (`deadlock_avoidance_heuristic`, `do_nothing_heuristic`,
-`forever_heuristic`, `forward_only_heuristic`, `random`, `self_attention_ppo`, `tree_lstm_ppo`) is an independent
-baseline with its own `Dockerfile` for submission as a container to the Flatland Benchmarks evaluator. The simple
-ones are a few lines implementing `RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial one.
+`forever_heuristic`, `forward_only_heuristic`, `random`, `self_attention_ppo`, `tree_lstm_ppo`, `sipp_locks`) is an
+independent baseline with its own `Dockerfile` for submission as a container to the Flatland Benchmarks evaluator.
+The simple ones are a few lines implementing `RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial
+one.
+
+`sipp_locks` is the ECML 2026 non-RL winner, vendored from `darshanmakwana412/ecml2026` (provenance, licence and
+limitations in its `README.md`; plan in `docs/plans/ecml2026-winner-baseline.md`). Until its port to flatland 5.0.0 it
+is the exception to "The flatland-rl version pin": it runs on flatland-rl 4.2.6 only. Its `Dockerfile` installs
+`flatland-rl==4.2.6` into `python:3.12-slim` (no `pip install -e .`, which would upgrade flatland-rl), its tests skip
+unless flatland-rl 4.2.x is installed, and `checks.yaml`'s `test-sipp-locks` job runs them on 4.2.6. Keep its files
+unchanged against the source except for import paths, so that its score stays comparable to the competition's.
 
 ### Deadlock avoidance heuristic (DLA)
 

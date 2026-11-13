@@ -14,6 +14,8 @@ Baselines provided:
 
 * 🧲 [shortest path deadlock avoidance](flatland_baselines/deadlock_avoidance_heuristic). 👏Thanks
   to [aiAdrian](https://github.com/aiAdrian/flatland-benchmarks-f3-starterkit/tree/DeadLockAvoidancePolicy) for contributing!
+* 🔒 [SIPP with corridor locks](flatland_baselines/sipp_locks), the ECML 2026 non-RL winner, on flatland-rl 4.2.6. 👏Thanks
+  to [darshanmakwana412](https://github.com/darshanmakwana412/ecml2026) for contributing!
 
 ## TL;DR;
 
