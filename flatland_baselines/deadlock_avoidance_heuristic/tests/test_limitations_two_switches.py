@@ -1,5 +1,6 @@
 from typing import Dict, Tuple
 
+import pytest
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
@@ -8,6 +9,7 @@ from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrap
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
+from flatland.envs.rewards import BaseDefaultRewards, DefaultPenalties
 from flatland.envs.step_utils.states import TrainState
 from flatland.envs.timetable_generators import ttgen_flatland2
 from flatland.envs.timetable_utils import Line
@@ -67,7 +69,7 @@ def _facing_agents_line_generator(rail, _num_agents, _hints, _num_resets, _np_ra
     # crossing", 178-agents-living-on-the-edge-9), a full-speed agent's entire one-cell-per-step motion
     # is always "in flight" the instant it starts, so STOP_MOVING can never catch it before completing
     # that cell -- it would advance one cell further than intended every time it's stopped. At half
-    # speed, a stopped agent is caught mid-cell (pre_offset + pre_speed < SEGMENT_LENGTH) instead, so it
+    # speed, a stopped agent is caught mid-cell (distance + speed < SEGMENT_LENGTH) instead, so it
     # freezes exactly where expected, same as pre-#178. See test_two_agents_enter_facing_switches_and_deadlock_there's
     # docstring for the full reasoning and why widening the rail (rather than slowing the agents) doesn't work.
     return Line(
@@ -111,14 +113,14 @@ def test_two_agents_enter_facing_switches_and_deadlock_there():
     Both agents run at half speed (see `_facing_agents_line_generator`) rather than full speed: since
     flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing",
     178-agents-living-on-the-edge-9), a full-speed agent's one-cell-per-step motion is always already
-    "in flight" (pre_offset + pre_speed >= SEGMENT_LENGTH) the instant it starts, so it would complete
+    "in flight" (distance + speed >= SEGMENT_LENGTH) the instant it starts, so it would complete
     one extra cell -- onto the trunk -- every time DeadLockAvoidancePolicy stops it, no matter how the
     rail is laid out (verified empirically: widening the geometry with extra free cells, or raising
     DeadLockAvoidancePolicy's min_free_cell, doesn't help either, since `_check_agent_can_move` only
     applies min_free_cell once an opposing agent is already registered on the shared path -- it isn't a
     static distance threshold, and both agents here become mutually visible on the same step regardless
     of upstream buffer length). At half speed, a stopped agent is instead caught mid-cell
-    (pre_offset + pre_speed < SEGMENT_LENGTH), so it freezes exactly at its switch cell, matching the
+    (distance + speed < SEGMENT_LENGTH), so it freezes exactly at its switch cell, matching the
     pre-#178 behavior this test documents.
     """
     env = _build_env()
@@ -181,20 +183,17 @@ def test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression():
     Regression test for flatland-rl#178's "let STOP_MOVING complete an in-flight cell-boundary
     crossing" change (178-agents-living-on-the-edge-9). Same topology as
     test_two_agents_enter_facing_switches_and_deadlock_there, but both agents run at full speed
-    (1.0) instead of half speed, so an agent is always already "in flight"
-    (pre_offset + pre_speed >= SEGMENT_LENGTH) the instant it reaches a cell boundary -- there is no
-    earlier step at which DeadLockAvoidancePolicy could brake before reaching it.
+    (1.0) instead of half speed, so every step of an agent reaches the end of its cell
+    (distance 0 + speed 1 >= SEGMENT_LENGTH) -- there is no earlier step at which
+    DeadLockAvoidancePolicy could brake before the crossing.
 
-    Since flatland-rl#178, a MOVING agent at a cell-exit boundary completes its crossing regardless
-    of which action is sent -- STOP_MOVING no longer prevents entry into the next cell, it only fails
-    to steer onto the correct branch at a switch (rail_grid_transition_map.py's `_check_action_new`
-    silently resolves STOP_MOVING to "continue straight" there, unlike a real MOVE_LEFT/MOVE_RIGHT).
-    DeadLockAvoidancePolicy now computes and sends its own intended directional action instead of
-    blind STOP_MOVING whenever this is the case (see `_extract_agent_can_move`'s `forced_action`), so
-    each agent is steered correctly onto the trunk rather than derailed onto an unplanned branch --
-    but, since full speed still forces them one cell further per step before DLA's opposition check
-    can react, they end up meeting one cell short of collision inside the trunk (not frozen at their
-    own switch cell, as they would at half speed) rather than at their own switch cell.
+    Since flatland-rl#178, a MOVING agent whose distance plus speed reaches the end of its cell
+    crosses into its settled next entry point with any action valid there; the action only decides the
+    transition after it. STOP_MOVING there still brakes the agent, so it stops in the cell it crosses
+    into. Here STOP_MOVING leads along the planned path on the trunk, so DeadLockAvoidancePolicy sends
+    it (no `forced_action`, see `_stop_moving_leaves_path`): each agent crosses one cell onto the trunk
+    and stops there, with one free cell between them, instead of driving on until they stand next to
+    each other.
     """
     env = _build_full_speed_env()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
@@ -207,10 +206,159 @@ def test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression():
     positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
     states = [agent.state for agent in env.agents]
     assert states == [TrainState.STOPPED, TrainState.STOPPED], "expected both agents to be permanently stopped"
-    assert positions == [TRUNK[1], TRUNK[2]], \
-        "expected both agents correctly routed onto the trunk (not derailed onto the wrong switch " \
-        "branch) and deadlocked one cell short of colliding head-on"
+    assert positions == [TRUNK[0], TRUNK[2]], \
+        "expected both agents to stop on the trunk with one free cell between them"
     assert not dones["__all__"], "expected the agents to deadlock and never both arrive"
+
+
+def _single_agent_line_generator(target):
+    # one full-speed agent, entering at EAST_OF_B and travelling west along the trunk to switch A, where
+    # its path goes straight on (WEST_OF_A) or turns north (N_OF_A).
+    def line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+        return Line(
+            agent_waypoints={0: [[Waypoint(EAST_OF_B, int(Grid4TransitionsEnum.EAST))], target_waypoints(rail, target)]},
+            agent_speeds=[1.0],
+        )
+
+    return line_generator
+
+
+@pytest.mark.parametrize("target,expected_action,expected_next_position", [
+    # STOP_MOVING would go straight on at switch A, off the planned path: DLA steers.
+    (N_OF_A, RailEnvActions.MOVE_RIGHT, N_OF_A),
+    # STOP_MOVING goes straight on, along the planned path: DLA brakes.
+    (WEST_OF_A, RailEnvActions.STOP_MOVING, WEST_OF_A),
+])
+def test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_path(target, expected_action, expected_next_position):
+    """
+    A full-speed agent reaches the end of its cell every step, so even when blocked it crosses into its
+    settled next entry point with any action valid there (flatland-rl#178); the action only decides the transition after it. Here the settled next
+    entry point is switch A, entered from the east. STOP_MOVING resolves to "straight on" there. If the
+    planned path turns north, DLA sends its directional action (`forced_action`) to keep the agent on its
+    path; if the path goes straight on anyway, DLA sends STOP_MOVING, which brakes the agent.
+
+    DLA's conflict check is patched to report the agent as blocked once switch A is its next entry point:
+    with a real opposing train, DLA blocks the agent long before it reaches the switch.
+    """
+    rail = _make_two_switches_rail()
+    env = RailEnv(
+        width=rail.width,
+        height=rail.height,
+        rail_generator=rail_from_grid_transition_map(rail),
+        line_generator=_single_agent_line_generator(target),
+        timetable_generator=ttgen_flatland2,
+        number_of_agents=1,
+        obs_builder_object=FullEnvObservation(),
+    )
+    env = RailEnvStateMachineWrapper(env)
+    env.reset()
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
+    observations = env._get_observations()
+    agent = env.agents[0]
+
+    for _ in range(10):
+        if agent.next_entry_point == (SWITCH_A, int(Grid4TransitionsEnum.WEST)):
+            break
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, _, _ = env.step(action_dict)
+    else:
+        raise AssertionError("expected the agent to approach switch A from the east")
+    assert agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected the crossing into switch A to be unavoidable"
+
+    policy._check_agent_can_move = lambda *args, **kwargs: False
+    action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+    assert action_dict[0] == expected_action
+
+    env.step(action_dict)
+    assert agent.current_entry_point[0] == SWITCH_A, "expected the agent to cross into switch A"
+    assert agent.next_entry_point[0] == expected_next_position, "expected the agent to stay on its planned path"
+
+
+# A symmetric switch S facing a westbound train, which has to turn north or south there (no straight on):
+#
+#        N_OF_S
+#          |
+#   ... [S: symmetric_switch_from_east] -- APPROACH_S -- START_S
+#          |
+#        S_OF_S
+N_OF_S = (0, 1)
+SWITCH_S = (1, 1)
+S_OF_S = (2, 1)
+APPROACH_S = (1, 2)
+START_S = (1, 3)
+
+
+def _make_symmetric_switch_rail() -> RailGridTransitionMap:
+    row0 = [0, RailEnvTransitionsEnum.dead_end_from_south, 0, 0]
+    row1 = [0, RailEnvTransitionsEnum.symmetric_switch_from_east, RailEnvTransitionsEnum.horizontal_straight,
+            RailEnvTransitionsEnum.dead_end_from_west]
+    row2 = [0, RailEnvTransitionsEnum.dead_end_from_north, 0, 0]
+    return build_rail([row0, row1, row2])
+
+
+def _symmetric_switch_line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+    # one full-speed agent, entering at START_S facing east (it turns round in the dead end), travelling west to
+    # switch S and turning north there.
+    return Line(
+        agent_waypoints={0: [[Waypoint(START_S, int(Grid4TransitionsEnum.EAST))], target_waypoints(rail, N_OF_S)]},
+        agent_speeds=[1.0],
+    )
+
+
+def test_blocked_full_speed_agent_stops_before_a_symmetric_switch():
+    """
+    At a symmetric switch facing the agent, STOP_MOVING has no transition (only MOVE_LEFT/MOVE_RIGHT have), so
+    `_stop_moving_leaves_path` is False and DLA sends STOP_MOVING, not its directional action. flatland-rl refuses
+    the crossing for the invalid action: the agent stays in front of the switch, STOPPED with speed 0 and its distance
+    kept (flatland-rl#545), and never enters the switch at full speed. The refused crossing is charged once as
+    INVALID_ACTION (speed times collision_factor), and not again while the stopped agent keeps getting STOP_MOVING.
+
+    DLA's conflict check is patched to report the agent as blocked, as in
+    test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_path.
+    """
+    rail = _make_symmetric_switch_rail()
+    env = RailEnv(
+        width=rail.width,
+        height=rail.height,
+        rail_generator=rail_from_grid_transition_map(rail),
+        line_generator=_symmetric_switch_line_generator,
+        timetable_generator=ttgen_flatland2,
+        number_of_agents=1,
+        obs_builder_object=FullEnvObservation(),
+        rewards=BaseDefaultRewards(collision_factor=1.0),
+    )
+    env = RailEnvStateMachineWrapper(env)
+    env.reset()
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
+    observations = env._get_observations()
+    agent = env.agents[0]
+
+    for _ in range(10):
+        if agent.next_entry_point == (SWITCH_S, int(Grid4TransitionsEnum.WEST)):
+            break
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, _, _ = env.step(action_dict)
+    else:
+        raise AssertionError("expected the agent to approach switch S from the east")
+    assert agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit(), "expected a crossing into switch S this step"
+    assert env.rail.apply_action_independent(RailEnvActions.STOP_MOVING, agent.next_entry_point) is None, \
+        "expected STOP_MOVING to be invalid at switch S"
+    speed = agent.speed_counter.speed
+    distance = agent.speed_counter.distance
+
+    policy._check_agent_can_move = lambda *args, **kwargs: False
+    invalid_action_penalties = []
+    for _ in range(3):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        assert action_dict[0] == RailEnvActions.STOP_MOVING
+        observations, rewards, _, _ = env.step(action_dict)
+        invalid_action_penalties.append(rewards[0][DefaultPenalties.INVALID_ACTION.value])
+        assert agent.current_entry_point[0] == APPROACH_S, "expected the agent to stay in front of switch S"
+        assert agent.state == TrainState.STOPPED
+        assert agent.speed_counter.speed == 0
+        assert agent.speed_counter.distance == distance, "expected the refused crossing to keep the distance"
+
+    assert invalid_action_penalties == [-speed, 0, 0], "expected one INVALID_ACTION penalty for the refused crossing"
 
 
 # Same infrastructure as above, but with two more agents queuing up north of switch B, behind the
@@ -262,7 +410,7 @@ def _facing_agents_with_queue_line_generator(rail, _num_agents, _hints, _num_res
     # full speed -- see _facing_agents_line_generator and
     # test_two_agents_enter_facing_switches_and_deadlock_there's docstring for why. Agents 2 and 3 stay
     # at full speed: they're brought to a halt by physically queueing behind the agent ahead of them (a
-    # denied crossing at a cell already occupied, banking distance at the boundary) -- a mechanism
+    # denied crossing at a cell already occupied: speed 0, distance kept, flatland-rl#545) -- a mechanism
     # independent of, and unaffected by, flatland-rl#178's STOP_MOVING-completes-an-in-flight-crossing
     # fix -- so their final position doesn't depend on their speed the way agents 0/1's does, even
     # though DeadLockAvoidancePolicy also independently issues them STOP_MOVING once it detects agent 0
@@ -355,7 +503,7 @@ def test_agents_queuing_behind_a_blocked_leader_are_also_stopped_directly():
 # opposing agent is already registered on the shared path (`len_opp_agents == 0: return True`), so it
 # is not a static distance-based threshold, and no amount of upstream buffer changes when agent 0 and
 # agent 1 become mutually visible. What actually resolves it: agents 0 and 1 run at half speed (see
-# _agents_with_aa_line_generator), so their crossing is never "in flight" (pre_offset + pre_speed <
+# _agents_with_aa_line_generator), so their crossing is never "in flight" (distance + speed <
 # SEGMENT_LENGTH) when STOP_MOVING is issued -- see
 # test_two_agents_enter_facing_switches_and_deadlock_there's docstring for the general mechanism.
 AA_N_OF_AA = (2, 1)

@@ -145,14 +145,19 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
 
-Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent at a
-cell-exit boundary completes its crossing regardless of which action is sent — `STOP_MOVING` no longer prevents
-entry into the next cell there, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
-wrong branch at a switch by flatland-rl's own action-resolution fallback. `_extract_agent_can_move` accounts for
+Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent whose
+distance plus speed reaches the end of its cell this step (`agent.speed_counter.is_cell_exit()`) crosses into its
+next entry point with any action valid there — `STOP_MOVING` no longer prevents the crossing, it only lowers the
+speed afterwards, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
+wrong branch at a switch by flatland-rl's own action-resolution fallback. An agent never sits on the exit of its
+cell: since flatland-rl#545, a refused crossing (an action invalid there, or the next cell taken) stops the agent
+(speed 0) and keeps its distance. `_extract_agent_can_move` accounts for
 this: whenever a crossing is unavoidable this way (`agent.state == TrainState.MOVING and
-agent.speed_counter.is_cell_exit()`), it always computes DLA's intended directional action toward the agent's
-planned path — stored in `forced_action`, used by `_act` in place of blind `STOP_MOVING` — even while opposition
-would otherwise block the agent.
+agent.speed_counter.is_cell_exit()`) and opposition blocks the agent, it computes DLA's intended directional action
+toward the agent's planned path, and stores it in `forced_action` (used by `_act` in place of `STOP_MOVING`) only
+where `STOP_MOVING` would resolve to another branch than the planned one (`_stop_moving_leaves_path`, using
+flatland-rl's own `apply_action_independent`). Elsewhere it sends `STOP_MOVING`: the crossing still completes, but
+the agent brakes and stops in the cell it crosses into, instead of driving on into the conflict.
 
 `use_entering_prevention` (opt-in, default `False`) stops more than one off-map agent from entering the map on
 the same tick when that would leave fewer than `min_free_cell` cells between their paths. Its `entering_agents`
