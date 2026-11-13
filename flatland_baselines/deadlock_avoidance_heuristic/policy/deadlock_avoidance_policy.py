@@ -95,11 +95,16 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
 
+        # _init_env: 1 if position is a switch, 0 otherwise (only with use_switches_heuristic)
+        self.switches: Optional[np.ndarray] = None
+
         # start_step (1): -1 if no agent, agent handle otherwise
-        self.agent_positions = None
+        self.agent_positions: Optional[np.ndarray] = None
 
         # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
+        # start_step (3): DLA's own action for a blocked agent at an unavoidable crossing, sent instead of STOP_MOVING
+        self.forced_action: Dict[AgentHandle, RailEnvActions] = {}
         # start_step (2.3.2): set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
@@ -545,7 +550,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             # 0 or 1 in the first step (flatland-rl issue #280), enter without being READY_TO_DEPART before.
             # An agent that can't enter yet (still in malfunction, not yet due) must not be a candidate: since
             # their paths typically overlap, it would block another agent that really enters.
-            def _about_to_leave_off_map(agent) -> bool:
+            def _about_to_leave_off_map(agent: EnvAgent) -> bool:
                 return (self._derived_state(agent, self.rail_env).is_off_map_state()
                         and agent.earliest_departure <= self.rail_env._elapsed_steps + 1
                         and agent.malfunction_handler.malfunction_down_counter <= 1)
