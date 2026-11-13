@@ -169,10 +169,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] += 1
             if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
                 self._find_alternative(agent)
-            # flatland-rl#178: a MOVING agent at a cell-exit boundary completes its crossing no
-            # matter what action is sent - STOP_MOVING here was never actually preventing entry into
-            # the next cell, only failing to steer it onto the correct branch. Prefer the action
-            # `_extract_agent_can_move` already worked out for this case over blind STOP_MOVING.
+            # flatland-rl#178: a MOVING agent whose distance plus speed reaches the end of its cell
+            # this step crosses into its next entry point with any action valid there; the action
+            # only decides the transition after it. Where
+            # STOP_MOVING would take the agent off its planned path there, send the action
+            # `_extract_agent_can_move` worked out instead; elsewhere STOP_MOVING brakes the agent.
             forced = self.forced_action.get(handle)
             if forced is not None:
                 act = forced
@@ -443,6 +444,24 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 return preprocessed_action
         raise RuntimeError(f"no action from {entry_point} to {next_entry_point}")
 
+    def _stop_moving_leaves_path(self, entry_point: Tuple[Tuple[int, int], int], planned_entry_point: Tuple[Tuple[int, int], int]) -> bool:
+        """
+        Whether STOP_MOVING, sent at an unavoidable crossing, would take the agent off its planned path.
+
+        The crossing into `entry_point` (the settled next entry point) happens with any action valid there; the action
+        only decides the transition after it, which flatland-rl resolves with `apply_action_independent` from
+        `entry_point`. Where STOP_MOVING resolves to the planned entry point, it is the right action: the agent brakes
+        and stays on its path. Where it is invalid there (`None`, e.g. at a symmetric switch facing the agent, where
+        only MOVE_LEFT/MOVE_RIGHT have a transition), the engine refuses the crossing: the agent stays in its cell with
+        speed 0 and keeps its distance (flatland-rl#545), which is a stop too, before the switch. The refused crossing
+        costs one INVALID_ACTION penalty (speed times `collision_factor`, 0 by default), not charged again while the
+        stopped agent keeps getting STOP_MOVING; steering instead would take the agent into the switch at full speed,
+        towards the conflict. Only where STOP_MOVING resolves to another branch must DLA steer with its directional
+        action instead.
+        """
+        stop_entry_point = self.rail_env.rail.apply_action_independent(RailEnvActions.STOP_MOVING, entry_point)
+        return stop_entry_point is not None and stop_entry_point != planned_entry_point
+
     def _extract_agent_can_move(self):
         """
         start_step (3): update whether agent can move. More precisely, updates:
@@ -464,12 +483,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                         self.switches,
                         self.count_num_opp_agents_towards_min_free_cell,
                 )
-                # flatland-rl#178: once MOVING and at a cell-exit boundary, the crossing completes
-                # regardless of the action sent - STOP_MOVING no longer prevents it, and (unlike a
-                # real directional action) lets the engine silently pick the wrong branch at a
-                # switch. Compute DLA's own intended action toward its planned path even when
-                # blocked, so `_act` can send that instead of a STOP_MOVING that was never actually
-                # preventing entry here anyway.
+                # flatland-rl#178: once MOVING and its distance plus speed reaches the end of its cell
+                # this step (is_cell_exit()), the agent crosses into the settled next entry point with
+                # any action valid there; the action only decides the transition after it. STOP_MOVING still brakes the agent, but at a switch
+                # it may resolve to a branch the planned path doesn't take. Compute DLA's own action
+                # toward its planned path even when blocked, and keep it as `forced_action` only where
+                # STOP_MOVING would leave the path (`_stop_moving_leaves_path`).
                 crossing_unavoidable = agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit()
                 if can_move or crossing_unavoidable:
                     if agent.current_entry_point is not None:
@@ -512,7 +531,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
                     if can_move:
                         self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
-                    else:
+                    elif target_index < len(self._set_paths[agent.handle]) and self._stop_moving_leaves_path(
+                            (lookahead_position, lookahead_direction), (next_position, next_direction)):
                         self.forced_action[handle] = action
         if self.use_entering_prevention:
             # READY_TO_DEPART, MALFUNCTION_OFF_MAP and (flatland-rl issue #280) a first-step

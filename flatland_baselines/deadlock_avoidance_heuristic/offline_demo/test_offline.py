@@ -65,15 +65,16 @@ def verify_online_offline_calibration_envs_v2(mean_normalized_reward, mean_perce
 
     # NOTE: re-calibrated for flatland-rl 6788c0a7 (earliest_departure == 1 departs one step earlier,
     # ready_to_depart's elapsed_steps==1 special case removed),
-    # and for flatland-rl 40ee6582 (#545: no distance upon invalid action or forced stop).
-    # Mean Reward : -3562.56
-    # Sum Normalized Reward : 42.50089791933985 (primary score)
-    # Mean Percentage Complete : 0.634 (secondary score)
-    # Mean Normalized Reward : 0.85002
-    assert np.isclose(mean_reward, -3562.56)
-    assert np.isclose(sum_normalized_reward, 42.50089791933985)
-    assert np.isclose(mean_percentage_complete, 0.634)
-    assert np.isclose(mean_normalized_reward, 0.85002)
+    # and for flatland-rl 40ee6582 (#545: no distance upon invalid action or forced stop),
+    # and for DLA steering an unavoidable crossing only where STOP_MOVING would leave the planned path (elsewhere it brakes).
+    # Mean Reward : -3547.26
+    # Sum Normalized Reward : 42.821588938857495 (primary score)
+    # Mean Percentage Complete : 0.652 (secondary score)
+    # Mean Normalized Reward : 0.85643
+    assert np.isclose(mean_reward, -3547.26)
+    assert np.isclose(sum_normalized_reward, 42.821588938857495)
+    assert np.isclose(mean_percentage_complete, 0.652)
+    assert np.isclose(mean_normalized_reward, 0.85643)
 
 
 @pytest.mark.parametrize("post_seed", [
@@ -132,24 +133,25 @@ def verify_online_offline_calibration_envs_v3_trunc(mean_normalized_reward, mean
     print(f"# Mean Percentage Complete : {mean_percentage_complete} (secondary score)")
     print(f"# Mean Normalized Reward : {mean_normalized_reward}")
 
-    # NOTE: re-calibrated for flatland-rl 40ee6582 (#545: no distance upon invalid action or forced stop).
+    # NOTE: re-calibrated for flatland-rl 40ee6582 (#545: no distance upon invalid action or forced stop),
+    # and for DLA steering an unavoidable crossing only where STOP_MOVING would leave the planned path (elsewhere it brakes).
     if post_seed == "1001":
-        # Mean Reward : -122.7
-        # Sum Normalized Reward : 18.306870977154713 (primary score)
+        # Mean Reward : -123.6
+        # Sum Normalized Reward : 18.292888808885404 (primary score)
         # Mean Percentage Complete : 0.871 (secondary score)
-        # Mean Normalized Reward : 0.91534
-        assert np.isclose(mean_reward, -122.7)
-        assert np.isclose(sum_normalized_reward, 18.306870977154713)
+        # Mean Normalized Reward : 0.91464
+        assert np.isclose(mean_reward, -123.6)
+        assert np.isclose(sum_normalized_reward, 18.292888808885404)
         assert np.isclose(mean_percentage_complete, 0.871)
-        assert np.isclose(mean_normalized_reward, 0.91534)
+        assert np.isclose(mean_normalized_reward, 0.91464)
     elif post_seed is None or post_seed == "NONE":
-        # Mean Reward : -122.4
-        # Sum Normalized Reward : 18.300566840126233 (primary score)
+        # Mean Reward : -123.1
+        # Sum Normalized Reward : 18.29142728686903 (primary score)
         # Mean Percentage Complete : 0.871 (secondary score)
-        # Mean Normalized Reward : 0.91503
-        assert np.isclose(mean_reward, -122.4)
-        assert np.isclose(sum_normalized_reward, 18.300566840126233)
+        # Mean Normalized Reward : 0.91457
+        assert np.isclose(mean_reward, -123.1)
+        assert np.isclose(sum_normalized_reward, 18.29142728686903)
         assert np.isclose(mean_percentage_complete, 0.871)
-        assert np.isclose(mean_normalized_reward, 0.91503)
+        assert np.isclose(mean_normalized_reward, 0.91457)
     else:
         raise AssertionError()
