@@ -580,19 +580,25 @@ def test_agents_short_of_the_conflict_keep_receiving_move_forward():
     env = _build_env_with_aa()
     policy = DeadLockAvoidancePolicy(use_entering_prevention=False, min_free_cell=1)
 
-    # Agents 2 and 3 are only held back by the environment's own motion check (queueing behind a
-    # stopped agent ahead of them, never receiving STOP_MOVING from DLA itself), which oscillates their
-    # state MOVING/STOPPED every single step even once their position has settled -- so the exact
-    # iteration count matters: it must land on a STOPPED phase, not a MOVING one.
-    action_dict, dones = _run_n_steps(env, policy, num_steps=21)
+    # Agents 2 and 3 are only held back by the environment's own motion check (queueing behind a stopped agent ahead
+    # of them, never receiving STOP_MOVING from DLA itself). Their state alternates every step once their position
+    # has settled: a refused crossing stops them (STOPPED, speed 0), and the next MOVE_FORWARD restarts them (MOVING),
+    # without moving them. So check positions and actions over several steps, not the state after a given step.
+    _run_n_steps(env, policy, num_steps=15)
+    observations = env._get_observations()
+    dones = {"__all__": False}
+    for _ in range(6):
+        action_dict = policy.act_many(env.get_agent_handles(), observations=list(observations.values()))
+        observations, _, dones, _ = env.step(action_dict)
 
-    assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
-    assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
-    assert action_dict[2] == RailEnvActions.MOVE_FORWARD, "expected agent 2 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
-    assert action_dict[3] == RailEnvActions.MOVE_FORWARD, "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+        assert action_dict[0] == RailEnvActions.STOP_MOVING, "expected agent 0 to be stopped directly by DeadLockAvoidancePolicy"
+        assert action_dict[1] == RailEnvActions.STOP_MOVING, "expected agent 1 to be stopped directly by DeadLockAvoidancePolicy"
+        assert action_dict[2] == RailEnvActions.MOVE_FORWARD, "expected agent 2 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
+        assert action_dict[3] == RailEnvActions.MOVE_FORWARD, "expected agent 3 to keep receiving MOVE_FORWARD -- it never sees agent 0 on its own (shorter) path"
 
-    positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
-    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
-    assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], "expected agents 2 and 3 to be physically queued one cell behind where they started"
-    assert states == [TrainState.STOPPED] * 4, "expected agents 2 and 3 to be stopped by the environment's motion check despite DLA issuing MOVE_FORWARD"
+        positions = [agent.current_entry_point[0] if agent.current_entry_point is not None else None for agent in env.agents]
+        assert positions == [AA_AA, AA_SWITCH_B, AA_Q_FIRST, AA_Q_SECOND], \
+            "expected agents 0 and 1 to stay stopped, and agents 2 and 3 to stay queued one cell behind where they started"
+        states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
+        assert states[:2] == [TrainState.STOPPED] * 2, "expected agents 0 and 1 to be permanently stopped"
     assert not dones["__all__"], "expected the agents to deadlock and never all arrive"
