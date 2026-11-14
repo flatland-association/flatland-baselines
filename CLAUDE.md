@@ -50,7 +50,7 @@ Some tests need extra setup:
   `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`, which ships as part of flatland-rl, not this repo) — the
   archive version (`FLATLAND_BENCHMARK_EPISODES_FOLDER_v*.zip`) bumps whenever the pinned flatland-rl ref changes
   episode-relevant behavior, so check that URL rather than assuming a specific version. Its whole parametrized suite
-  is currently `@pytest.mark.skip`ped wholesale (#178): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
+  is currently `@pytest.mark.skip`ped wholesale ([flatland-scenarios#37](https://github.com/flatland-association/flatland-scenarios/issues/37)): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
   flatland-rl engine timing change makes it genuinely re-decide differently than what a recorded trajectory
   captured before that change — the fix is a live rerun to regenerate the recording, not a values tweak, so it's
   skipped rather than left red until that regeneration happens.
