@@ -1,3 +1,4 @@
+import pytest
 from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
@@ -10,27 +11,26 @@ from flatland_baselines.deadlock_avoidance_heuristic.observation.full_env_observ
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy
 from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils import build_rail, target_waypoints
 
-# Two switches A and B on one track; the agent comes from the north arm of A, turns onto the track at A and runs
-# straight through B to the east:
+# Two switches A and B on one track; the agent comes from the north arm of A, is turned onto the track at A (the only
+# transition from that arm), and at B either goes straight on to EAST_OF_B or turns left to N_OF_B (a real choice):
 #
-#                N_OF_A
-#                  |
+#                N_OF_A                      N_OF_B
+#                  |                           |
 #   WEST_OF_A -- [A] -- . -- . -- . -- [B] -- EAST_OF_B
-#                                        |
-#                                      N_OF_B
 N_OF_A = (0, 1)
 SWITCH_A = (1, 1)
+N_OF_B = (0, 5)
+SWITCH_B = (1, 5)
 EAST_OF_B = (1, 6)
 
 
-def _line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
-    return Line(
-        agent_waypoints={0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, EAST_OF_B)]},
-        agent_speeds=[1.0],
-    )
+def _build_env(remove_agents_at_target: bool = True, target=EAST_OF_B) -> RailEnv:
+    def _line_generator(rail, _num_agents, _hints, _num_resets, _np_random) -> Line:
+        return Line(
+            agent_waypoints={0: [[Waypoint(N_OF_A, int(Grid4TransitionsEnum.NORTH))], target_waypoints(rail, target)]},
+            agent_speeds=[1.0],
+        )
 
-
-def _build_env(remove_agents_at_target: bool = True) -> RailEnv:
     row0 = [0, RailEnvTransitionsEnum.dead_end_from_south, 0, 0, 0, RailEnvTransitionsEnum.dead_end_from_south, 0]
     row1 = [RailEnvTransitionsEnum.dead_end_from_east, RailEnvTransitionsEnum.simple_switch_west_right] \
            + [RailEnvTransitionsEnum.horizontal_straight] * 3 \
@@ -50,13 +50,20 @@ def _build_env(remove_agents_at_target: bool = True) -> RailEnv:
     return env
 
 
-def test_set_path_policy_on_its_own_follows_its_path_to_the_target():
+TURN_AT_A = {(SWITCH_A, int(Grid4TransitionsEnum.SOUTH)): RailEnvActions.MOVE_LEFT}
+
+
+@pytest.mark.parametrize("target,expected_turns", [
+    (EAST_OF_B, TURN_AT_A),
+    (N_OF_B, {**TURN_AT_A, (SWITCH_B, int(Grid4TransitionsEnum.EAST)): RailEnvActions.MOVE_LEFT}),
+])
+def test_set_path_policy_on_its_own_follows_its_path_to_the_target(target, expected_turns):
     """
-    `SetPathPolicy` on its own, not as `DeadLockAvoidancePolicy`'s base class: the agent turns at switch A onto the
-    track and arrives at its target. The policy sends `MOVE_FORWARD` wherever going straight on follows the path (a
-    turn there has no valid transition of its own), and a turn only where the path turns.
+    `SetPathPolicy` on its own, not as `DeadLockAvoidancePolicy`'s base class: the agent arrives at its target. The
+    policy sends `MOVE_FORWARD` where the path goes straight on, `MOVE_LEFT` for the turn to the east at A (the only
+    transition from the north arm), and at B, where the agent has a choice, `MOVE_LEFT` only for the target N_OF_B.
     """
-    env = _build_env()
+    env = _build_env(target=target)
     policy = SetPathPolicy()
     observations = env._get_observations()
     agent = env.agents[0]
@@ -75,7 +82,7 @@ def test_set_path_policy_on_its_own_follows_its_path_to_the_target():
     assert dones["__all__"], "expected the agent to arrive at its target"
     assert agent.arrival_time is not None
     turns = {entry_point: action for entry_point, action in actions_at.items() if action != RailEnvActions.MOVE_FORWARD}
-    assert set(turns) <= {(SWITCH_A, int(Grid4TransitionsEnum.SOUTH))}, f"expected a turn at most at switch A, got {turns}"
+    assert turns == expected_turns
 
 
 def test_set_path_policy_on_its_own_acts_for_an_agent_parked_at_its_target():
