@@ -6,8 +6,8 @@
 > [flatland-rl#178](https://github.com/flatland-association/flatland-rl/issues/178) ("(D2) Remove Action Saver Class:
 > agents live on "edges", actions are applied at cell entry", chenkins). Stack of seven PRs, top branch
 > `178-agents-living-on-the-edge-19`, PR [#90](https://github.com/flatland-association/flatland-baselines/pull/90)
-> (head b9e4a9f at the last CI run, chain in §11.2). Open questions: none (§9.1). CI on ffd2477 failed one test under
-> pandas 3 (F-18), fixed in 4ef5ace (S-27); CI on b9e4a9f passes (S-28–S-31 and the pin on flatland-rl's `main`).
+> (head ded28e8 at the last CI run, chain in §11.2). Open questions: none (§9.1). CI on ffd2477 failed one test under
+> pandas 3 (F-18), fixed in 4ef5ace (S-27); CI on f768966 failed the S-46 test (F-30), fixed in 50b6f6e (S-48); CI on ded28e8 passes (all steps but S-34, flatland-rl's `main`).
 >
 > **Why:** flatland-rl 5.0 changes when actions apply, how agents enter and stop, and whether a plain environment
 > tracks the agents' state. The baselines, above all the deadlock-avoidance heuristic (DLA), must keep running
@@ -201,7 +201,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 
 | ID | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
-| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on b9e4a9f, Python 3.11-3.14 (pandas 3). At ffd2477 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 4ef5ace) | - |
+| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on ded28e8, Python 3.11-3.14 (pandas 3). At f768966 CI failed the S-46 test, depending on the hash seed (F-30, fixed in 50b6f6e). At ffd2477 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 4ef5ace) | - |
 | REQ-2 | New action timing | `test_limitations_*.py`, `test_intermediate_stops.py` | ✅ | - |
 | REQ-3 | No wrong branch at an unavoidable crossing | `test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression`, `test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_path`, `test_blocked_full_speed_agent_stops_before_a_symmetric_switch` | ✅ locally against 9eec95df (S-28, 70e8660): blocked full-speed agents stop with a free cell between them; steered only where `STOP_MOVING` would leave the path; before a symmetric switch they stop | - |
 | REQ-4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ✅ locally against 9eec95df (S-29, 9e18779): earliest departures 0 and 1 in the first step, and a malfunction ending in the departure step, enter one after the other | - |
@@ -210,7 +210,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 | REQ-7 | Released flatland-rl before `main` | `pyproject.toml` without a git URL | ⏭️ moved to the follow-up in §1.4 (2026-11-12) | - |
 | NFR-1 | Explainable results | each recalibration commit names its cause (REQ-6) | ✅ | - |
 | NFR-2 | Reproducible CI | episodes by commit (S-33, f618d51); flatland-rl by release tag (follow-up, §1.4) | 💡 flatland-rl on the branch `main` since 21a3c5f (F-16, F-17) until the 5.0.0 release; episodes by commit ✅ | - |
-| NFR-3 | Online equals offline | `online_demo/test_online.py` in CI | ✅ CI on b9e4a9f, Python 3.11-3.14, with the values of S-28 and no state machine (S-31) | - |
+| NFR-3 | Online equals offline | `online_demo/test_online.py` in CI | ✅ CI on ded28e8, Python 3.11-3.14, with the values of S-28 and no state machine (S-31, S-35) | - |
 
 ### 4.3 Phase 1: actions at cell entry (#80; REQ-1, REQ-2)
 
