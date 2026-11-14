@@ -18,7 +18,6 @@ from flatland_baselines.deadlock_avoidance_heuristic.tests.rail_test_utils impor
 #                  |                           |
 #   WEST_OF_A -- [A] -- . -- . -- . -- [B] -- EAST_OF_B
 N_OF_A = (0, 1)
-SWITCH_A = (1, 1)
 N_OF_B = (0, 5)
 SWITCH_B = (1, 5)
 EAST_OF_B = (1, 6)
@@ -50,18 +49,16 @@ def _build_env(remove_agents_at_target: bool = True, target=EAST_OF_B) -> RailEn
     return env
 
 
-TURN_AT_A = {(SWITCH_A, int(Grid4TransitionsEnum.SOUTH)): RailEnvActions.MOVE_LEFT}
-
-
 @pytest.mark.parametrize("target,expected_turns", [
-    (EAST_OF_B, TURN_AT_A),
-    (N_OF_B, {**TURN_AT_A, (SWITCH_B, int(Grid4TransitionsEnum.EAST)): RailEnvActions.MOVE_LEFT}),
+    (EAST_OF_B, {}),
+    (N_OF_B, {(SWITCH_B, int(Grid4TransitionsEnum.EAST)): RailEnvActions.MOVE_LEFT}),
 ])
 def test_set_path_policy_on_its_own_follows_its_path_to_the_target(target, expected_turns):
     """
     `SetPathPolicy` on its own, not as `DeadLockAvoidancePolicy`'s base class: the agent arrives at its target. The
-    policy sends `MOVE_FORWARD` where the path goes straight on, `MOVE_LEFT` for the turn to the east at A (the only
-    transition from the north arm), and at B, where the agent has a choice, `MOVE_LEFT` only for the target N_OF_B.
+    policy sends `MOVE_FORWARD` wherever it leads onto the path, also at A, whose north arm has only the turn to the
+    east (`MOVE_LEFT` would lead there too: the policy tries `MOVE_FORWARD` first), and at B, where the agent has a
+    choice, `MOVE_LEFT` only for the target N_OF_B.
     """
     env = _build_env(target=target)
     policy = SetPathPolicy()
