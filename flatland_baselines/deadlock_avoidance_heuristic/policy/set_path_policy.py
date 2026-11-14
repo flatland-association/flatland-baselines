@@ -70,7 +70,9 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             # so permission to continue toward it doesn't depend on this step's action.
             return RailEnvActions.MOVE_FORWARD
 
-        for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
+        # a list, not a set: where several actions lead onto the path (e.g. MOVE_FORWARD and the turn into the only
+        # transition of a switch arm), the first one wins, and a set's order changes with the hash seed of the process
+        for a in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
             new_cell_valid, (new_position, new_direction), transition_valid, _, _ = env.rail._check_action_on_agent(
                 RailEnvActions.from_value(a), lookahead_from
             )
