@@ -50,7 +50,7 @@ Some tests need extra setup:
   `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`, which ships as part of flatland-rl, not this repo) — the
   archive version (`FLATLAND_BENCHMARK_EPISODES_FOLDER_v*.zip`) bumps whenever the pinned flatland-rl ref changes
   episode-relevant behavior, so check that URL rather than assuming a specific version. Its whole parametrized suite
-  is currently `@pytest.mark.skip`ped wholesale (#178): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
+  is currently `@pytest.mark.skip`ped wholesale ([flatland-scenarios#37](https://github.com/flatland-association/flatland-scenarios/issues/37)): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
   flatland-rl engine timing change makes it genuinely re-decide differently than what a recorded trajectory
   captured before that change — the fix is a live rerun to regenerate the recording, not a values tweak, so it's
   skipped rather than left red until that regeneration happens.
@@ -145,27 +145,47 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
 
-Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent at a
-cell-exit boundary completes its crossing regardless of which action is sent — `STOP_MOVING` no longer prevents
-entry into the next cell there, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
-wrong branch at a switch by flatland-rl's own action-resolution fallback. `_extract_agent_can_move` accounts for
-this: whenever a crossing is unavoidable this way (`agent.state == TrainState.MOVING and
-agent.speed_counter.is_cell_exit()`), it always computes DLA's intended directional action toward the agent's
-planned path — stored in `forced_action`, used by `_act` in place of blind `STOP_MOVING` — even while opposition
-would otherwise block the agent.
+DLA never reads a train state (`agent.state` or `TrainState`): it decides from the agents' facts, through small
+helpers in `DeadLockAvoidancePolicy` (`_is_done`, `_is_en_route`, `_is_before_departure`, `_is_not_ready_to_depart`,
+`_enters_map_in_coming_step`): target reached (`target_entry_point`), position, `malfunction_handler`, speed
+(`speed_counter.is_cell_exit()`) and earliest departure with the step count. So DLA needs neither
+`RailEnvStateMachineWrapper` nor the runners' `--skip-state-machine-update False`; on a plain flatland-rl 5.0 env,
+`agent.state` would stay `WAITING`. `SetPathPolicy` still reads flatland-rl's `agent.derived_state(env._elapsed_steps)`
+(`SetPathPolicy._derived_state`) for "done", until it is based on flatland-rl's `ShortestPathPolicy`.
+
+The step semantics DLA relies on below (speed and distance, `is_cell_exit()`, step counting and departure) are
+described in the flatland-book's draft for flatland-rl 5.0.0, [Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb) ([flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42), at 0dd2d37). They
+may change until 5.0.0 (e.g. flatland-rl#559 proposes that the env no longer enforces the earliest departure). The
+draft still describes a refused crossing as leaving the agent at the end of its cell (distance 1), which is the
+behaviour before flatland-rl#545: at the pinned flatland-rl, the agent keeps its distance.
+
+Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent whose
+distance plus speed reaches the end of its cell this step (`agent.speed_counter.is_cell_exit()`) crosses into its
+next entry point with any action valid there — `STOP_MOVING` no longer prevents the crossing, it only lowers the
+speed afterwards, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
+wrong branch at a switch by flatland-rl's own action-resolution fallback. An agent never sits on the exit of its
+cell: since flatland-rl#545, a refused crossing (an action invalid there, or the next cell taken) stops the agent
+(speed 0) and keeps its distance. `_update_agent_can_move` accounts for
+this: whenever a crossing is unavoidable this way (on the map, not in malfunction, and
+`agent.speed_counter.is_cell_exit()`) and opposition blocks the agent, it computes DLA's intended directional action
+toward the agent's planned path, and stores it in `forced_action` (used by `_act` in place of `STOP_MOVING`) only
+where `STOP_MOVING` would resolve to another branch than the planned one (`_stop_moving_leaves_path`, using
+flatland-rl's own `apply_action_independent`). Elsewhere it sends `STOP_MOVING`: the crossing still completes, but
+the agent brakes and stops in the cell it crosses into, instead of driving on into the conflict.
 
 `use_entering_prevention` (opt-in, default `False`) stops more than one off-map agent from entering the map on
 the same tick when that would leave fewer than `min_free_cell` cells between their paths. Its `entering_agents`
-candidate list (`_extract_agent_can_move`'s `_about_to_leave_off_map` helper) can't rely on `agent.state ==
-TrainState.READY_TO_DEPART` alone, since `TrainStateMachine` has more than one off-map-to-`MOVING` shortcut that
-never passes through a `READY_TO_DEPART` step DLA could observe beforehand: a `MALFUNCTION_OFF_MAP` agent whose
-malfunction is clearing on this exact step (`malfunction_down_counter <= 1` — decremented *before* being read as
-this step's `in_malfunction` signal, so this is the one and only value meaning "clears this step"), and
-(flatland-rl issue #280) a `WAITING` agent with `earliest_departure == 0` on the episode's very first
-`env.step()` call. Missing either case entirely defeats `use_entering_prevention` for that agent; naively
-including a `MALFUNCTION_OFF_MAP` agent regardless of its down-counter instead incorrectly blocks a *different*,
-genuinely-entering agent, since `self.agent_can_move` has no notion of malfunctions (purely geometric opposition
-detection) and the two agents' paths typically overlap on a shared single-track segment.
+candidate list (`_prevent_entering_conflicts` with `_enters_map_in_coming_step`) mirrors flatland-rl's own map-entry
+rule (`RailEnv._candidate_entry_points`), which uses `earliest_departure` and the step count, not the agent's state:
+in the coming `env.step()`, `_elapsed_steps` is incremented and the malfunction counter decremented first, so an
+off-map agent is a candidate if `earliest_departure <= _elapsed_steps + 1` and `malfunction_down_counter <= 1`.
+The state `READY_TO_DEPART` alone would miss agents that enter without being `READY_TO_DEPART` the
+step before: a `MALFUNCTION_OFF_MAP` agent whose malfunction clears in its departure step, and (flatland-rl issue
+#280) a `WAITING` agent with `earliest_departure` 0 or 1 in the first step. Missing one defeats
+`use_entering_prevention` for that agent; including an agent that can't enter yet (still in malfunction, or not yet
+due) instead blocks a *different*, really entering agent, since `self.agent_can_move` has no notion of
+malfunctions (purely geometric opposition detection) and the two agents' paths typically overlap on a shared
+single-track segment.
 
 **Known limitations** (see `deadlock_avoidance_heuristic/README.md` and, as tests, `tests/test_entering_prevention.py`,
 `tests/test_limitations_switch.py` and `tests/test_limitations_two_switches.py`): the opposition check is

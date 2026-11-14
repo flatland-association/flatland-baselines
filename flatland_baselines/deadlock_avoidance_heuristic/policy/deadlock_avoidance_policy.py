@@ -13,7 +13,6 @@ from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.fast_methods import fast_count_nonzero
 from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.rail_trainrun_data_structures import Waypoint
-from flatland.envs.step_utils.states import TrainState
 from flatland_baselines.deadlock_avoidance_heuristic.policy.set_path_policy import SetPathPolicy, _get_k_shortest_paths, \
     _always_first_waypoint_from_flexible_groups
 
@@ -95,11 +94,16 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # will be injected from observation (`FullEnvObservation`)
         self.rail_env: Optional[RailEnv] = None
 
+        # _init_env: 1 if position is a switch, 0 otherwise (only with use_switches_heuristic)
+        self.switches: Optional[np.ndarray] = None
+
         # start_step (1): -1 if no agent, agent handle otherwise
-        self.agent_positions = None
+        self.agent_positions: Optional[np.ndarray] = None
 
         # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
+        # start_step (3): DLA's own action for a blocked agent at an unavoidable crossing, sent instead of STOP_MOVING
+        self.forced_action: Dict[AgentHandle, RailEnvActions] = {}
         # start_step (2.3.2): set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
 
@@ -150,10 +154,56 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self._start_step()
         return {handle: self._act(handle, observations[handle]) for handle in handles}
 
+    @staticmethod
+    def _is_done(agent: EnvAgent) -> bool:
+        """The agent has reached its target (removed from the map, or parked there with `remove_agents_at_target=False`)."""
+        return agent.target_entry_point is not None
+
+    @staticmethod
+    def _is_en_route(agent: EnvAgent) -> bool:
+        """
+        The agent is between departure and target: on the map and not done. An agent parked at its target
+        (`remove_agents_at_target=False`) is on the map, but done, so not en route. With `_is_before_departure` and
+        `_is_done`, exactly one of the three holds for every agent; the callers want en route, as a parked agent needs
+        no alternative path, opposition check or forced action.
+        """
+        return agent.current_entry_point is not None and agent.target_entry_point is None
+
+    @staticmethod
+    def _is_before_departure(agent: EnvAgent) -> bool:
+        """The agent has not entered the map yet (off the map and not done)."""
+        return agent.current_entry_point is None and agent.target_entry_point is None
+
+    def _is_not_ready_to_depart(self, agent: EnvAgent) -> bool:
+        """
+        The agent is before its departure, not in malfunction, and not ready to depart yet: flatland-rl's ready-to-depart
+        rule (`EnvAgent.derived_state`) is `earliest_departure <= elapsed_steps + 1` from the first step on.
+        """
+        elapsed_steps = self.rail_env._elapsed_steps
+        return (self._is_before_departure(agent) and not agent.malfunction_handler.in_malfunction
+                and not (elapsed_steps >= 1 and agent.earliest_departure <= elapsed_steps + 1))
+
+    def _enters_map_in_coming_step(self, agent: EnvAgent) -> bool:
+        """
+        Whether the agent enters the map in the coming step if given a moving action, as flatland-rl's own map-entry rule
+        (`RailEnv._candidate_entry_points`) decides it, from earliest_departure and the step count: in the coming
+        `step()`, the env first increments `_elapsed_steps` and decrements the malfunction counter, then lets an agent
+        before its departure enter if `earliest_departure <= _elapsed_steps` and it is no longer in malfunction
+        (counter <= 1 now). This also covers an agent whose malfunction clears in its departure step, and an agent with
+        earliest_departure 0 or 1 in the first step (flatland-rl issue #280).
+        """
+        return (self._is_before_departure(agent)
+                and agent.earliest_departure <= self.rail_env._elapsed_steps + 1
+                and agent.malfunction_handler.malfunction_down_counter <= 1)
+
+    def _env_time(self) -> Optional[int]:
+        """The env's step count for the audit log (`audit=True`): of the env DLA acts on."""
+        return self.rail_env._elapsed_steps
+
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         check = self.agent_can_move.get(handle, None)
         agent = self.rail_env.agents[handle]
-        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and agent.state < TrainState.MOVING:
+        if (agent.handle not in self._set_paths or self._set_paths[agent.handle] is None) and self._is_before_departure(agent):
             # prevent entering map as default!
             act = RailEnvActions.DO_NOTHING
         else:
@@ -167,12 +217,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             self.num_blocked[handle] = 0
         else:
             self.num_blocked[handle] += 1
-            if agent.state in [TrainState.MOVING, TrainState.STOPPED]:
+            if self._is_en_route(agent) and not agent.malfunction_handler.in_malfunction:
                 self._find_alternative(agent)
-            # flatland-rl#178: a MOVING agent at a cell-exit boundary completes its crossing no
-            # matter what action is sent - STOP_MOVING here was never actually preventing entry into
-            # the next cell, only failing to steer it onto the correct branch. Prefer the action
-            # `_extract_agent_can_move` already worked out for this case over blind STOP_MOVING.
+            # flatland-rl#178: a MOVING agent whose distance plus speed reaches the end of its cell
+            # this step crosses into its next entry point with any action valid there; the action
+            # only decides the transition after it. Where
+            # STOP_MOVING would take the agent off its planned path there, send the action
+            # `_update_agent_can_move` worked out instead; elsewhere STOP_MOVING brakes the agent.
             forced = self.forced_action.get(handle)
             if forced is not None:
                 act = forced
@@ -185,20 +236,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _find_alternative(self, agent: EnvAgent):
         handle = agent.handle
-        if self.verbose:
-            print(f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
-        if self.audit is not None:
-            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                               "v": f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}"})
+        self._log(handle, f"considering {handle} at {self.rail_env._elapsed_steps}: {self._set_paths[handle]}")
 
         # TODO optimization: instead of computing the remaining flexible waypoints, update the list on the go. No priority for now
         remaining_flexible_waypoints = self._get_remaining_flexible_waypoints(agent)
         if self.drop_next_threshold is not None and self.num_blocked[handle] > self.drop_next_threshold and len(remaining_flexible_waypoints) > 1:
-            if self.verbose:
-                print(f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}")
-            if self.audit is not None:
-                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                   "v": f"dropping next intermediate for {agent.handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[agent.handle]}"})
+            self._log(handle, f"dropping next intermediate for {handle} at {self.rail_env._elapsed_steps}, blocked for {self.num_blocked[handle]}")
             remaining_flexible_waypoints = remaining_flexible_waypoints[1:]
 
         if self.use_k_alternatives_at_first_intermediate_and_then_always_first_strategy is not None and \
@@ -207,11 +250,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             before = self._set_paths[handle]
 
             if handle not in self.alternatives or self.alternatives[handle][0][0] != Waypoint(*agent.current_entry_point):
-                if self.verbose:
-                    print(f"need to re-compute for agent {handle} at {agent.current_entry_point} at {self.rail_env._elapsed_steps}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"need to re-compute for agent {handle} at {agent.current_entry_point} at {self.rail_env._elapsed_steps}"})
+                self._log(handle, f"need to re-compute for agent {handle} at {agent.current_entry_point} at {self.rail_env._elapsed_steps}")
 
                 alternatives = []
                 for first_intermediate in remaining_flexible_waypoints[0]:
@@ -238,27 +277,12 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                     alternative = alt
             self.closed[handle].append(alternative)
 
-            if self.verbose:
-                print(f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
-            if self.audit is not None:
-                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                   "v": f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}"})
+            self._log(handle, f"get new path for agent {handle} using alternative-at-first-intermediate-and-then-always-first strategy on {agent.waypoints}")
 
-            if before == self._set_paths[handle]:
-                if self.verbose:
-                    print(
-                        f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]} ")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"not changed {handle} at {self.rail_env._elapsed_steps} {len(before) if before is not None else None}->{len(self._set_paths[handle]) if self._set_paths[agent.handle] is not None else None}:\n - {before} \n - {self._set_paths[handle]} "})
-
-            else:
-                if self.verbose:
-                    print(
-                        f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"changed {handle} at {self.rail_env._elapsed_steps} {len(before)}->{len(self._set_paths[handle])}:\n - {before} \n - {self._set_paths[handle]}"})
+            before_len = len(before) if before is not None else None
+            after_len = len(self._set_paths[handle]) if self._set_paths[handle] is not None else None
+            changed = "not changed" if before == self._set_paths[handle] else "changed"
+            self._log(handle, f"{changed} {handle} at {self.rail_env._elapsed_steps} {before_len}->{after_len}:\n - {before} \n - {self._set_paths[handle]}")
 
             if self._set_paths[handle] is None or len(self._set_paths[handle]) == 0:
                 self._set_paths[handle] = before
@@ -294,9 +318,8 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         self.agent_positions = np.zeros((self.rail_env.height, self.rail_env.width), dtype=int) - 1
         for handle in range(self.rail_env.get_num_agents()):
             agent = self.rail_env.agents[handle]
-            if agent.state in [TrainState.MOVING, TrainState.STOPPED, TrainState.MALFUNCTION]:
-                if agent.current_entry_point is not None:
-                    self.agent_positions[agent.current_entry_point[0]] = handle
+            if self._is_en_route(agent):
+                self.agent_positions[agent.current_entry_point[0]] = handle
 
     def _update_shortest_distance_maps_and_opp_agent_map(self):
         """
@@ -321,7 +344,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
             # (2.2)
             self._build_full_shortest_distance_agent_map(agent, handle)
-            if agent.state == TrainState.DONE or agent.state == TrainState.WAITING:
+            if self._is_done(agent) or self._is_not_ready_to_depart(agent):
                 continue
 
             # (2.3)
@@ -443,6 +466,24 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 return preprocessed_action
         raise RuntimeError(f"no action from {entry_point} to {next_entry_point}")
 
+    def _stop_moving_leaves_path(self, entry_point: Tuple[Tuple[int, int], int], planned_entry_point: Tuple[Tuple[int, int], int]) -> bool:
+        """
+        Whether STOP_MOVING, sent at an unavoidable crossing, would take the agent off its planned path.
+
+        The crossing into `entry_point` (the settled next entry point) happens with any action valid there; the action
+        only decides the transition after it, which flatland-rl resolves with `apply_action_independent` from
+        `entry_point`. Where STOP_MOVING resolves to the planned entry point, it is the right action: the agent brakes
+        and stays on its path. Where it is invalid there (`None`, e.g. at a symmetric switch facing the agent, where
+        only MOVE_LEFT/MOVE_RIGHT have a transition), the engine refuses the crossing: the agent stays in its cell with
+        speed 0 and keeps its distance (flatland-rl#545), which is a stop too, before the switch. The refused crossing
+        costs one INVALID_ACTION penalty (speed times `collision_factor`, 0 by default), not charged again while the
+        stopped agent keeps getting STOP_MOVING; steering instead would take the agent into the switch at full speed,
+        towards the conflict. Only where STOP_MOVING resolves to another branch must DLA steer with its directional
+        action instead.
+        """
+        stop_entry_point = self.rail_env.rail.apply_action_independent(RailEnvActions.STOP_MOVING, entry_point)
+        return stop_entry_point is not None and stop_entry_point != planned_entry_point
+
     def _extract_agent_can_move(self):
         """
         start_step (3): update whether agent can move. More precisely, updates:
@@ -451,123 +492,110 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         """
         self.agent_can_move = {}
         self.forced_action = {}
-
-        for handle in range(self.rail_env.get_num_agents()):
-            agent = self.rail_env.agents[handle]
-            if TrainState.DONE > agent.state >= TrainState.WAITING:
-                can_move = self._check_agent_can_move(
-                        self.shortest_distance_agent_map[handle],
-                        self.shortest_distance_agent_len[handle],
-                        self.opp_agent_map.get(handle, set()),
-                        self.full_shortest_distance_agent_map,
-                        agent.handle,
-                        self.switches,
-                        self.count_num_opp_agents_towards_min_free_cell,
-                )
-                # flatland-rl#178: once MOVING and at a cell-exit boundary, the crossing completes
-                # regardless of the action sent - STOP_MOVING no longer prevents it, and (unlike a
-                # real directional action) lets the engine silently pick the wrong branch at a
-                # switch. Compute DLA's own intended action toward its planned path even when
-                # blocked, so `_act` can send that instead of a STOP_MOVING that was never actually
-                # preventing entry here anyway.
-                crossing_unavoidable = agent.state == TrainState.MOVING and agent.speed_counter.is_cell_exit()
-                if can_move or crossing_unavoidable:
-                    if agent.current_entry_point is not None:
-                        position = agent.current_entry_point[0]
-                        direction = agent.current_entry_point[1]
-                    else:
-                        position = agent.initial_entry_point[0]
-                        direction = agent.initial_entry_point[1]
-                    # Guard against loopy lines and invalid initial positions:
-                    if self._set_paths[agent.handle] is None or len(self._set_paths[agent.handle]) < 2:
-                        warnings.warn(f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}")
-                        if self.audit is not None:
-                            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
-                                               "v": f"No shortest path for agent {agent.handle}. Found: {self._set_paths[agent.handle]}"})
-                        continue
-                    # design: actions applied at cell entry -- once agent.next_entry_point holds a
-                    # pending target (decided one cell ago), this step's action no longer
-                    # decides that transition (already settled) but the look-ahead beyond it, so it
-                    # must be computed from next_entry_point against the set-path waypoint after it,
-                    # not from current_entry_point against the immediate next waypoint.
-                    has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
-                    if has_pending_target:
-                        lookahead_position, lookahead_direction = agent.next_entry_point
-                        target_index = 2
-                    else:
-                        lookahead_position, lookahead_direction = position, direction
-                        target_index = 1
-                    if target_index >= len(self._set_paths[agent.handle]):
-                        # design: actions applied at cell entry -- has_pending_target with nothing
-                        # left to look ahead into (the pending target IS the final set-path
-                        # waypoint): permission to continue toward it must still be granted here
-                        # (that's a separate concern from computing a look-ahead); any action is
-                        # safe since the pending target's own validity doesn't depend on it.
-                        next_position, next_direction = agent.next_entry_point if has_pending_target else (position, direction)
-                        action = RailEnvActions.MOVE_FORWARD
-                    else:
-                        next_position = self._set_paths[agent.handle][target_index].position
-                        next_direction = self._set_paths[agent.handle][target_index].direction
-                        action = self._get_action((lookahead_position, lookahead_direction), (next_position, next_direction))
-
-                    if can_move:
-                        self.agent_can_move.update({handle: [next_position[0], next_position[1], next_direction, action]})
-                    else:
-                        self.forced_action[handle] = action
+        for agent in self.rail_env.agents:
+            if not self._is_done(agent):
+                self._update_agent_can_move(agent)
         if self.use_entering_prevention:
-            # READY_TO_DEPART, MALFUNCTION_OFF_MAP and (flatland-rl issue #280) a first-step
-            # earliest_departure=0 WAITING agent can all transition straight to MOVING in a single step
-            # (TrainStateMachine._handle_ready_to_depart / _handle_malfunction_off_map;
-            # AbstractRailEnv.step()'s own "(1) STATE TRANSITION SIGNALS" forces WAITING -> READY_TO_DEPART
-            # in-place on the very first step() call for such an agent, since there is no earlier step() call
-            # in which the state machine could have made that transition visible beforehand) - none of these
-            # ever show up to DLA as READY_TO_DEPART *before* the step in which they actually enter, so each
-            # must be considered here too, or its simultaneous entry with another agent goes undetected.
-            #
-            # But a MALFUNCTION_OFF_MAP agent only actually enters *this* step if its malfunction is
-            # about to clear: malfunction_down_counter is decremented before being read as this step's
-            # `in_malfunction` signal (rail_env.py's "(0a)", ahead of "(1)"), so a value of 0 or 1 here
-            # means in_malfunction becomes False this step; 2 or more means it stays down and
-            # MALFUNCTION_OFF_MAP simply persists regardless of the action DLA sends. Likewise the
-            # WAITING shortcut only fires on the actual first step() call of the episode (env._elapsed_steps
-            # is read here *before* that call, i.e. still 0) for an agent that isn't malfunctioning itself.
-            # Without these checks, an agent that in fact can't move yet would be paired in the conflict
-            # check below against an entering agent and, since their paths typically overlap,
-            # incorrectly block that other agent from entering at all.
-            def _about_to_leave_off_map(agent) -> bool:
-                if agent.state == TrainState.READY_TO_DEPART:
-                    return True
-                if agent.state == TrainState.MALFUNCTION_OFF_MAP:
-                    return (agent.malfunction_handler.malfunction_down_counter <= 1
-                            and agent.earliest_departure <= self.rail_env._elapsed_steps)
-                if agent.state == TrainState.WAITING:
-                    return (self.rail_env._elapsed_steps == 0
-                            and agent.earliest_departure == 0
-                            and not agent.malfunction_handler.in_malfunction)
-                return False
-
-            entering_agents = [handle for handle, agent in enumerate(self.rail_env.agents) if
-                               _about_to_leave_off_map(agent) and self.agent_can_move.get(handle, None)]
-            if len(entering_agents) > 0:
-                if self.verbose:
-                    print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
-                for a1 in entering_agents:
-                    for a2 in entering_agents:
-                        if a1 != a2 and a1 in self.agent_can_move and a2 in self.agent_can_move:
-                            free = self._get_free(a1, a2)
-                            if len(free) < self.min_free_cell:
-                                self.agent_can_move.pop(a1)
-                                if self.verbose:
-                                    print(f"!!!! prevent entering conflict {a1, a2} -> let not enter {a1}")
-
+            self._prevent_entering_conflicts()
         if self.show_debug_plot:
-            a = np.floor(np.sqrt(self.rail_env.get_num_agents()))
-            b = np.ceil(self.rail_env.get_num_agents() / a)
-            for handle in range(self.rail_env.get_num_agents()):
-                plt.subplot(a, b, handle + 1)
-                plt.imshow(self.full_shortest_distance_agent_map[handle] + self.shortest_distance_agent_map[handle])
-            plt.show(block=False)
-            plt.pause(0.01)
+            self._plot_debug()
+
+    def _update_agent_can_move(self, agent: EnvAgent) -> None:
+        """
+        start_step (3.1): whether the agent can move, and its action: into `self.agent_can_move` if it can move, into
+        `self.forced_action` if it is blocked at an unavoidable crossing where STOP_MOVING would leave its path.
+        """
+        handle = agent.handle
+        can_move = self._check_agent_can_move(
+            self.shortest_distance_agent_map[handle],
+            self.shortest_distance_agent_len[handle],
+            self.opp_agent_map.get(handle, set()),
+            self.full_shortest_distance_agent_map,
+            handle,
+            self.switches,
+            self.count_num_opp_agents_towards_min_free_cell,
+        )
+        # flatland-rl#178: once moving and its distance plus speed reaches the end of its cell this step
+        # (is_cell_exit(), which needs speed > 0), the agent crosses into the settled next entry point with any action
+        # valid there; the action only decides the transition after it. STOP_MOVING still brakes the agent, but at a
+        # switch it may resolve to a branch the planned path doesn't take. Compute DLA's own action toward its planned
+        # path even when blocked, and keep it as `forced_action` only where STOP_MOVING would leave the path
+        # (`_stop_moving_leaves_path`).
+        crossing_unavoidable = (self._is_en_route(agent) and not agent.malfunction_handler.in_malfunction
+                                and agent.speed_counter.is_cell_exit())
+        if not (can_move or crossing_unavoidable):
+            return
+        # Guard against loopy lines and invalid initial positions:
+        if self._set_paths[handle] is None or len(self._set_paths[handle]) < 2:
+            message = f"No shortest path for agent {handle}. Found: {self._set_paths[handle]}"
+            warnings.warn(message)
+            self._audit(handle, message)
+            return
+        lookahead_entry_point, next_entry_point, action, has_lookahead = self._lookahead(agent)
+        if can_move:
+            self.agent_can_move.update({handle: (next_entry_point[0][0], next_entry_point[0][1], next_entry_point[1], action)})
+        elif has_lookahead and self._stop_moving_leaves_path(lookahead_entry_point, next_entry_point):
+            self.forced_action[handle] = action
+
+    def _lookahead(self, agent: EnvAgent) -> Tuple[Tuple[Tuple[int, int], int], Tuple[Tuple[int, int], int], RailEnvActions, bool]:
+        """
+        start_step (3.2): the agent's next step along its set path, as (entry point the action applies at, entry point
+        it leads to, action, whether there is a set-path waypoint to look ahead to).
+
+        design: actions applied at cell entry -- once agent.next_entry_point holds a pending target (decided one cell
+        ago), this step's action no longer decides that transition (already settled) but the look-ahead beyond it, so it
+        must be computed from next_entry_point against the set-path waypoint after it, not from current_entry_point
+        against the immediate next waypoint.
+        """
+        set_path = self._set_paths[agent.handle]
+        entry_point = agent.current_entry_point if agent.current_entry_point is not None else agent.initial_entry_point
+        has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
+        if has_pending_target:
+            lookahead_entry_point = agent.next_entry_point
+            target_index = 2
+        else:
+            lookahead_entry_point = entry_point
+            target_index = 1
+        if target_index >= len(set_path):
+            # design: actions applied at cell entry -- has_pending_target with nothing left to look ahead into (the
+            # pending target IS the final set-path waypoint): permission to continue toward it must still be granted
+            # here (that's a separate concern from computing a look-ahead); any action is safe since the pending
+            # target's own validity doesn't depend on it.
+            next_entry_point = agent.next_entry_point if has_pending_target else entry_point
+            return lookahead_entry_point, next_entry_point, RailEnvActions.MOVE_FORWARD, False
+        next_entry_point = (set_path[target_index].position, set_path[target_index].direction)
+        return lookahead_entry_point, next_entry_point, self._get_action(lookahead_entry_point, next_entry_point), True
+
+    def _prevent_entering_conflicts(self) -> None:
+        """
+        start_step (3.3): of the agents that enter the map in the coming step (`_enters_map_in_coming_step`) and can
+        move, let only those enter that leave at least `min_free_cell` free cells to every other one. An agent that
+        can't enter yet (still in malfunction, not yet due) must not be a candidate: since their paths typically
+        overlap, it would block another agent that really enters.
+        """
+        entering_agents = [agent.handle for agent in self.rail_env.agents
+                           if self._enters_map_in_coming_step(agent) and self.agent_can_move.get(agent.handle, None)]
+        if len(entering_agents) == 0:
+            return
+        if self.verbose:
+            print(f" ++++ {self.rail_env._elapsed_steps} entering {entering_agents}")
+        for a1 in entering_agents:
+            for a2 in entering_agents:
+                if a1 != a2 and a1 in self.agent_can_move and a2 in self.agent_can_move:
+                    free = self._get_free(a1, a2)
+                    if len(free) < self.min_free_cell:
+                        self.agent_can_move.pop(a1)
+                        if self.verbose:
+                            print(f"!!!! prevent entering conflict {a1, a2} -> let not enter {a1}")
+
+    def _plot_debug(self) -> None:
+        a = np.floor(np.sqrt(self.rail_env.get_num_agents()))
+        b = np.ceil(self.rail_env.get_num_agents() / a)
+        for handle in range(self.rail_env.get_num_agents()):
+            plt.subplot(a, b, handle + 1)
+            plt.imshow(self.full_shortest_distance_agent_map[handle] + self.shortest_distance_agent_map[handle])
+        plt.show(block=False)
+        plt.pause(0.01)
 
     def _check_agent_can_move(
             self,
@@ -640,12 +668,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
             if free_cells < min_free_cell:
                 free = self._get_free(handle, opp_a)
 
-                if self.verbose:
-                    print(
-                        f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": handle, "k": "audit",
-                                       "v": f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}"})
+                self._log(handle, f" *** {self.rail_env._elapsed_steps}: agent {handle} blocked by {opp_a} with {free_cells}: {free}. All oncoming agents on path {opp_agents}")
                 if debug:
                     cells_1 = [wp.position for wp in self._set_paths[handle]]
                     cells_2 = [wp.position for wp in self._set_paths[opp_a]]

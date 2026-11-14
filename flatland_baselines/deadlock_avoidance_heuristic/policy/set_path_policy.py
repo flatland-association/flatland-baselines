@@ -1,7 +1,7 @@
 import warnings
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Dict, Tuple
+from typing import Any, List, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,12 +44,17 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         self.k_shortest_path_cutoff = k_shortest_path_cutoff
         self.use_alternative_at_first_intermediate_and_then_always_first_strategy = use_always_first_strategy
         self.verbose = verbose
+        # audit log, off (None) by default; turned on by DeadLockAvoidancePolicy(audit=True) or by setting it to []
+        self.audit: Optional[List[Dict]] = None
+        # step count of the env last seen in `_update_agent`, for the audit log
+        self._elapsed_steps: Optional[int] = None
 
     def _act(self, env: RailEnv, agent: EnvAgent):
         if agent.current_entry_point is None:
             return RailEnvActions.MOVE_FORWARD
 
-        if len(self._set_paths[agent.handle]) == 0:
+        # done: `_update_agent` has dropped the set path, also for an agent parked at its target (`remove_agents_at_target=False`)
+        if agent.handle not in self._set_paths or len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
         # design: actions applied at cell entry -- once agent.next_entry_point holds a
@@ -65,8 +70,10 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             # so permission to continue toward it doesn't depend on this step's action.
             return RailEnvActions.MOVE_FORWARD
 
-        for a in {RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT}:
-            new_cell_valid, (new_position, new_direction), transition_valid, preprocessed_action = env.rail.check_action_on_agent(
+        # a list, not a set: where several actions lead onto the path (e.g. MOVE_FORWARD and the turn into the only
+        # transition of a switch arm), the first one wins, and a set's order changes with the hash seed of the process
+        for a in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
+            new_cell_valid, (new_position, new_direction), transition_valid, _, _ = env.rail._check_action_on_agent(
                 RailEnvActions.from_value(a), lookahead_from
             )
             if new_cell_valid and transition_valid and (
@@ -74,6 +81,31 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
                     and new_direction == self._set_paths[agent.handle][target_index].direction):
                 return a
         raise Exception("Invalid state")
+
+    def _env_time(self) -> Optional[int]:
+        """The env's step count for the audit log: of the env last seen in `_update_agent`."""
+        return self._elapsed_steps
+
+    def _audit(self, agent_id: Any, message: str) -> None:
+        """Append `message` to the audit log, if the audit is on."""
+        if self.audit is not None:
+            self.audit.append({"env_time": self._env_time(), "agent_id": agent_id, "k": "audit", "v": message})
+
+    def _log(self, agent_id: Any, message: str) -> None:
+        """Print `message` if verbose, and append it to the audit log (`_audit`)."""
+        if self.verbose:
+            print(message)
+        self._audit(agent_id, message)
+
+    @staticmethod
+    def _derived_state(agent: EnvAgent, env: RailEnv) -> TrainState:
+        """
+        The agent's state, derived by flatland-rl from its position, speed, malfunction and earliest departure and the
+        env's step count (`EnvAgent.derived_state`), instead of `agent.state`. Read between two steps, it equals the
+        state the state machine tracks, and it is also right when the env does not run the state machine
+        (`RailEnvStateMachineWrapper` absent or skipping its updates), where `agent.state` never changes.
+        """
+        return agent.derived_state(env._elapsed_steps)
 
     def act_many(self, handles: List[int], observations: List[RailEnv], **kwargs):
         actions = {}
@@ -87,26 +119,19 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         """
         Build `_shortest_paths`.
         """
-        if agent.state == TrainState.DONE:
+        self._elapsed_steps = env._elapsed_steps
+        if self._derived_state(agent, env) == TrainState.DONE:
             self._set_paths.pop(agent.handle, None)
             return
 
         if agent.handle not in self._set_paths:
             if self.use_alternative_at_first_intermediate_and_then_always_first_strategy is not None and self.use_alternative_at_first_intermediate_and_then_always_first_strategy > 0:
                 always_first_waypoint = _always_first_waypoint_from_flexible_groups(agent.waypoints)
-                if self.verbose:
-                    print(f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}"})
+                self._log(agent.handle, f"get path for agent {agent.handle} using always-first strategy on {agent.waypoints}")
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(always_first_waypoint, env.rail,
                                                                                                 debug_label=f"Agent {agent.handle}")
             else:
-                if self.verbose:
-                    print(f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}")
-                if self.audit is not None:
-                    self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent.handle, "k": "audit",
-                                       "v": f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}"})
+                self._log(agent.handle, f"get path for agent {agent.handle} ignoring intermediate stops on {agent.waypoints}")
                 self._set_paths[agent.handle] = self._shortest_path_from_non_flexible_waypoints(
                     _always_first_waypoint_from_flexible_groups([agent.waypoints[0], agent.waypoints[-1]]), env.rail,
                     debug_label=f"Agent {agent.handle}")
@@ -171,9 +196,7 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
             duplicates = {wp for wp, count in counts.items() if count > 1}
 
             warnings.warn(f"[{debug_label}] Found loopy line {waypoint_groups} with duplicates {duplicates} in path {p}")
-            if self.audit is not None:
-                self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": debug_label, "k": "audit",
-                                   "v": f"[{debug_label}] Found loopy line {waypoint_groups} with duplicates {duplicates} in path {p}"})
+            self._audit(debug_label, f"[{debug_label}] Found loopy line {waypoint_groups} with duplicates {duplicates} in path {p}")
             return None
         return p
 

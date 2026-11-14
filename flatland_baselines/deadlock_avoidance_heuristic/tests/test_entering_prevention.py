@@ -6,7 +6,6 @@ from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.line_generators import LineGenerator
 from flatland.envs.rail_env import RailEnv
-from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -73,7 +72,6 @@ def _build_env(length: int, a: Tuple[int, int], b: Tuple[int, int], direction_a:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -222,6 +220,56 @@ def test_with_entering_prevention_ongoing_malfunction_off_map_does_not_block_oth
         "expected the malfunctioning agent to enter only once its malfunction actually clears, well after the healthy agent"
     )
     assert all_done, "expected both agents to arrive"
+
+
+def _assert_entered_one_after_the_other(entered_at: Dict[int, Optional[int]], left_at: Dict[int, Optional[int]], all_done: bool):
+    assert entered_at[0] is not None and entered_at[1] is not None, "expected both agents to eventually enter"
+    assert entered_at[0] != entered_at[1], "expected only one agent to enter at the first opportunity"
+    first, second = (0, 1) if entered_at[0] < entered_at[1] else (1, 0)
+    assert left_at[first] is not None, "expected the first agent to leave the scene (arrive)"
+    assert entered_at[second] >= left_at[first], "expected the second agent to enter only once the first has left the scene"
+    assert all_done, "expected both agents to arrive"
+
+
+@pytest.mark.parametrize("handle_departing_at_1", [0, 1])
+def test_with_entering_prevention_earliest_departure_0_and_1_do_not_enter_together(handle_departing_at_1):
+    """
+    Same single-track A<->B scenario, but one agent has earliest_departure 1 instead of 0. flatland-rl lets
+    earliest departures 0 and 1 both enter in the first step (there is no step 0 to tell them apart; see
+    `RailEnvStateMachineWrapper` and `RailEnv._candidate_entry_points`), while both agents are still WAITING
+    before it. Entering prevention must take both as entering in the first step, or they enter head-on together.
+    """
+    env = _build_env(TRACK_LENGTH, A, B, Grid4TransitionsEnum.EAST, Grid4TransitionsEnum.WEST)
+    env.agents[handle_departing_at_1].earliest_departure = 1
+    env.agents[1 - handle_departing_at_1].earliest_departure = 0
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=True, min_free_cell=1)
+
+    entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
+
+    _assert_entered_one_after_the_other(entered_at, left_at, all_done)
+    assert min(entered_at[0], entered_at[1]) == 0, "expected one agent to enter in the first step"
+
+
+@pytest.mark.parametrize("malfunctioning_handle", [0, 1])
+def test_with_entering_prevention_malfunction_ending_in_departure_step_still_prevents_simultaneous_entry(malfunctioning_handle):
+    """
+    Same single-track A<->B scenario, both agents with earliest_departure 2. The malfunctioning agent starts
+    with a 2-step malfunction off map, which clears in step 2, its departure step: before step 2 it is
+    MALFUNCTION_OFF_MAP with malfunction_down_counter 1 at `_elapsed_steps` 1, while the other agent is
+    READY_TO_DEPART. flatland-rl increments `_elapsed_steps` to 2 before comparing it with earliest_departure,
+    so both agents enter in step 2 unless entering prevention takes the malfunctioning agent as entering too.
+    """
+    env = _build_env(TRACK_LENGTH, A, B, Grid4TransitionsEnum.EAST, Grid4TransitionsEnum.WEST)
+    for agent in env.agents:
+        agent.earliest_departure = 2
+    env.agents[malfunctioning_handle].malfunction_handler.malfunction_down_counter = 2
+    policy = DeadLockAvoidancePolicy(use_entering_prevention=True, min_free_cell=1)
+
+    entered_at, left_at, all_done = _run(env, policy, max_steps=6 * TRACK_LENGTH)
+
+    _assert_entered_one_after_the_other(entered_at, left_at, all_done)
+    # _run counts steps from 0, so step() call number 2 is index 1.
+    assert min(entered_at[0], entered_at[1]) == 1, "expected one agent to enter in step 2, its departure step"
 
 
 @pytest.mark.xfail(strict=True, reason="""
