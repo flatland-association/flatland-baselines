@@ -196,16 +196,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
                 and agent.earliest_departure <= self.rail_env._elapsed_steps + 1
                 and agent.malfunction_handler.malfunction_down_counter <= 1)
 
-    def _audit(self, agent_id: Any, message: str) -> None:
-        """Append `message` to the audit log, if the audit is on (`audit=True`)."""
-        if self.audit is not None:
-            self.audit.append({"env_time": self.rail_env._elapsed_steps, "agent_id": agent_id, "k": "audit", "v": message})
-
-    def _log(self, agent_id: Any, message: str) -> None:
-        """Print `message` if verbose, and append it to the audit log (`_audit`)."""
-        if self.verbose:
-            print(message)
-        self._audit(agent_id, message)
+    def _env_time(self) -> Optional[int]:
+        """The env's step count for the audit log (`audit=True`): of the env DLA acts on."""
+        return self.rail_env._elapsed_steps
 
     def _act(self, handle: int, state, eps=0.) -> RailEnvActions:
         check = self.agent_can_move.get(handle, None)

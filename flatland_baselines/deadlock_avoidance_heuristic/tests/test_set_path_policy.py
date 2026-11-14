@@ -98,3 +98,15 @@ def test_set_path_policy_on_its_own_acts_for_an_agent_parked_at_its_target():
 
     assert agent.current_entry_point is not None, "expected the agent to stay on the map at its target"
     assert action_dict[0] == RailEnvActions.DO_NOTHING
+
+
+def test_set_path_policy_on_its_own_writes_the_audit_log():
+    """`SetPathPolicy` on its own writes its audit entries, with the env's step count, once its audit log is on."""
+    env = _build_env()
+    policy = SetPathPolicy()
+    policy.audit = []
+
+    policy.act_many(env.get_agent_handles(), observations=list(env._get_observations().values()))
+
+    assert policy.audit == [{"env_time": 0, "agent_id": 0, "k": "audit",
+                             "v": f"get path for agent 0 ignoring intermediate stops on {env.agents[0].waypoints}"}]
