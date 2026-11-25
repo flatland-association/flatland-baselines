@@ -540,30 +540,17 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _lookahead(self, agent: EnvAgent) -> Tuple[Tuple[Tuple[int, int], int], Tuple[Tuple[int, int], int], RailEnvActions, bool]:
         """
         start_step (3.2): the agent's next step along its set path, as (entry point the action applies at, entry point
-        it leads to, action, whether there is a set-path waypoint to look ahead to).
-
-        design: actions applied at cell entry -- once agent.next_entry_point holds a pending target (decided one cell
-        ago), this step's action no longer decides that transition (already settled) but the look-ahead beyond it, so it
-        must be computed from next_entry_point against the set-path waypoint after it, not from current_entry_point
-        against the immediate next waypoint.
+        it leads to, action, whether there is a set-path waypoint to look ahead to). Where the action applies comes from
+        `SetPathPolicy._lookahead_target`.
         """
-        set_path = self._set_paths[agent.handle]
-        entry_point = agent.current_entry_point if agent.current_entry_point is not None else agent.initial_entry_point
-        has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
-        if has_pending_target:
-            lookahead_entry_point = agent.next_entry_point
-            target_index = 2
-        else:
-            lookahead_entry_point = entry_point
-            target_index = 1
-        if target_index >= len(set_path):
-            # design: actions applied at cell entry -- has_pending_target with nothing left to look ahead into (the
-            # pending target IS the final set-path waypoint): permission to continue toward it must still be granted
-            # here (that's a separate concern from computing a look-ahead); any action is safe since the pending
-            # target's own validity doesn't depend on it.
-            next_entry_point = agent.next_entry_point if has_pending_target else entry_point
-            return lookahead_entry_point, next_entry_point, RailEnvActions.MOVE_FORWARD, False
-        next_entry_point = (set_path[target_index].position, set_path[target_index].direction)
+        lookahead_entry_point, next_entry_point = self._lookahead_target(agent)
+        if next_entry_point is None:
+            # design: actions applied at cell entry -- nothing left to look ahead into (the pending target IS the final
+            # set-path waypoint): permission to continue toward it must still be granted here (that's a separate
+            # concern from computing a look-ahead); any action is safe since the pending target's own validity doesn't
+            # depend on it. The agent's next entry point is the one the action applies at: its pending target, or the
+            # entry point it is at.
+            return lookahead_entry_point, lookahead_entry_point, RailEnvActions.MOVE_FORWARD, False
         return lookahead_entry_point, next_entry_point, self._get_action(lookahead_entry_point, next_entry_point), True
 
     def _prevent_entering_conflicts(self) -> None:

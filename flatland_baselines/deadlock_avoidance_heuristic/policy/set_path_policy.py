@@ -57,15 +57,8 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         if agent.handle not in self._set_paths or len(self._set_paths[agent.handle]) == 0:
             return RailEnvActions.DO_NOTHING
 
-        # design: actions applied at cell entry -- once agent.next_entry_point holds a
-        # pending target (decided one cell ago), this step's action no longer decides that
-        # transition (already settled) but the look-ahead beyond it, so it must be evaluated from
-        # next_entry_point against the set-path waypoint after it, not from current_entry_point
-        # against the immediate next waypoint.
-        has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
-        lookahead_from = agent.next_entry_point if has_pending_target else agent.current_entry_point
-        target_index = 2 if has_pending_target else 1
-        if target_index >= len(self._set_paths[agent.handle]):
+        lookahead_entry_point, target_entry_point = self._lookahead_target(agent)
+        if target_entry_point is None:
             # nothing left to look ahead into; the pending target is already the final waypoint,
             # so permission to continue toward it doesn't depend on this step's action.
             return RailEnvActions.MOVE_FORWARD
@@ -73,14 +66,35 @@ class SetPathPolicy(RailEnvPolicy[RailEnv, RailEnv, RailEnvActions]):
         # a list, not a set: where several actions lead onto the path (e.g. MOVE_FORWARD and the turn into the only
         # transition of a switch arm), the first one wins, and a set's order changes with the hash seed of the process
         for a in [RailEnvActions.MOVE_FORWARD, RailEnvActions.MOVE_LEFT, RailEnvActions.MOVE_RIGHT]:
-            new_cell_valid, (new_position, new_direction), transition_valid, _, _ = env.rail._check_action_on_agent(
-                RailEnvActions.from_value(a), lookahead_from
+            new_cell_valid, new_entry_point, transition_valid, _, _ = env.rail._check_action_on_agent(
+                RailEnvActions.from_value(a), lookahead_entry_point
             )
-            if new_cell_valid and transition_valid and (
-                    new_position == self._set_paths[agent.handle][target_index].position
-                    and new_direction == self._set_paths[agent.handle][target_index].direction):
+            if new_cell_valid and transition_valid and new_entry_point == target_entry_point:
                 return a
         raise Exception("Invalid state")
+
+    def _lookahead_target(self, agent: EnvAgent) -> Tuple[Tuple[Tuple[int, int], int], Optional[Tuple[Tuple[int, int], int]]]:
+        """
+        Where the agent's action of this step applies along its set path: the entry point it applies at, and the
+        set-path entry point it leads to (`None` if there is no set-path waypoint left to look ahead to). Off the map,
+        the agent looks ahead from its initial entry point.
+
+        design: actions applied at cell entry -- once agent.next_entry_point holds a pending target (decided one cell
+        ago), this step's action no longer decides that transition (already settled) but the look-ahead beyond it, so it
+        must be computed from next_entry_point against the set-path waypoint after it, not from current_entry_point
+        against the immediate next waypoint.
+        """
+        set_path = self._set_paths[agent.handle]
+        has_pending_target = agent.next_entry_point is not None and agent.next_entry_point != agent.current_entry_point
+        if has_pending_target:
+            lookahead_entry_point = agent.next_entry_point
+            target_index = 2
+        else:
+            lookahead_entry_point = agent.current_entry_point if agent.current_entry_point is not None else agent.initial_entry_point
+            target_index = 1
+        if target_index >= len(set_path):
+            return lookahead_entry_point, None
+        return lookahead_entry_point, (set_path[target_index].position, set_path[target_index].direction)
 
     def _env_time(self) -> Optional[int]:
         """The env's step count for the audit log: of the env last seen in `_update_agent`."""
