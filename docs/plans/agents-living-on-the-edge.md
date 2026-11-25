@@ -8,7 +8,7 @@
 > agents live on "edges", actions are applied at cell entry", chenkins). Stack of seven PRs, top branch
 > `178-agents-living-on-the-edge-19`, PR [#90](https://github.com/flatland-association/flatland-baselines/pull/90)
 > (head 641675c at the last CI run, chain in §11.2). Open questions: none (§9.1). CI on 2377240 failed one test under
-> pandas 3 (F-18), fixed in 5401473 (S-27); CI on 0f34ba9 failed the S-46 test (F-30), fixed in 2c74391 (S-48); CI on 641675c passes (all steps but S-34, flatland-rl's `main`).
+> pandas 3 (F-18), fixed in 5401473 (S-27); CI on 0f34ba9 failed the S-46 test (F-30), fixed in 2c74391 (S-48); CI on 641675c passes (all steps but S-34, flatland-rl's `main`), and after the rebase on eb44fda.
 >
 > **Why:** flatland-rl 5.0 changes when actions apply, how agents enter and stop, and whether a plain environment
 > tracks the agents' state. The baselines, above all the deadlock-avoidance heuristic (DLA), must keep running
@@ -80,7 +80,7 @@ Requirements:
 | Pin flatland-rl's episodes URL (`checks.yml`, and `DOWNLOAD_INSTRUCTIONS` in `benchmarks/benchmark_episodes.py`) to the same flatland-scenarios commit as the baselines (S-33). | Another repo and another PR; part of updating flatland-scenarios and its users to flatland-rl 5.0. | S-33 | F-6 | [flatland-scenarios#37](https://github.com/flatland-association/flatland-scenarios/issues/37) |
 | Apply the alternative path DLA picks when an agent is blocked, planned from the settled next entry point, and recompute the forced action after the path changes. | Fails on `main` too; applying it changes DLA's results and needs its own calibration. | §2.1 | F-9, F-25 | [#93](https://github.com/flatland-association/flatland-baselines/issues/93) |
 | Let DLA hold off-map agents until their earliest departure itself, with the predicate entering prevention uses (`earliest_departure <= _elapsed_steps + 1`), once flatland-rl stops enforcing the earliest departure. | [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) is open and its design (the meaning of `WAITING`, `action_required` for off-map agents) not decided; the pinned flatland-rl enforces it. | §2.2 | - | [flatland-rl#559](https://github.com/flatland-association/flatland-rl/issues/559) |
-| Base `SetPathPolicy` on flatland-rl's `ShortestPathPolicy`, with DLA's path planning (k shortest paths with cutoff, always-first strategy at intermediate stops) as its router, so the look-ahead, the route index (routes visiting a cell twice) and the routing per episode come from flatland-rl, and `SetPathPolicy` decides without train state; pin flatland-rl to a commit with [flatland-rl#528](https://github.com/flatland-association/flatland-rl/pull/528), recalibrate if the values move (formerly S-34). | flatland-rl#528 is still an open spike (2026-11-25); the look-ahead is shared locally in S-51 meanwhile. | S-34 (F-7) | - | - |
+| Base `SetPathPolicy` on flatland-rl's `ShortestPathPolicy`, with DLA's path planning (k shortest paths with cutoff, always-first strategy at intermediate stops) as its router, so the look-ahead, the route index (routes visiting a cell twice) and the routing per episode come from flatland-rl, and `SetPathPolicy` decides without train state; pin flatland-rl to a commit with [flatland-rl#528](https://github.com/flatland-association/flatland-rl/pull/528), recalibrate if the values move (formerly S-34). | flatland-rl#528 is still an open spike (2026-11-25); the look-ahead is shared locally in S-51 meanwhile. | S-34 (F-7) | - | untracked |
 
 ## 2. Constraints
 
@@ -203,7 +203,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 
 | ID | Requirement | Test or check | Result | Screenshots |
 |---|---|---|---|---|
-| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on 641675c, Python 3.11-3.14 (pandas 3). At 0f34ba9 CI failed the S-46 test, depending on the hash seed (F-30, fixed in 2c74391). At 2377240 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 5401473) | - |
+| REQ-1 | Runs against each upstream step | `pytest flatland_baselines/deadlock_avoidance_heuristic/tests` per PR, CI per PR | ✅ CI on eb44fda after the rebase on `main` c0efe89, Python 3.11-3.14 (pandas 3), against flatland-rl `main`. Before the rebase: CI on 641675c passed; at 0f34ba9 CI failed the S-46 test, depending on the hash seed (F-30, fixed in 2c74391). At 2377240 CI failed `test_gen_trajectories_from_metadata` on pandas 3 (F-18, fixed in 5401473) | - |
 | REQ-2 | New action timing | `test_limitations_*.py`, `test_intermediate_stops.py` | ✅ | - |
 | REQ-3 | No wrong branch at an unavoidable crossing | `test_stop_moving_advances_full_speed_agent_into_trunk_edge9_regression`, `test_blocked_full_speed_agent_is_steered_only_where_stop_moving_leaves_its_path`, `test_blocked_full_speed_agent_stops_before_a_symmetric_switch` | ✅ locally against 9eec95df (S-28, 04793df): blocked full-speed agents stop with a free cell between them; steered only where `STOP_MOVING` would leave the path; before a symmetric switch they stop | - |
 | REQ-4 | Entering prevention sees every entering agent | `test_entering_prevention.py` | ✅ locally against 9eec95df (S-29, 2b0a6c9): earliest departures 0 and 1 in the first step, and a malfunction ending in the departure step, enter one after the other | - |
@@ -212,7 +212,7 @@ Screenshots: none, nothing is visible. Checks run locally against flatland-rl at
 | REQ-7 | Released flatland-rl before `main` | `pyproject.toml` without a git URL | ⏭️ moved to the follow-up in §1.4 (2026-11-12) | - |
 | NFR-1 | Explainable results | each recalibration commit names its cause (REQ-6) | ✅ | - |
 | NFR-2 | Reproducible CI | episodes by commit (S-33, 5d718be); flatland-rl by release tag (follow-up, §1.4) | 💡 flatland-rl on the branch `main` since dbdbcec (F-16, F-17) until the 5.0.0 release; episodes by commit ✅ | - |
-| NFR-3 | Online equals offline | `online_demo/test_online.py` in CI | ✅ CI on 641675c, Python 3.11-3.14, with the values of S-28 and no state machine (S-31, S-35) | - |
+| NFR-3 | Online equals offline | `online_demo/test_online.py` in CI | ✅ CI on eb44fda after the rebase on `main` c0efe89, Python 3.11-3.14, with the values of S-28 and no state machine (S-31, S-35) | - |
 
 ### 4.3 Phase 1: actions at cell entry (#80; REQ-1, REQ-2)
 
