@@ -100,9 +100,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         # start_step (1): -1 if no agent, agent handle otherwise
         self.agent_positions: Optional[np.ndarray] = None
 
-        # start_step (3): next (r,c,d) and action to get there; or no entry if train must not move
+        # start_step (3.1): next (r,c,d) and action to get there; or no entry if train must not move (pruned in (3.2))
         self.agent_can_move: Dict[AgentHandle, Tuple[int, int, int, RailEnvActions]] = {}
-        # start_step (3): DLA's own action for a blocked agent at an unavoidable crossing, sent instead of STOP_MOVING
+        # start_step (3.1): DLA's own action for a blocked agent at an unavoidable crossing, sent instead of STOP_MOVING
         self.forced_action: Dict[AgentHandle, RailEnvActions] = {}
         # start_step (2.3.2): set of oncoming agents
         self.opp_agent_map: Dict[AgentHandle, Set[AgentHandle]] = defaultdict(set)
@@ -299,13 +299,13 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         return remaining_flexible_waypoints
 
     def _start_step(self):
-        # (1)
+        # start_step (1): agent positions
         self._build_agent_position_map()
 
-        # (2)
+        # start_step (2): set paths, shortest distance maps and opposing agents
         self._update_shortest_distance_maps_and_opp_agent_map()
 
-        # (3)
+        # start_step (3): which agents can move, and with which action
         self._extract_agent_can_move()
 
     def _build_agent_position_map(self):
@@ -323,11 +323,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _update_shortest_distance_maps_and_opp_agent_map(self):
         """
-       start_step (2): update the shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
+        start_step (2): update the shortest paths to current position and update opposing agent as well as bitmap representation at start of step.
         More precisely, updates:
-        - `super()._shortest_paths`
-        - `self.shortest_distance_agent_map` (2.2)
+        - `self._set_paths` (2.1)
         - `self.full_shortest_distance_agent_map` (2.2)
+        - `self.shortest_distance_positions_agent_map` (2.2)
         - `self.shortest_distance_positions_directions_agent_map` (2.2)
         - `self.opp_agent_map` (2.3.2)
         - `self.shortest_distance_agent_map` (2.3.3)
@@ -339,7 +339,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
         for agent in self.rail_env.agents:
             handle = agent.handle
 
-            # (2.1)
+            # (2.1): the agent's set path (`SetPathPolicy._update_agent`)
             super()._update_agent(agent, self.rail_env)
 
             # (2.2)
@@ -352,7 +352,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _collect_all_agent_positions(self):
         """
-        start_step (2.0)
+        start_step (2.0): the positions of all agents (`None` for an agent off the map).
         """
         all_agent_positions = set()
         for agent in self.rail_env.agents:
@@ -361,11 +361,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _build_full_shortest_distance_agent_map(self, agent, handle):
         """
-        start_step (2.2)
+        start_step (2.2): drop the position the agent has just entered from its remaining path.
 
         Updates:
         - `self.full_shortest_distance_agent_map`
-        - `self.shortest_distance_agent_map`
+        - `self.shortest_distance_positions_agent_map`
         - `self.shortest_distance_positions_directions_agent_map`
         """
         # (2.2.1)
@@ -388,10 +388,11 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def init_shortest_distance_positions(self, agent, handle):
         """
-        start_step (2.2.1)
+        start_step (2.2.1): in the first step, the agent's remaining path is its whole set path.
 
         Initializes:
-        - `self.shortest_distance_agent_map`
+        - `self.full_shortest_distance_agent_map`
+        - `self.shortest_distance_positions_agent_map`
         - `self.shortest_distance_positions_directions_agent_map`
         """
         self.full_shortest_distance_agent_map[handle].fill(0)
@@ -407,7 +408,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _build_shortest_distance_agent_map(self, agent, handle, all_agent_positions):
         """
-        start_step (2.3)
+        start_step (2.3): opposing agents on the agent's remaining path, if the agents on it have changed: (2.3.1) the
+        agents on the remaining path, (2.3.2) which of them oppose it, (2.3.3) the free part of the path before the first
+        one.
         """
         # (2.3.1)
         prev_opp_agents = self.opp_agent_map[handle]
@@ -446,8 +449,9 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
     def _rebuild_opp_agent_map(self, handle, overlap):
         """
         start_step (2.3.2)
+
         Updates:
-        - `self.opp_agent_map` (2.3.2)
+        - `self.opp_agent_map`
         """
         self.opp_agent_map[handle] = set()
         for position in overlap:
@@ -539,7 +543,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _lookahead(self, agent: EnvAgent) -> Tuple[Tuple[Tuple[int, int], int], Tuple[Tuple[int, int], int], RailEnvActions, bool]:
         """
-        start_step (3.2): the agent's next step along its set path, as (entry point the action applies at, entry point
+        start_step (3.1.1): the agent's next step along its set path, as (entry point the action applies at, entry point
         it leads to, action, whether there is a set-path waypoint to look ahead to). Where the action applies comes from
         `SetPathPolicy._lookahead_target`.
         """
@@ -555,7 +559,7 @@ class DeadLockAvoidancePolicy(SetPathPolicy):
 
     def _prevent_entering_conflicts(self) -> None:
         """
-        start_step (3.3): of the agents that enter the map in the coming step (`_enters_map_in_coming_step`) and can
+        start_step (3.2): of the agents that enter the map in the coming step (`_enters_map_in_coming_step`) and can
         move, let only those enter that leave at least `min_free_cell` free cells to every other one. An agent that
         can't enter yet (still in malfunction, not yet due) must not be a candidate: since their paths typically
         overlap, it would block another agent that really enters.
