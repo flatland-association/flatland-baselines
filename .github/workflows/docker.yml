@@ -139,3 +139,13 @@ jobs:
             FLATLAND_RL_REF=${{ inputs.FLATLAND_RL_REF || 'latest-py3.12' }}
           tags: |
             ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-do-nothing-heuristic:${{ env.TAG }}
+      # Pins flatland-rl 4.2.6 in its Dockerfile (phase 1 of the ECML 2026 winner baseline), so no FLATLAND_RL_REF.
+      - name: Build and Push SIPP Locks Container Image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: flatland_baselines/sipp_locks/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          tags: |
+            ghcr.io/${{ steps.convert2lowercase.outputs.REPO_TAG_LOWERCASE }}-sipp-locks:${{ env.TAG }}
