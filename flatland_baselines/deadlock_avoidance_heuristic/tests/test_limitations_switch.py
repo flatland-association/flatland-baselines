@@ -2,7 +2,6 @@ from flatland.core.grid.grid4 import Grid4TransitionsEnum
 from flatland.envs.grid.rail_env_grid import RailEnvTransitionsEnum
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_env_action import RailEnvActions
-from flatland.envs.rail_env_state_machine_wrapper import RailEnvStateMachineWrapper
 from flatland.envs.rail_generators import rail_from_grid_transition_map
 from flatland.envs.rail_grid_transition_map import RailGridTransitionMap
 from flatland.envs.rail_trainrun_data_structures import Waypoint
@@ -63,7 +62,6 @@ def _build_env() -> RailEnv:
         number_of_agents=2,
         obs_builder_object=FullEnvObservation(),
     )
-    env = RailEnvStateMachineWrapper(env)
     env.reset()
     return env
 
@@ -103,7 +101,7 @@ def test_two_agents_at_switch_non_facing():
     env.step(action_dict)
 
     positions = [_position(agent) for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
 
     assert positions.count(SWITCH) == 1, "expected exactly one agent to have moved into the switch cell"
     moved = 0 if positions[0] == SWITCH else 1
