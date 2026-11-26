@@ -26,7 +26,7 @@ dependencies = [
     #           https://packaging.python.org/specifications/core-metadata for more
     #           information.
     # TODO update to released version
-    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@main",
+    "flatland-rl @ git+https://github.com/flatland-association/flatland-rl.git@565-malfunction-duration-range",
     #"flatland-rl==4.3.0",
 ]
 dynamic = ["version"]
