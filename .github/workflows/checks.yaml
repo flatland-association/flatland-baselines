@@ -2,8 +2,11 @@ name: Checks
 
 env:
   # DEPENDENCY SWITCH:
-  flatland-rl-ref: 178-agents-living-on-the-edge-5
-  flatland-benchmarks-episodes-url: "https://github.com/flatland-association/flatland-scenarios/raw/refs/heads/178-agents-living-on-the-edge-3/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v6.zip"
+  # TODO update to released version
+  flatland-rl-ref: main
+  # TODO pin to a flatland-scenarios commit on main once flatland-scenarios#34 (episodes v7) is merged; until then the commit
+  #  that last changed the v7 archive on its branch 178-agents-living-on-the-edge-9.
+  flatland-benchmarks-episodes-url: "https://github.com/flatland-association/flatland-scenarios/raw/2fc3331912d74692adf039dad73e96387068015a/trajectories/FLATLAND_BENCHMARK_EPISODES_FOLDER_v7.zip"
   # Public ECML 2026 example scenario, same URL as flatland-rl's checks.yml.
   ecml2026-pkl: "https://github.com/flatland-association/ecml2026-starterkit/raw/refs/heads/main/reinforcement_learning/sampling/level_0_scenario_1.pkl"
 
@@ -25,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        python-version: [ "3.11", "3.12", "3.13", "3.14" ]
     steps:
       - name: Inspect disk
         run: |
@@ -79,7 +82,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        python-version: [ "3.11", "3.12", "3.13", "3.14" ]
     steps:
       - name: Inspect disk
         run: |
