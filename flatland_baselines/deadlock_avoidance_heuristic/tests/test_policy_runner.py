@@ -14,7 +14,10 @@ from flatland.trajectories.policy_runner import generate_trajectory_from_policy
 @pytest.mark.parametrize(
     "seed, expected",
     [
-        (1002, {'normalized_reward': -0.0035335689540936395 + 1, 'percentage_complete': 1.0, 'reward': -7, 'termination_cause': None, }),
+        # NOTE: seed=1002's reward/normalized_reward re-calibrated for
+        # flatland-rl@178-agents-living-on-the-edge-14's earliest_departure=0 dispatch-timing fix
+        # (issue #280): one step earlier, -7 -> -6. seed=1003 and None unaffected.
+        (1002, {'normalized_reward': -0.0030287733467945007 + 1, 'percentage_complete': 1.0, 'reward': -6, 'termination_cause': None, }),
         (1003, {'normalized_reward': -0.0095911155981827365 + 1, 'percentage_complete': 1.0, 'reward': -19, 'termination_cause': None}),
         (None, {'normalized_reward': 0.0 + 1, 'termination_cause': None, 'reward': 0, 'percentage_complete': 1.0}),
     ])

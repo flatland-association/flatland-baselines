@@ -101,7 +101,7 @@ def test_two_agents_at_switch_non_facing():
     env.step(action_dict)
 
     positions = [_position(agent) for agent in env.agents]
-    states = [agent.state for agent in env.agents]
+    states = [agent.derived_state(env._elapsed_steps) for agent in env.agents]
 
     assert positions.count(SWITCH) == 1, "expected exactly one agent to have moved into the switch cell"
     moved = 0 if positions[0] == SWITCH else 1
