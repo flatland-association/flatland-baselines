@@ -1,5 +1,44 @@
 # Changelog
 
+## [4.4.0](https://github.com/flatland-association/flatland-baselines/compare/v4.3.0...v4.4.0) (2026-11-26)
+
+
+### Features
+
+* **sipp-locks:** add the ECML 2026 winner as baseline on flatland-rl 4.2.6. ([c0efe89](https://github.com/flatland-association/flatland-baselines/commit/c0efe899635756c1585029737dfc2ad3939626de))
+* **sipp-locks:** import ECML 2026 winner v4-sipp-locks unchanged from darshanmakwana412/ecml2026@efcdd89. ([80124cb](https://github.com/flatland-association/flatland-baselines/commit/80124cb1c4c531de4915145cc8e628698fcdce36))
+* **sipp-locks:** run v4-sipp-locks as baseline on flatland-rl 4.2.6. ([2172dfb](https://github.com/flatland-association/flatland-baselines/commit/2172dfbc62622a38af8fa1eaaf86b16a70e7dad4))
+
+
+### Bug Fixes
+
+* also detect a first-step earliest_departure=0 WAITING agent as entering ([c5af0fb](https://github.com/flatland-association/flatland-baselines/commit/c5af0fb395990f7d73a6e67271349d51aff54519))
+* bump flatland-rl pin to fix/policy-runner-skip-state-machine-update, request wrapped env for DLA ([c1a55fe](https://github.com/flatland-association/flatland-baselines/commit/c1a55fe5ff4ff04f2dd90ed10712afcc9d6867dc))
+* bump flatland-rl pin to main, resolving the reload-without-no_save gap ([f75fcad](https://github.com/flatland-association/flatland-baselines/commit/f75fcad1ba7f41f92bb3c3c3c4093760491950da))
+* comply with upstream D1*, consider agents ending an off-map malfunction in entering prevention (flatland-rl[#513](https://github.com/flatland-association/flatland-baselines/issues/513)). ([efbad31](https://github.com/flatland-association/flatland-baselines/commit/efbad31c42a2dfa82c64ac58236ccb789f6e2c70))
+* comply with upstream D2.7, send the planned direction instead of STOP_MOVING on an unavoidable crossing (flatland-rl[#509](https://github.com/flatland-association/flatland-baselines/issues/509)). ([b494818](https://github.com/flatland-association/flatland-baselines/commit/b4948186dae40c3d547d03ef9528b791b76df7a1))
+* comply with upstream D5/6, see an agent with earliest departure 0 as entering in the first step (flatland-rl[#515](https://github.com/flatland-association/flatland-baselines/issues/515)). ([ce15b5f](https://github.com/flatland-association/flatland-baselines/commit/ce15b5f93247423ea04cedcfe4d2d106c7bf2246))
+* comply with upstream optional state machine, wrap the environments the tests build (flatland-rl[#520](https://github.com/flatland-association/flatland-baselines/issues/520)). ([509a60d](https://github.com/flatland-association/flatland-baselines/commit/509a60df4bbbb428ced38bee9810d51eec85b7dc))
+* consider malfunction-off-map agents in entering-prevention pairwise check ([9aef117](https://github.com/flatland-association/flatland-baselines/commit/9aef11789fd0e15205a726967863c9a909cc460d))
+* **dla:** mirror the engine's departure rules in entering prevention. ([2b0a6c9](https://github.com/flatland-association/flatland-baselines/commit/2b0a6c9fcd8cd7caa09caca189805a7ed9aa9be2))
+* **dla:** send a directional action for an unavoidable crossing only where STOP_MOVING would leave the planned path. ([04793df](https://github.com/flatland-association/flatland-baselines/commit/04793df989aa82d6cfecb8f1104c601b5d9fb36f))
+* honor no_save in create_from_policy reload, bump flatland-rl pin to edge-19 ([d169d2f](https://github.com/flatland-association/flatland-baselines/commit/d169d2f82dd47a5a104a2cd0082b082e73d4494e))
+* only treat a malfunction-off-map agent as entering once its malfunction actually clears ([16ae0cf](https://github.com/flatland-association/flatland-baselines/commit/16ae0cf4bf6e1e84e9fa84017a916b0893806db8))
+* pin flatland-rl to [#541](https://github.com/flatland-association/flatland-baselines/issues/541)'s head with the pandas 3 fix for tuple rewards. ([5401473](https://github.com/flatland-association/flatland-baselines/commit/54014731286841329059ee63dd54c02abe0a8567))
+* pin flatland-rl to the merge commit of flatland-rl[#541](https://github.com/flatland-association/flatland-baselines/issues/541) on main. ([911fbc9](https://github.com/flatland-association/flatland-baselines/commit/911fbc9fe67500f257745f9d9aae2c028863524e))
+* pin flatland-rl to the rebased head of fix/policy-runner-skip-state-machine-update, re-calibrate the offline demo for flatland-rl [#545](https://github.com/flatland-association/flatland-baselines/issues/545). ([2377240](https://github.com/flatland-association/flatland-baselines/commit/23772406e62b446129511da9ad06ac8b9b868398))
+* point edge-19 pin at flatland-rl's actual merged PR [#522](https://github.com/flatland-association/flatland-baselines/issues/522) commit ([d1bafae](https://github.com/flatland-association/flatland-baselines/commit/d1bafae7fe49fd58fa68538248805cff90b8d0d6))
+* **policies:** let SetPathPolicy act for an agent parked at its target. ([4970b3d](https://github.com/flatland-association/flatland-baselines/commit/4970b3d292c31b999de5fb917b50990efe7927fb))
+* **policies:** try SetPathPolicy's actions in a fixed order, so the chosen action does not depend on the hash seed. ([2c74391](https://github.com/flatland-association/flatland-baselines/commit/2c7439151155605d9fe0547fb3ac44df1e70b69c))
+* **policies:** use flatland-rl's _check_action_on_agent in SetPathPolicy._act and test it. ([e61c670](https://github.com/flatland-association/flatland-baselines/commit/e61c670043318fb96d00db6c09fb0e3d082312fe))
+* re-calibrate DLA success-rate/reward golden values for flatland-rl@edge-9 ([3563fe9](https://github.com/flatland-association/flatland-baselines/commit/3563fe9e6145d213189d34e6639228f00bd07770))
+* re-calibrate offline_demo environments_v2 golden values for flatland-rl@edge-17 ([c9b7956](https://github.com/flatland-association/flatland-baselines/commit/c9b7956aa2d98690df8cf063441818349116eb19))
+* re-calibrate offline_demo golden values for flatland-rl@edge-9 ([ad7d1ce](https://github.com/flatland-association/flatland-baselines/commit/ad7d1cee7eed673b1fceef5f79fd73be72844443))
+* track agent.state for DLA in online/offline demos, re-calibrate envs_v2 for flatland-rl 6788c0a7 ([3280cf7](https://github.com/flatland-association/flatland-baselines/commit/3280cf7ffa5b4cc84bec1bbd2e2047c4d44ba875))
+* track flatland-rl's Configuration/ObservationType renames and the cell-entry action timing change ([0bc55e1](https://github.com/flatland-association/flatland-baselines/commit/0bc55e1d6b4d95ddac3a20e33b76d561c2559aef))
+* track flatland-rl's ObservationBuilder TypeVar rename (Observation -&gt; ObservationT) ([5a4e7fb](https://github.com/flatland-association/flatland-baselines/commit/5a4e7fbe49e125f7f89069788cd467d8afb44720))
+* wrap test RailEnv construction with RailEnvStateMachineWrapper, bump flatland-rl pin to edge-17 ([3bf802d](https://github.com/flatland-association/flatland-baselines/commit/3bf802d96ff196925dbb6d5158d3f0455e2ff87d))
+
 ## [4.3.0](https://github.com/flatland-association/flatland-baselines/compare/v4.2.5...v4.3.0) (2026-08-13)
 
 
