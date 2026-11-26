@@ -17,8 +17,10 @@ from flatland.trajectories.policy_runner import generate_trajectory_from_policy
         # NOTE: seed=1002's reward/normalized_reward re-calibrated for
         # flatland-rl@178-agents-living-on-the-edge-14's earliest_departure=0 dispatch-timing fix
         # (issue #280): one step earlier, -7 -> -6. seed=1003 and None unaffected.
+        # seed=1003's re-calibrated for flatland-rl#565 (malfunction durations drawn from min_duration to
+        # max_duration, as documented, each malfunction one step shorter): one step earlier, -19 -> -18.
         (1002, {'normalized_reward': -0.0030287733467945007 + 1, 'percentage_complete': 1.0, 'reward': -6, 'termination_cause': None, }),
-        (1003, {'normalized_reward': -0.0095911155981827365 + 1, 'percentage_complete': 1.0, 'reward': -19, 'termination_cause': None}),
+        (1003, {'normalized_reward': -0.0090863200403836 + 1, 'percentage_complete': 1.0, 'reward': -18, 'termination_cause': None}),
         (None, {'normalized_reward': 0.0 + 1, 'termination_cause': None, 'reward': 0, 'percentage_complete': 1.0}),
     ])
 def test_env_path_and_seed(seed, expected):
