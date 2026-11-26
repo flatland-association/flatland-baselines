@@ -46,8 +46,14 @@ PYTHONPATH=$PWD flatland-trajectory-generate-from-policy \
 Some tests need extra setup:
 
 - `test_episodes_deadlock_avoidance.py` replays recorded episodes and requires `BENCHMARK_EPISODES_FOLDER` to point
-  at an extracted copy of `FLATLAND_BENCHMARK_EPISODES_FOLDER_v5.zip` (see `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`,
-  which ships as part of flatland-rl, not this repo).
+  at an extracted copy of the episodes zip named in `checks.yaml`'s `env.flatland-benchmarks-episodes-url` (see
+  `benchmarks.benchmark_episodes.DOWNLOAD_INSTRUCTIONS`, which ships as part of flatland-rl, not this repo) — the
+  archive version (`FLATLAND_BENCHMARK_EPISODES_FOLDER_v*.zip`) bumps whenever the pinned flatland-rl ref changes
+  episode-relevant behavior, so check that URL rather than assuming a specific version. Its whole parametrized suite
+  is currently `@pytest.mark.skip`ped wholesale ([flatland-scenarios#37](https://github.com/flatland-association/flatland-scenarios/issues/37)): `DeadLockAvoidancePolicy` is a live/reactive policy, so a
+  flatland-rl engine timing change makes it genuinely re-decide differently than what a recorded trajectory
+  captured before that change — the fix is a live rerun to regenerate the recording, not a values tweak, so it's
+  skipped rather than left red until that regeneration happens.
 - `test_policy_grid_runner_evaluator.py` needs no extra setup — it drives `generate_trajectories_from_metadata`/
   `evaluate_trajectories_from_metadata` against `env_data/tests/service_test` fixtures that ship inside flatland-rl
   itself (packaged and pip-installed alongside `flatland`, not this repo).
@@ -64,16 +70,23 @@ paths in its `__main__` block to point at a local `flatland-scenarios` checkout 
 
 There is no lint/format tooling configured in this repo (no ruff/flake8/pre-commit config).
 
+Releases are automated: `release-please` (`.github/workflows/release-please.yml`) opens release PRs off
+Conventional Commit messages on `main` and publishes to PyPI on merge — write commit messages accordingly
+(`fix:`, `feat:`, `chore:`, etc.).
+
 ## The flatland-rl version pin
 
 `flatland-rl` is a separate, fast-moving upstream package. The exact pinned ref/version is duplicated in three
 places — all three must be bumped together (each has a `# DEPENDENCY SWITCH` comment marking it):
 
-- `pyproject.toml` — currently `flatland-rl==4.3.0` (pip package), with `flatland-rl @
-  git+https://github.com/flatland-association/flatland-rl.git@v4.3.0` present but commented out
-- `environment.yml` — currently `flatland-rl[ml]==4.3.0` (pip package), with the equivalent `git+https://...`
-  form commented out
-- `.github/workflows/checks.yaml` — `env.flatland-rl-ref`, currently `v4.3.0`
+- `pyproject.toml` — either `flatland-rl==X.Y.Z` (pip package) or `flatland-rl @
+  git+https://github.com/flatland-association/flatland-rl.git@<ref>`, with the other form commented out
+- `environment.yml` — either `flatland-rl[ml]==X.Y.Z` (pip package) or the equivalent `git+https://...` form,
+  with the other commented out
+- `.github/workflows/checks.yaml` — `env.flatland-rl-ref`, set to the matching `vX.Y.Z` tag or branch name
+
+Check the actual current value in each file rather than assuming — this pin moves frequently (e.g. across a
+sequence of in-flight branches while co-developing a flatland-rl feature).
 
 `pyproject.toml`/`environment.yml` each carry two alternative forms and exactly one must be active (the other
 commented out) at any time — which one depends on whether the pin targets a released version or an unreleased
@@ -107,10 +120,9 @@ before assuming compatibility.
 ### Baselines layout
 
 Each top-level directory under `flatland_baselines/` (`deadlock_avoidance_heuristic`, `do_nothing_heuristic`,
-`forever_heuristic`, `forward_only_heuristic`, `random`, `self_attention_ppo`, `tree_lstm_ppo`, `sipp_locks`) is an
-independent baseline with its own `Dockerfile` for submission as a container to the Flatland Benchmarks evaluator.
-The simple ones are a few lines implementing `RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial
-one.
+`forever_heuristic`, `forward_only_heuristic`, `random`, `sipp_locks`) is an independent baseline with its own
+`Dockerfile` for submission as a container to the Flatland Benchmarks evaluator. The simple ones are a few lines
+implementing `RailEnvPolicy.act`; `deadlock_avoidance_heuristic` is the substantial one.
 
 `sipp_locks` is the ECML 2026 non-RL winner, vendored from `darshanmakwana412/ecml2026` (provenance, licence and
 limitations in its `README.md`; plan in `docs/plans/ecml2026-winner-baseline.md`). Until its port to flatland 5.0.0 it
@@ -139,6 +151,48 @@ Key constructor knobs on `DeadLockAvoidancePolicy`: `min_free_cell`, `count_num_
 
 `observation/full_env_observation.py`'s `FullEnvObservation` just returns the whole `RailEnv` — DLA is centralized
 (plans for all agents at once from global state), unlike per-agent tree observations.
+
+DLA never reads a train state (`agent.state` or `TrainState`): it decides from the agents' facts, through small
+helpers in `DeadLockAvoidancePolicy` (`_is_done`, `_is_en_route`, `_is_before_departure`, `_is_not_ready_to_depart`,
+`_enters_map_in_coming_step`): target reached (`target_entry_point`), position, `malfunction_handler`, speed
+(`speed_counter.is_cell_exit()`) and earliest departure with the step count. So DLA needs neither
+`RailEnvStateMachineWrapper` nor the runners' `--skip-state-machine-update False`; on a plain flatland-rl 5.0 env,
+`agent.state` would stay `WAITING`. `SetPathPolicy` still reads flatland-rl's `agent.derived_state(env._elapsed_steps)`
+(`SetPathPolicy._derived_state`) for "done", until it is based on flatland-rl's `ShortestPathPolicy`.
+
+The step semantics DLA relies on below (speed and distance, `is_cell_exit()`, step counting and departure) are
+described in the flatland-book's draft for flatland-rl 5.0.0, [Speed Profiles](https://github.com/flatland-association/flatland-book/blob/0dd2d374df5e02d67aac6ec8dd11b3eb14e07931/environment/environment/speed_profiles.ipynb) ([flatland-book#42](https://github.com/flatland-association/flatland-book/pull/42), at 0dd2d37). They
+may change until 5.0.0 (e.g. flatland-rl#559 proposes that the env no longer enforces the earliest departure). The
+draft still describes a refused crossing as leaving the agent at the end of its cell (distance 1), which is the
+behaviour before flatland-rl#545: at the pinned flatland-rl, the agent keeps its distance.
+
+Since flatland-rl#178 ("let STOP_MOVING complete an in-flight cell-boundary crossing"), a `MOVING` agent whose
+distance plus speed reaches the end of its cell this step (`agent.speed_counter.is_cell_exit()`) crosses into its
+next entry point with any action valid there — `STOP_MOVING` no longer prevents the crossing, it only lowers the
+speed afterwards, and (unlike a real `MOVE_LEFT`/`MOVE_RIGHT`) can be silently routed onto the
+wrong branch at a switch by flatland-rl's own action-resolution fallback. An agent never sits on the exit of its
+cell: since flatland-rl#545, a refused crossing (an action invalid there, or the next cell taken) stops the agent
+(speed 0) and keeps its distance. `_update_agent_can_move` accounts for
+this: whenever a crossing is unavoidable this way (on the map, not in malfunction, and
+`agent.speed_counter.is_cell_exit()`) and opposition blocks the agent, it computes DLA's intended directional action
+toward the agent's planned path, and stores it in `forced_action` (used by `_act` in place of `STOP_MOVING`) only
+where `STOP_MOVING` would resolve to another branch than the planned one (`_stop_moving_leaves_path`, using
+flatland-rl's own `apply_action_independent`). Elsewhere it sends `STOP_MOVING`: the crossing still completes, but
+the agent brakes and stops in the cell it crosses into, instead of driving on into the conflict.
+
+`use_entering_prevention` (opt-in, default `False`) stops more than one off-map agent from entering the map on
+the same tick when that would leave fewer than `min_free_cell` cells between their paths. Its `entering_agents`
+candidate list (`_prevent_entering_conflicts` with `_enters_map_in_coming_step`) mirrors flatland-rl's own map-entry
+rule (`RailEnv._candidate_entry_points`), which uses `earliest_departure` and the step count, not the agent's state:
+in the coming `env.step()`, `_elapsed_steps` is incremented and the malfunction counter decremented first, so an
+off-map agent is a candidate if `earliest_departure <= _elapsed_steps + 1` and `malfunction_down_counter <= 1`.
+The state `READY_TO_DEPART` alone would miss agents that enter without being `READY_TO_DEPART` the
+step before: a `MALFUNCTION_OFF_MAP` agent whose malfunction clears in its departure step, and (flatland-rl issue
+#280) a `WAITING` agent with `earliest_departure` 0 or 1 in the first step. Missing one defeats
+`use_entering_prevention` for that agent; including an agent that can't enter yet (still in malfunction, or not yet
+due) instead blocks a *different*, really entering agent, since `self.agent_can_move` has no notion of
+malfunctions (purely geometric opposition detection) and the two agents' paths typically overlap on a shared
+single-track segment.
 
 **Known limitations** (see `deadlock_avoidance_heuristic/README.md` and, as tests, `tests/test_entering_prevention.py`,
 `tests/test_limitations_switch.py` and `tests/test_limitations_two_switches.py`): the opposition check is

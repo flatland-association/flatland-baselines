@@ -4,5 +4,6 @@ dependencies:
   - pip:
       - pytest
       # DEPENDENCY SWITCH:
-      #- git+https://github.com/flatland-association/flatland-rl.git@v4.3.0
-      - flatland-rl[ml]==4.3.0
+      # TODO update to released version
+      - git+https://github.com/flatland-association/flatland-rl.git@main
+      #- flatland-rl[ml]==4.3.0
